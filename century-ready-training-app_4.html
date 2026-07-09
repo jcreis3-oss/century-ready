@@ -1,0 +1,2785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Century Ready — Civil War Century Training</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============ DESIGN TOKENS ============ */
+:root{
+  --navy:#12293e;
+  --blue-deep:#1c3f5c;
+  --blue:#2f6690;
+  --blue-mid:#4a84ad;
+  --blue-pale:#eaf1f6;
+  --grey-50:#f6f8f9;
+  --grey-100:#eef1f3;
+  --grey-200:#e0e5e9;
+  --grey-400:#9aa7b2;
+  --grey-600:#5c6b78;
+  --grey-800:#2b3742;
+  --white:#ffffff;
+  --teal:#2f9e8f;
+  --teal-dark:#217769;
+  --teal-pale:#e4f5f2;
+  --orange:#e0894f;
+  --orange-pale:#fbeade;
+  --red:#c1554a;
+  --red-pale:#f8e7e5;
+  --radius-sm:6px;
+  --radius-md:10px;
+  --radius-lg:16px;
+  --shadow-sm:0 1px 2px rgba(18,41,62,0.06), 0 1px 1px rgba(18,41,62,0.04);
+  --shadow-md:0 4px 14px rgba(18,41,62,0.08);
+  --shadow-lg:0 12px 32px rgba(18,41,62,0.14);
+  --font-display:'Lexend', 'Inter', sans-serif;
+  --font-body:'Inter', sans-serif;
+  --font-mono:'Roboto Mono', monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:var(--font-body);
+  background:var(--grey-50);
+  color:var(--grey-800);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+}
+h1,h2,h3,h4{font-family:var(--font-display); color:var(--navy); margin:0; font-weight:700;}
+p{margin:0;}
+button{font-family:inherit; cursor:pointer;}
+input,select,textarea{font-family:inherit; font-size:14px;}
+::selection{background:var(--teal-pale);}
+
+/* ============ LAYOUT ============ */
+#root{max-width:1180px; margin:0 auto; padding:0 20px 80px;}
+
+.app-header{
+  background:linear-gradient(135deg, var(--navy) 0%, var(--blue-deep) 55%, var(--blue) 100%);
+  color:var(--white);
+  border-radius:0 0 var(--radius-lg) var(--radius-lg);
+  padding:28px 28px 22px;
+  margin-bottom:22px;
+  position:relative;
+  overflow:hidden;
+}
+.app-header::before{
+  content:"";
+  position:absolute; right:-60px; top:-60px; width:260px; height:260px; border-radius:50%;
+  background:radial-gradient(circle, rgba(47,158,143,0.35) 0%, rgba(47,158,143,0) 70%);
+}
+.app-header .eyebrow{
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#aecbdd; font-weight:600;
+}
+.app-header h1{color:var(--white); font-size:26px; margin-top:4px;}
+.app-header .sub{color:#c7dced; font-size:13.5px; margin-top:6px; max-width:560px;}
+.header-stats{
+  display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; position:relative; z-index:1;
+}
+.stat-pill{
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.16);
+  backdrop-filter:blur(6px);
+  border-radius:var(--radius-md);
+  padding:10px 16px;
+  min-width:118px;
+}
+.stat-pill .num{font-family:var(--font-display); font-size:20px; font-weight:700; color:#fff; line-height:1;}
+.stat-pill .lbl{font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:#b9d3e4; margin-top:4px;}
+
+/* ============ NAV ============ */
+.tabnav{
+  display:flex; gap:4px; background:var(--white); border:1px solid var(--grey-200);
+  border-radius:var(--radius-md); padding:5px; margin-bottom:22px; box-shadow:var(--shadow-sm);
+  overflow-x:auto;
+}
+.tabnav button{
+  border:none; background:transparent; padding:10px 18px; border-radius:8px;
+  font-size:13.5px; font-weight:600; color:var(--grey-600); white-space:nowrap;
+  transition:all .15s ease;
+}
+.tabnav button:hover{color:var(--navy); background:var(--grey-50);}
+.tabnav button.active{background:var(--navy); color:#fff;}
+
+/* ============ CARDS ============ */
+.card{
+  background:var(--white); border:1px solid var(--grey-200); border-radius:var(--radius-lg);
+  padding:22px; margin-bottom:18px; box-shadow:var(--shadow-sm);
+}
+.card-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;}
+.card-header h2{font-size:17px;}
+.card-header .meta{font-size:12.5px; color:var(--grey-600); font-weight:500;}
+
+.section-title{
+  font-family:var(--font-display); font-size:13px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--teal-dark); font-weight:700; margin:26px 0 12px;
+  display:flex; align-items:center; gap:8px;
+}
+.section-title::after{content:""; flex:1; height:1px; background:var(--grey-200);}
+
+/* ============ BADGES ============ */
+.badge{
+  display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700;
+  padding:4px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:.04em;
+}
+.badge-rest{background:var(--grey-100); color:var(--grey-600);}
+.badge-indoor{background:var(--blue-pale); color:var(--blue);}
+.badge-outdoor{background:var(--teal-pale); color:var(--teal-dark);}
+.badge-strength{background:var(--orange-pale); color:#a15a26;}
+.badge-mobility{background:#f1ecf9; color:#6b4fa0;}
+.badge-recovery{background:var(--grey-100); color:var(--grey-600);}
+.badge-race{background:var(--red-pale); color:var(--red);}
+.badge-foundation{background:var(--blue-pale); color:var(--blue);}
+.badge-build{background:var(--teal-pale); color:var(--teal-dark);}
+.badge-recoveryweek{background:var(--grey-100); color:var(--grey-600);}
+.badge-peak{background:var(--orange-pale); color:#a15a26;}
+.badge-taper{background:var(--red-pale); color:var(--red);}
+
+/* ============ DASHBOARD TODAY ============ */
+.today-banner{
+  display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;
+}
+.today-banner .dateline{font-size:12.5px; color:var(--grey-600); font-weight:600; text-transform:uppercase; letter-spacing:.05em;}
+.today-banner h2{font-size:21px; margin-top:2px;}
+
+.workout-item{
+  border:1px solid var(--grey-200); border-radius:var(--radius-md); margin-bottom:12px; overflow:hidden;
+  background:var(--grey-50);
+}
+.workout-item .wi-head{
+  display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer;
+  gap:10px;
+}
+.workout-item .wi-head:hover{background:var(--grey-100);}
+.workout-item .wi-title{font-weight:700; font-size:14.5px; color:var(--navy);}
+.workout-item .wi-desc{font-size:12.5px; color:var(--grey-600); margin-top:3px; max-width:520px;}
+.wi-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+.wi-time{font-size:12px; color:var(--grey-600); font-weight:600; white-space:nowrap;}
+.chev{transition:transform .18s ease; color:var(--grey-400); flex-shrink:0;}
+.chev.open{transform:rotate(180deg);}
+.wi-body{padding:0 16px 18px; display:none; border-top:1px solid var(--grey-200); background:#fff;}
+.wi-body.open{display:block;}
+.wi-target{
+  font-size:12.5px; color:var(--grey-700); background:var(--blue-pale); border-radius:var(--radius-sm);
+  padding:9px 12px; margin:14px 0 4px; line-height:1.55;
+}
+.wi-target b{color:var(--blue);}
+
+.field-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:12px;}
+.field{display:flex; flex-direction:column; gap:5px;}
+.field label{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; font-weight:700; color:var(--grey-600);}
+.field input, .field select, .field textarea{
+  border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:8px 10px; font-size:13.5px;
+  background:#fff; color:var(--grey-800); width:100%; transition:border-color .15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus{outline:none; border-color:var(--teal); background:#fff;}
+.field textarea{resize:vertical; min-height:52px;}
+.field.wide{grid-column:1/-1;}
+.save-row{display:flex; align-items:center; gap:10px; margin-top:14px;}
+.btn{
+  border:none; border-radius:var(--radius-sm); padding:9px 16px; font-size:13px; font-weight:700;
+  transition:all .15s ease;
+}
+.btn-primary{background:var(--teal); color:#fff;}
+.btn-primary:hover{background:var(--teal-dark);}
+.btn-ghost{background:transparent; color:var(--grey-600); border:1.5px solid var(--grey-200);}
+.btn-ghost:hover{border-color:var(--grey-400); color:var(--navy);}
+.save-tick{font-size:12px; color:var(--teal-dark); font-weight:600; opacity:0; transition:opacity .2s;}
+.save-tick.show{opacity:1;}
+
+/* week strip */
+.week-strip{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-top:14px;}
+.day-pill{
+  flex:1; min-width:78px; border:1.5px solid var(--grey-200); border-radius:var(--radius-md);
+  padding:10px 6px; text-align:center; cursor:pointer; background:#fff; transition:all .15s;
+}
+.day-pill:hover{border-color:var(--blue-mid);}
+.day-pill.today{border-color:var(--teal); background:var(--teal-pale);}
+.day-pill.selected{box-shadow:0 0 0 2px var(--navy) inset;}
+.day-pill .dp-dow{font-size:10px; color:var(--grey-600); font-weight:700; text-transform:uppercase;}
+.day-pill .dp-date{font-size:15px; font-weight:700; color:var(--navy); margin:2px 0;}
+.day-pill .dp-tag{font-size:9.5px; color:var(--grey-600); font-weight:600;}
+.day-pill .dp-dot{width:6px; height:6px; border-radius:50%; margin:4px auto 0;}
+
+/* nutrition widget */
+.nutri-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:6px;}
+@media(max-width:700px){.nutri-grid{grid-template-columns:repeat(2,1fr);}}
+.nutri-box{background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-md); padding:14px;}
+.nutri-box .nlabel{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--grey-600); font-weight:700;}
+.nutri-box .nval{font-family:var(--font-display); font-size:20px; color:var(--navy); font-weight:700; margin-top:4px;}
+.nutri-box .ntarget{font-size:11.5px; color:var(--grey-600); margin-top:2px;}
+.bar-track{height:6px; background:var(--grey-200); border-radius:4px; margin-top:8px; overflow:hidden;}
+.bar-fill{height:100%; background:var(--teal); border-radius:4px; transition:width .3s;}
+.bar-fill.over{background:var(--orange);}
+
+/* week accordion (schedule tab) */
+.week-block{border:1px solid var(--grey-200); border-radius:var(--radius-lg); margin-bottom:14px; overflow:hidden; background:#fff;}
+.week-block-head{display:flex; align-items:center; justify-content:space-between; padding:16px 20px; cursor:pointer; gap:12px; flex-wrap:wrap;}
+.week-block-head:hover{background:var(--grey-50);}
+.week-block-head .wtitle{font-family:var(--font-display); font-weight:700; font-size:15.5px; color:var(--navy);}
+.week-block-head .wsub{font-size:12px; color:var(--grey-600); margin-top:2px;}
+.week-block-body{display:none; border-top:1px solid var(--grey-200);}
+.week-block-body.open{display:block;}
+.day-row{padding:16px 20px; border-bottom:1px solid var(--grey-100);}
+.day-row:last-child{border-bottom:none;}
+.day-row-head{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+.day-row-head .drtitle{font-weight:700; font-size:14px; color:var(--navy);}
+.day-row-head .drdate{font-size:11.5px; color:var(--grey-600); font-weight:600;}
+
+/* profile */
+.profile-grid{display:grid; grid-template-columns:1.1fr 1fr; gap:20px;}
+@media(max-width:820px){.profile-grid{grid-template-columns:1fr;}}
+.zone-table{width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;}
+.zone-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--grey-600); padding:6px 8px; border-bottom:1.5px solid var(--grey-200);}
+.zone-table td{padding:7px 8px; border-bottom:1px solid var(--grey-100);}
+.zone-swatch{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:7px;}
+.calc-box{background:var(--blue-pale); border-radius:var(--radius-md); padding:16px; margin-top:14px;}
+.calc-box .cline{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px dashed rgba(47,102,144,0.25);}
+.calc-box .cline:last-child{border-bottom:none; font-weight:700; color:var(--blue);}
+
+/* progress tab */
+.progress-table{width:100%; border-collapse:collapse; font-size:13px;}
+.progress-table th{text-align:left; padding:9px 10px; font-size:10.5px; text-transform:uppercase; color:var(--grey-600); border-bottom:1.5px solid var(--grey-200); letter-spacing:.04em;}
+.progress-table td{padding:9px 10px; border-bottom:1px solid var(--grey-100);}
+.progress-table tr:hover td{background:var(--grey-50);}
+.empty-state{text-align:center; padding:40px 20px; color:var(--grey-600);}
+.empty-state h3{color:var(--grey-800); margin-bottom:6px;}
+
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+@media(max-width:820px){.two-col{grid-template-columns:1fr;}}
+
+.pill-toggle{display:inline-flex; border:1.5px solid var(--grey-200); border-radius:20px; overflow:hidden;}
+.pill-toggle button{border:none; background:#fff; padding:6px 14px; font-size:12px; font-weight:700; color:var(--grey-600);}
+.pill-toggle button.active{background:var(--navy); color:#fff;}
+
+.info-callout{
+  background:var(--orange-pale); border-left:3px solid var(--orange); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+  padding:12px 14px; font-size:12.5px; color:#7a4622; margin-top:14px; line-height:1.6;
+}
+.info-callout b{color:#5c3517;}
+
+.footer-note{text-align:center; font-size:11.5px; color:var(--grey-400); margin-top:30px; padding-bottom:10px;}
+
+svg.sparkline{width:100%; height:110px;}
+
+/* modal */
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(18,41,62,0.55); display:flex; align-items:center; justify-content:center;
+  z-index:1000; padding:20px;
+}
+.modal-box{
+  background:#fff; border-radius:var(--radius-lg); padding:24px; max-width:440px; width:100%; box-shadow:var(--shadow-lg);
+  max-height:85vh; overflow-y:auto;
+}
+.modal-box.wide{max-width:720px;}
+
+/* editor */
+.editor-layout{display:grid; grid-template-columns:280px 1fr; gap:18px;}
+@media(max-width:820px){.editor-layout{grid-template-columns:1fr;}}
+.editor-search{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+.lib-list{display:flex; flex-direction:column; gap:8px; max-height:560px; overflow-y:auto;}
+.lib-row{
+  border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; cursor:pointer; background:#fff;
+  transition:all .12s;
+}
+.lib-row:hover{border-color:var(--blue-mid); background:var(--grey-50);}
+.lib-row.active{border-color:var(--teal); background:var(--teal-pale);}
+.lib-row .lr-name{font-weight:700; font-size:13px; color:var(--navy);}
+.lib-row .lr-meta{font-size:11px; color:var(--grey-600); margin-top:2px;}
+.tag-chip{display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:2px 7px; border-radius:10px; background:var(--grey-100); color:var(--grey-600); margin-right:4px;}
+.exercise-row-editor{border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px;}
+.filter-chips{display:flex; flex-wrap:wrap; gap:6px;}
+.filter-chip{border:1.5px solid var(--grey-200); background:#fff; border-radius:16px; padding:5px 12px; font-size:11.5px; font-weight:700; color:var(--grey-600); cursor:pointer;}
+.filter-chip.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* ============================================================
+   CENTURY READY — DATA LAYER v2
+   Event: Civil War Century, Thurmont MD — Sat Sept 19, 2026
+   Plan start: dynamic (defaults to first-run date), always ends
+   the day after the event. Phases are anchored to the event date
+   so the plan works correctly regardless of when it was started.
+   ============================================================ */
+
+const EVENT = {
+  name: "Civil War Century",
+  location: "Thurmont, MD",
+  date: "2026-09-19",
+  url: "https://www.active.com/thurmont-md/cycling/races/civil-war-century-2026"
+};
+
+function dateAdd(iso, days){
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+function fmtDate(iso){ const d = new Date(iso+"T00:00:00"); return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
+function fmtDateLong(iso){ const d = new Date(iso+"T00:00:00"); return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+function dowShort(iso){ const d = new Date(iso+"T00:00:00"); return d.toLocaleDateString('en-US',{weekday:'short'}).toUpperCase(); }
+function dowKey(iso){ return ["sun","mon","tue","wed","thu","fri","sat"][new Date(iso+"T00:00:00").getDay()]; }
+function dayNum(iso){ return new Date(iso+"T00:00:00").getDate(); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.round((new Date(b+"T00:00:00") - new Date(a+"T00:00:00")) / 86400000); }
+function uid(prefix){ return prefix + "_" + Math.random().toString(36).slice(2,9); }
+
+/* Fixed anchor: week 1 of the original 10-week build always starts 68 days
+   before the event, regardless of when the user actually begins training. */
+const WEEK1_ANCHOR = dateAdd(EVENT.date, -68);   // 2026-07-13
+const PLAN_HARD_END = dateAdd(EVENT.date, 1);    // day after the race
+
+/* ---------------- EXERCISE LIBRARY (seed data) ---------------- */
+const EXERCISE_SEED = {
+  pushup:      {name:"Push-Up", bodyGroup:"upper", bodyParts:["chest","arms","shoulders"], desc:"Standard or knee push-up — hands under shoulders, brace your core, lower your chest to the floor and press back up.", sets:"2", reps:"10"},
+  row:         {name:"Bent-Over Row", bodyGroup:"upper", bodyParts:["back","arms"], desc:"Hinge at the hips with a flat back; pull dumbbells or a band to your ribcage, squeezing your shoulder blades together.", sets:"2", reps:"10 / side"},
+  shoulderpress:{name:"Standing Shoulder Press", bodyGroup:"upper", bodyParts:["shoulders","arms"], desc:"Press dumbbells (or a band anchored under your feet) straight overhead without arching your lower back.", sets:"2", reps:"10"},
+  plankshoulder:{name:"Plank Shoulder Taps", bodyGroup:"core", bodyParts:["abs/core","shoulders"], desc:"Hold a plank and tap the opposite shoulder with each hand, keeping your hips as still as possible.", sets:"3", reps:"16 taps"},
+  tricepdip:   {name:"Chair Tricep Dip", bodyGroup:"upper", bodyParts:["arms"], desc:"Hands on a sturdy chair edge, lower your body by bending the elbows, then press back up.", sets:"2", reps:"12"},
+  bandpull:    {name:"Band Pull-Apart", bodyGroup:"upper", bodyParts:["shoulders","back"], desc:"Arms extended in front at chest height, pull a resistance band apart, squeezing shoulder blades together.", sets:"1", reps:"12"},
+  squat:       {name:"Bodyweight Squat", bodyGroup:"lower", bodyParts:["legs","glutes"], desc:"Feet shoulder-width apart, sit your hips back and down, chest tall, drive through your heels to stand.", sets:"2", reps:"12"},
+  lunge:       {name:"Walking Lunge", bodyGroup:"lower", bodyParts:["legs","glutes"], desc:"Step forward into a lunge until both knees are ~90°, front knee tracking over the ankle; alternate legs.", sets:"2", reps:"8 / leg"},
+  stepup:      {name:"Step-Up", bodyGroup:"lower", bodyParts:["legs","glutes"], desc:"Step onto a sturdy box or bottom stair, drive up through the lead leg's heel, then control the descent.", sets:"2", reps:"8 / leg"},
+  glutebridge: {name:"Glute Bridge", bodyGroup:"lower", bodyParts:["glutes","legs"], desc:"Lie on your back, knees bent, feet flat; drive your hips up, squeezing your glutes hard at the top.", sets:"2", reps:"12"},
+  slrdl:       {name:"Single-Leg RDL", bodyGroup:"lower", bodyParts:["legs","glutes","back"], desc:"Balance on one leg, hinge forward reaching toward the floor while your other leg extends back; keep your back flat.", sets:"3", reps:"8 / leg"},
+  wallsit:     {name:"Wall Sit", bodyGroup:"lower", bodyParts:["legs"], desc:"Back flat against a wall, knees bent to roughly 90°, hold the position — a great isometric quad builder for climbing.", sets:"2", reps:"20 sec"},
+  calfraise:   {name:"Calf Raise", bodyGroup:"lower", bodyParts:["legs"], desc:"Rise up onto the balls of your feet, pause at the top, then lower under control.", sets:"2", reps:"15"},
+  plank:       {name:"Front Plank", bodyGroup:"core", bodyParts:["abs/core"], desc:"Forearms and toes on the floor, straight line from head to heels, brace your core and breathe.", sets:"2", reps:"30 sec"},
+  sideplank:   {name:"Side Plank", bodyGroup:"core", bodyParts:["abs/core"], desc:"Stack your feet, prop up on one forearm, and lift your hips into a straight line. Switch sides.", sets:"2", reps:"20 sec / side"},
+  deadbug:     {name:"Dead Bug", bodyGroup:"core", bodyParts:["abs/core"], desc:"On your back with arms up and knees bent to 90°, slowly extend the opposite arm and leg while pressing your low back into the floor.", sets:"2", reps:"10 / side"},
+  birddog:     {name:"Bird Dog", bodyGroup:"core", bodyParts:["abs/core","back"], desc:"On hands and knees, extend the opposite arm and leg simultaneously while keeping your hips level. Switch sides.", sets:"2", reps:"10 / side"},
+  bicyclecrunch:{name:"Bicycle Crunch", bodyGroup:"core", bodyParts:["abs/core"], desc:"Alternate bringing elbow to opposite knee, rotating through the torso with control.", sets:"2", reps:"16"},
+  russiantwist:{name:"Russian Twist", bodyGroup:"core", bodyParts:["abs/core"], desc:"Seated with a slight lean back, rotate a weight (or clasped hands) side to side, tapping the floor.", sets:"3", reps:"16"},
+  superman:    {name:"Superman Hold", bodyGroup:"core", bodyParts:["back","abs/core"], desc:"Lie face down, lift arms, chest and legs off the floor simultaneously, hold and squeeze the low back and glutes.", sets:"2", reps:"20 sec"},
+  hipflexor:   {name:"Kneeling Hip Flexor Stretch", bodyGroup:"mobility", bodyParts:["legs","hips"], desc:"Half-kneeling lunge position; gently shift hips forward until you feel a stretch in the front of the rear hip.", sets:"1", reps:"30 sec / side"},
+  hamstring:   {name:"Standing Hamstring Stretch", bodyGroup:"mobility", bodyParts:["legs"], desc:"Hinge at the hips with a soft knee, reaching toward the floor or a raised heel.", sets:"1", reps:"30 sec / side"},
+  foamroll:    {name:"Foam Roll — Quads / IT Band / Calves", bodyGroup:"mobility", bodyParts:["legs"], desc:"Slowly roll each area, pausing 20–30 seconds on any tender spots.", sets:"1", reps:"per area"},
+  catcow:      {name:"Cat-Cow Flow", bodyGroup:"mobility", bodyParts:["back","abs/core"], desc:"On hands and knees, alternate arching and rounding your spine in rhythm with your breath.", sets:"1", reps:"8 reps"},
+  thoracic:    {name:"Thoracic Spine Rotation", bodyGroup:"mobility", bodyParts:["back"], desc:"On all fours, thread one arm under your body and rotate it open toward the ceiling, following with your eyes.", sets:"1", reps:"8 / side"},
+  pigeon:      {name:"Pigeon Pose", bodyGroup:"mobility", bodyParts:["hips","legs"], desc:"Front shin angled forward, back leg extended behind you, sink your hips toward the floor. Switch sides.", sets:"1", reps:"45 sec / side"},
+  quadstretch: {name:"Standing Quad Stretch", bodyGroup:"mobility", bodyParts:["legs"], desc:"Pull one heel toward your glutes with knees together, holding something for balance.", sets:"1", reps:"30 sec / side"},
+  anklecircles:{name:"Ankle Circles", bodyGroup:"mobility", bodyParts:["legs"], desc:"Rotate each ankle slowly through its full range of motion in both directions.", sets:"1", reps:"10 / direction"},
+  easywalk:    {name:"Easy Walk", bodyGroup:"recovery", bodyParts:["full body"], desc:"A relaxed 20–30 minute walk to promote blood flow without adding fatigue.", sets:"1", reps:"20–30 min"},
+  fullbodyroll:{name:"Full-Body Foam Roll", bodyGroup:"recovery", bodyParts:["full body"], desc:"Roll calves, quads, IT band, glutes and upper back — about 1–2 minutes on each area.", sets:"1", reps:"full body"},
+  legsup:      {name:"Legs-Up-The-Wall", bodyGroup:"recovery", bodyParts:["legs"], desc:"Lie on your back with legs resting up a wall for 5–10 minutes to aid venous return and calm the nervous system.", sets:"1", reps:"8 min"},
+  gentleyoga:  {name:"Gentle Yoga Flow", bodyGroup:"recovery", bodyParts:["full body"], desc:"A slow, breath-led sequence of stretches through the hips, hamstrings and back.", sets:"1", reps:"10 min"}
+};
+
+/* time-per-set estimate (seconds), used to auto-compute workout durations */
+function secPerSetFor(ex){
+  if(!ex) return 40;
+  if(ex.bodyGroup==="mobility" || ex.bodyGroup==="recovery") return 45;
+  return 35;
+}
+function estimateStrengthMinutes(exerciseRefs, exLib){
+  let totalSec = 0;
+  exerciseRefs.forEach(ref=>{
+    const ex = exLib[ref.exId];
+    const sets = parseInt(ref.sets) || 1;
+    totalSec += sets*(secPerSetFor(ex)+20) + 15; // +20s rest/set, +15s transition
+  });
+  return Math.max(5, Math.round(totalSec/60));
+}
+
+/* ---------------- WORKOUT LIBRARY (seed data) ---------------- */
+function sref(exId, sets, reps){ return {exId, sets, reps}; }
+
+const WORKOUT_SEED = {
+  sb_upper_prep:       {name:"Light Core Activation",        kind:"strengthblock", bodyGroup:"core",  desc:"Gentle activation to ease into training.", exercises:[sref("plank","1","20 sec"), sref("deadbug","1","8 / side"), sref("bandpull","1","12")]},
+  sb_lower_prep:        {name:"Light Lower Body",             kind:"strengthblock", bodyGroup:"lower", desc:"A short, easy lower-body primer.", exercises:[sref("glutebridge","1","12"), sref("wallsit","1","20 sec"), sref("calfraise","1","12")]},
+  sb_full_prep:         {name:"Mobility Reset",                kind:"strengthblock", bodyGroup:"mobility", desc:"Loosen up hips, hamstrings and back.", exercises:[sref("fullbodyroll","1","full body"), sref("hipflexor","1","30 sec / side"), sref("hamstring","1","30 sec / side"), sref("pigeon","1","30 sec / side")]},
+
+  sb_upper_foundation:  {name:"Core & Upper Body Strength",   kind:"strengthblock", bodyGroup:"upper", desc:"Foundational push/pull/brace strength for the handlebars and torso.", exercises:[sref("pushup","2","10"), sref("row","2","10 / side"), sref("plank","2","30 sec"), sref("deadbug","2","10 / side")]},
+  sb_lower_foundation:  {name:"Lower Body Strength",           kind:"strengthblock", bodyGroup:"lower", desc:"Builds the squat/hinge patterns behind pedaling power.", exercises:[sref("squat","2","12"), sref("glutebridge","2","12"), sref("lunge","2","8 / leg"), sref("calfraise","2","15")]},
+  sb_full_foundation:   {name:"Full-Body + Mobility",          kind:"strengthblock", bodyGroup:"lower", desc:"Full-body strength finished with hip and spine mobility work.", exercises:[sref("stepup","2","8 / leg"), sref("shoulderpress","2","10"), sref("sideplank","2","20 sec / side"), sref("hipflexor","1","30 sec / side"), sref("hamstring","1","30 sec / side"), sref("catcow","1","8 reps")]},
+
+  sb_upper_build:       {name:"Core & Upper Body Strength",   kind:"strengthblock", bodyGroup:"upper", desc:"Higher-volume push/pull/rotation strength as training load increases.", exercises:[sref("pushup","3","12"), sref("row","3","12 / side"), sref("plankshoulder","3","16 taps"), sref("russiantwist","3","16")]},
+  sb_lower_build:        {name:"Lower Body Strength",           kind:"strengthblock", bodyGroup:"lower", desc:"Heavier squat/hinge/lunge work — add dumbbells if available.", exercises:[sref("squat","3","15"), sref("slrdl","3","8 / leg"), sref("lunge","3","10 / leg"), sref("wallsit","3","30 sec")]},
+  sb_full_build:         {name:"Full-Body + Mobility",          kind:"strengthblock", bodyGroup:"lower", desc:"Full-body strength with added thoracic and hip mobility.", exercises:[sref("stepup","3","10 / leg"), sref("shoulderpress","3","12"), sref("sideplank","3","30 sec / side"), sref("thoracic","1","8 / side"), sref("pigeon","1","45 sec / side"), sref("quadstretch","1","30 sec / side")]},
+
+  sb_upper_recovery:    {name:"Light Core Activation",        kind:"strengthblock", bodyGroup:"core",  desc:"Minimal-volume core touch-up for a recovery week.", exercises:[sref("plank","1","20 sec"), sref("deadbug","1","8 / side"), sref("bandpull","1","12")]},
+  sb_lower_recovery:     {name:"Light Lower Body",             kind:"strengthblock", bodyGroup:"lower", desc:"Minimal-volume lower body touch-up for a recovery week.", exercises:[sref("glutebridge","1","12"), sref("wallsit","1","20 sec"), sref("calfraise","1","12")]},
+  sb_full_recovery:      {name:"Mobility Reset",                kind:"strengthblock", bodyGroup:"mobility", desc:"A recovery-week reset for tight hips and legs.", exercises:[sref("fullbodyroll","1","full body"), sref("hipflexor","1","30 sec / side"), sref("hamstring","1","30 sec / side"), sref("pigeon","1","30 sec / side")]},
+
+  sb_upper_peak:        {name:"Core & Upper Maintenance",     kind:"strengthblock", bodyGroup:"upper", desc:"Just enough to maintain strength without adding fatigue before the big week.", exercises:[sref("pushup","2","10"), sref("row","2","10 / side"), sref("plank","2","30 sec")]},
+  sb_lower_peak:         {name:"Lower Body Maintenance",        kind:"strengthblock", bodyGroup:"lower", desc:"Light maintenance dose during peak week.", exercises:[sref("squat","2","12"), sref("glutebridge","2","12")]},
+  sb_full_peak:          {name:"Mobility Only",                  kind:"strengthblock", bodyGroup:"mobility", desc:"Mobility-only session to stay loose during peak week.", exercises:[sref("hipflexor","1","30 sec / side"), sref("hamstring","1","30 sec / side"), sref("catcow","1","8 reps"), sref("thoracic","1","8 / side")]},
+
+  sb_upper_taper:       {name:"Light Core Touch-Up",          kind:"strengthblock", bodyGroup:"core",  desc:"Just enough to feel activated on race week.", exercises:[sref("deadbug","1","8 / side"), sref("plank","1","20 sec")]},
+  sb_full_taper:         {name:"Pre-Race Relaxation",           kind:"strengthblock", bodyGroup:"recovery", desc:"Calming, restorative session the day before the century.", exercises:[sref("legsup","1","8 min"), sref("gentleyoga","1","10 min")]},
+
+  sb_flex_flow:          {name:"Flexibility Flow",              kind:"strengthblock", bodyGroup:"mobility", desc:"A short flexibility routine to pair with an easy spin.", exercises:[sref("hamstring","1","30 sec / side"), sref("hipflexor","1","30 sec / side"), sref("catcow","1","8 reps")]},
+  sb_foam_roll_monday:   {name:"Optional: Foam Roll & Stretch",  kind:"strengthblock", bodyGroup:"recovery", desc:"An optional light session for true rest days.", exercises:[sref("fullbodyroll","1","full body")]},
+
+  cy_tue_foundation: {name:"Tempo Builder", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 3 · 76–90% FTP · RPE 5–6", timeMin:45, desc:"Warm up 10 min Z1–2, then 2×10 min at Zone 3 (steady tempo) with 5 min easy spin between efforts, cool down 10 min."},
+  cy_thu_foundation: {name:"Cadence & Endurance", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 2 · 56–75% FTP · 90+ rpm", timeMin:50, desc:"Warm up 10 min, then 4×5 min single-leg pedaling drills (alternating legs each minute) at Zone 2, 90 rpm, 3 min easy between, cool down 10 min."},
+  cy_tue_build:      {name:"Sweet Spot Intervals", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Sweet Spot · 88–95% FTP · RPE 6–7", timeMin:79, desc:"Warm up 15 min, then 3×12 min at Sweet Spot with 6 min easy recovery between sets, cool down 10 min."},
+  cy_thu_build:      {name:"VO2max Ladder", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 5 · 106–120% FTP · RPE 8–9", timeMin:61, desc:"Warm up 15 min, then 6×3 min at Zone 5 with 3 min easy recovery between reps, cool down 10 min."},
+  cy_tue_recovery:   {name:"Easy Spin", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 1 · ≤55% FTP · RPE 2–3", timeMin:35, desc:"Fully conversational effort. Focus on smooth, high cadence pedaling."},
+  cy_thu_recovery:   {name:"Active Recovery Spin", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 1 · ≤55% FTP · RPE 2", timeMin:30, desc:"Keep it easy — this ride exists to flush the legs, not build fitness."},
+  cy_tue_peak:       {name:"Race-Pace Tempo", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 3 · 76–90% FTP · RPE 5–6", timeMin:65, desc:"Warm up 15 min, then 2×15 min at Zone 3 tempo (goal century pace) with 10 min easy recovery between, cool down 10 min."},
+  cy_thu_peak:       {name:"Openers", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 5 · 106–120% FTP · RPE 8", timeMin:41, desc:"Warm up 15 min, then 4×1 min at Zone 5 with 3 min easy between, cool down 10 min. Short and sharp — don't chase fatigue this week."},
+  cy_tue_taper:      {name:"Easy Spin + Openers", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 1–2 with brief Zone 4 openers", timeMin:31, desc:"20 min easy Zone 1–2, then 3×30 sec brisk (not max) openers with 2 min easy between, 5 min cool down."},
+
+  cy_outdoor_endurance: {name:"Outdoor Endurance Ride", kind:"cycling", platform:"Outdoor", zoneText:"Zone 2 · 56–75% FTP · RPE 3–4", timeMin:60, estMiles:13, desc:"Steady Zone 2 ride on rolling terrain similar to the Civil War Century course. Stay conversational the entire ride — resist the urge to push tempo."},
+  cy_outdoor_recovery:  {name:"Outdoor Recovery Ride", kind:"cycling", platform:"Outdoor", zoneText:"Zone 1–2 · RPE 2–3", timeMin:50, estMiles:10, desc:"Easy spin on flat, low-traffic roads. Effort should feel almost too easy — that's the point."},
+  cy_indoor_recovery:   {name:"Recovery Spin (Rouvy)", kind:"cycling", platform:"Rouvy (Indoor)", zoneText:"Zone 1 · RPE 2", timeMin:25, desc:"Easy spin to keep the legs loose ahead of tomorrow's session."},
+  cy_long_ride:         {name:"Long Endurance Ride", kind:"cycling", platform:"Outdoor", zoneText:"Zone 2 · 56–75% FTP · RPE 3–5", timeMin:90, estMiles:20, isLongRide:true, desc:"This week's key ride — the foundation of century readiness. Steady Zone 2 effort, negative-split if you can (second half a touch stronger than the first). Practice on-bike fueling: 300–400 kcal/hr, eating every 15–20 minutes, and sipping water/electrolytes throughout."},
+  cy_race_day:          {name:EVENT.name, kind:"cycling", platform:"Outdoor", zoneText:"Zone 2–3 · Negative-split effort", timeMin:480, estMiles:100, isRace:true, desc:"This is it — 100 miles through "+EVENT.location+". Start conservatively in Zone 2, fuel every 15–20 minutes (300–400 kcal/hr), sip fluids constantly, and use aid stations to reset. Ride your own pace, especially in the first 60 miles."},
+
+  rouvy_taste_higher_intensity: {name:"A Taste For Higher Intensity", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"55–100% FTP · beginner intro", timeMin:30, desc:"A gentle intro to structured intervals: warm up, then two short ramps of 3×1 min through Zone 2 → Zone 3 → FTP. Helps you learn what each zone feels like. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_first_pyramid:         {name:"First Pyramid Workout", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"50–90% FTP", timeMin:31, desc:"An easy, fun pyramid session moving through four zones — good for learning to pace different grades at a consistent cadence. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_cherry_on_top:         {name:"Cherry on Top", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"45–95% FTP · tempo + sweet spot", timeMin:54, desc:"Combines tempo (~80% FTP) and sweet spot (~90% FTP) intervals to build endurance and pacing skill, finished with a short high-effort \"cherry.\" Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_rolling_hills:         {name:"Rolling Hills", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"55–75% FTP", timeMin:55, desc:"A shorter session targeting low-to-mid range power delivery — a good substitute for an easy midweek endurance ride. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_mountain_strength:     {name:"Mountain Strength", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"55–108% FTP · low cadence on efforts", timeMin:65, desc:"Race-specific strength work — hold 80–90rpm generally, dropping to 55–65rpm on harder bouts to build climbing strength. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_quick_hiit:            {name:"Quick HIIT Fat Blast Fast", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"65–105% FTP", timeMin:33, desc:"Short, demanding FTP intervals with brief recoveries — a fast, effective option when you're short on time. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_sweet_spot_symphony:   {name:"Sweet Spot Symphony", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"88–90% FTP", timeMin:45, desc:"2×15 minutes at sweet spot with recovery between — builds endurance, strength and pacing skill. A solid substitute for a scheduled Sweet Spot session. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_fight_fatigue:         {name:"Fight the Fatigue", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"FTP efforts + 140% FTP surges", timeMin:50, desc:"Two 4-minute efforts at FTP followed by 40/20-second surges at ~140% FTP — designed to improve fatigue resistance late in a ride. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
+  rouvy_route_mallorca:        {name:"Mallorca Climbs (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", zoneText:"Free ride — pace to Zone 2–3", timeMin:75, desc:"A scenic real-world climbing route filmed in Mallorca — ride it in Just Ride mode at endurance/tempo pace as a change of scenery from structured intervals. Search this name in the Rouvy Routes library.", url:"https://riders.rouvy.com/routes"},
+  rouvy_route_nz:              {name:"Rolling New Zealand Countryside (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", zoneText:"Free ride — pace to Zone 2", timeMin:60, desc:"A rolling, scenic real-world route through New Zealand countryside — a relaxed option for an easy endurance or recovery spin. Search this name in the Rouvy Routes library.", url:"https://riders.rouvy.com/routes"}
+};
+
+/* ---------------- WEEK PROGRESSION TABLE (long ride build) ---------------- */
+const WEEK_META = [
+  {n:0,  phase:"prep",       phaseLabel:"Getting Started", longHrs:1.0,  longMi:12, midHrs:0.75, midMi:9,  sunOutdoor:false, hours:"~3–4 hrs"},
+  {n:1,  phase:"foundation", phaseLabel:"Foundation",      longHrs:1.5,  longMi:20, midHrs:1.0,  midMi:13, sunOutdoor:false, hours:"4.5–5 hrs"},
+  {n:2,  phase:"foundation", phaseLabel:"Foundation",      longHrs:1.75, longMi:24, midHrs:1.0,  midMi:13, sunOutdoor:false, hours:"5–5.5 hrs"},
+  {n:3,  phase:"foundation", phaseLabel:"Foundation",      longHrs:2.25, longMi:30, midHrs:1.25, midMi:16, sunOutdoor:false, hours:"5.5–6 hrs"},
+  {n:4,  phase:"recovery",   phaseLabel:"Recovery Week",   longHrs:1.25, longMi:16, midHrs:0.75, midMi:10, sunOutdoor:false, hours:"3.5–4 hrs"},
+  {n:5,  phase:"build",      phaseLabel:"Build",           longHrs:2.75, longMi:36, midHrs:1.25, midMi:16, sunOutdoor:true,  hours:"7–7.5 hrs"},
+  {n:6,  phase:"build",      phaseLabel:"Build",           longHrs:3.25, longMi:42, midHrs:1.5,  midMi:19, sunOutdoor:true,  hours:"7.5–8 hrs"},
+  {n:7,  phase:"build",      phaseLabel:"Build",           longHrs:3.75, longMi:48, midHrs:1.5,  midMi:19, sunOutdoor:true,  hours:"8–8.5 hrs"},
+  {n:8,  phase:"recovery",   phaseLabel:"Recovery Week",   longHrs:2.0,  longMi:26, midHrs:1.0,  midMi:13, sunOutdoor:false, hours:"5–5.5 hrs"},
+  {n:9,  phase:"peak",       phaseLabel:"Peak Week",       longHrs:4.5,  longMi:60, midHrs:1.5,  midMi:19, sunOutdoor:true,  hours:"9–9.5 hrs"},
+  {n:10, phase:"taper",      phaseLabel:"Taper & Race",    longHrs:null, longMi:100,midHrs:0.75, midMi:10, sunOutdoor:false, hours:"~9 hrs incl. race"}
+];
+const WEEK_META_BY_N = {}; WEEK_META.forEach(w=>WEEK_META_BY_N[w.n]=w);
+
+function weekIndexForDate(date){
+  const idx = Math.floor(daysBetween(WEEK1_ANCHOR, date)/7) + 1;
+  return Math.max(0, Math.min(10, idx));
+}
+
+/* ---------------- SCHEDULE TEMPLATE GENERATOR ----------------
+   Produces the ORIGINAL (unmodified) plan as a sequence of day templates,
+   each referencing workout IDs from the library (not embedded objects). */
+function buildTemplateSequence(planStart, planEnd){
+  const days = [];
+  let d = planStart;
+  while(d <= planEnd){
+    const wm = WEEK_META_BY_N[weekIndexForDate(d)];
+    const phase = wm.phase;
+    const dow = dowKey(d);
+    let title="", type="rest", refs=[];
+
+    if(d === EVENT.date){
+      title = "CENTURY DAY 🏆"; type = "race";
+      refs = [{workoutId:"cy_race_day"}];
+    } else if(d === PLAN_HARD_END){
+      title = "Full Rest — Recover"; type = "recovery"; refs = [];
+    } else if(dow==="mon"){
+      title = phase==="taper" ? "Rest Day" : "Rest Day — Active Recovery";
+      type = "rest";
+      refs = phase==="taper" ? [] : [{workoutId:"sb_foam_roll_monday"}];
+    } else if(dow==="tue"){
+      const cyId = "cy_tue_"+(phase==="prep"?"recovery":phase);
+      const sbId = "sb_upper_"+phase;
+      title = WORKOUT_SEED[sbId] ? ("Indoor Ride + " + WORKOUT_SEED[sbId].name) : "Indoor Ride";
+      type = "indoor";
+      refs = [{workoutId:cyId}];
+      if(WORKOUT_SEED[sbId] && WORKOUT_SEED[sbId].exercises.length) refs.push({workoutId:sbId});
+    } else if(dow==="wed"){
+      title = "Outdoor Endurance Ride"; type = "outdoor";
+      refs = [{workoutId:"cy_outdoor_endurance", overrides:{timeMin:Math.round(wm.midHrs*60), estMiles:wm.midMi}}];
+    } else if(dow==="thu"){
+      const cyId = "cy_thu_"+(phase==="prep"?"recovery":phase);
+      const sbId = "sb_lower_"+phase;
+      const hasStrength = WORKOUT_SEED[sbId] && WORKOUT_SEED[sbId].exercises.length;
+      const cyIsRest = phase==="taper";
+      if(cyIsRest && !hasStrength){
+        title = "Rest Day"; type = "rest"; refs = [];
+      } else {
+        title = hasStrength ? ("Indoor Ride + " + WORKOUT_SEED[sbId].name) : "Indoor Ride";
+        type = "indoor";
+        refs = cyIsRest ? [] : [{workoutId:cyId}];
+        if(hasStrength) refs.push({workoutId:sbId});
+      }
+    } else if(dow==="fri"){
+      const sbId = "sb_full_"+phase;
+      const wk = WORKOUT_SEED[sbId];
+      title = wk ? wk.name : "Rest Day";
+      type = wk && wk.exercises.length ? "strength" : "rest";
+      refs = wk && wk.exercises.length ? [{workoutId:sbId}] : [];
+    } else if(dow==="sat"){
+      title = "Long Ride"; type = "outdoor";
+      const note = weekIndexForDate(d)===9 ? " This is your final big simulation ride before taper — aim to mimic race nutrition exactly." : "";
+      refs = [{workoutId:"cy_long_ride", overrides:{timeMin:Math.round((wm.longHrs||1)*60), estMiles:wm.longMi, descSuffix:note}}];
+    } else if(dow==="sun"){
+      if(wm.sunOutdoor){
+        title = "Outdoor Recovery Ride"; type = "outdoor";
+        refs = [{workoutId:"cy_outdoor_recovery"}];
+      } else {
+        title = phase==="taper" ? "Full Rest — Recover" : "Recovery Spin + Mobility";
+        type = "recovery";
+        refs = phase==="taper" ? [] : [{workoutId:"cy_indoor_recovery"}, {workoutId:"sb_flex_flow"}];
+      }
+    }
+
+    days.push({date:d, dow, dowLabel:dowShort(d), weekNum:weekIndexForDate(d), phase, phaseLabel:wm.phaseLabel, title, type, refs});
+    d = dateAdd(d,1);
+  }
+  return days;
+}
+/* ============================================================
+   CENTURY READY — SCHEDULING ENGINE
+   Handles: editable libraries, plan-start persistence, the
+   dailyQueue (skip/swap), and per-day workout substitutions.
+   ============================================================ */
+
+const Lib = {
+  exercises: null,   // id -> exercise (merged seed + custom)
+  workouts: null,    // id -> workout (merged seed + custom)
+};
+
+async function loadLibraries(){
+  const exCustom = (await loadJSON("exerciseLibrary")) || {};
+  const wkCustom = (await loadJSON("workoutLibrary")) || {};
+  Lib.exercises = Object.assign({}, EXERCISE_SEED, exCustom);
+  Lib.workouts = Object.assign({}, WORKOUT_SEED, wkCustom);
+}
+async function saveExercise(id, data){
+  const exCustom = (await loadJSON("exerciseLibrary")) || {};
+  exCustom[id] = data;
+  await saveJSON("exerciseLibrary", exCustom);
+  Lib.exercises[id] = data;
+}
+async function deleteExercise(id){
+  const exCustom = (await loadJSON("exerciseLibrary")) || {};
+  delete exCustom[id];
+  await saveJSON("exerciseLibrary", exCustom);
+  delete Lib.exercises[id];
+  if(EXERCISE_SEED[id]) Lib.exercises[id] = EXERCISE_SEED[id]; // restore seed if built-in
+}
+async function saveWorkout(id, data){
+  const wkCustom = (await loadJSON("workoutLibrary")) || {};
+  wkCustom[id] = data;
+  await saveJSON("workoutLibrary", wkCustom);
+  Lib.workouts[id] = data;
+}
+async function deleteWorkout(id){
+  const wkCustom = (await loadJSON("workoutLibrary")) || {};
+  delete wkCustom[id];
+  await saveJSON("workoutLibrary", wkCustom);
+  delete Lib.workouts[id];
+  if(WORKOUT_SEED[id]) Lib.workouts[id] = WORKOUT_SEED[id];
+}
+
+/* Resolve a workout-library entry (+ optional instance overrides) into the
+   full renderable object, recomputing strength-block duration live. */
+function resolveWorkout(workoutId, overrides){
+  const base = Lib.workouts[workoutId];
+  if(!base) return null;
+  const w = Object.assign({id:workoutId}, base, overrides||{});
+  if(overrides && overrides.descSuffix){ w.desc = (base.desc||"") + overrides.descSuffix; }
+
+  if(w.kind==="cycling"){
+    return {
+      kind:"cycling", id:workoutId, name:w.name, desc:w.desc, timeMin:w.timeMin, zoneText:w.zoneText,
+      platform:w.platform, estMiles:w.estMiles, isLongRide:!!w.isLongRide, isRace:!!w.isRace, source:w.source, url:w.url
+    };
+  }
+  if(w.kind==="strengthblock"){
+    const items = (w.exercises||[]).map(ref=>{
+      const ex = Lib.exercises[ref.exId] || {name:"(missing exercise)", desc:"", bodyGroup:"", bodyParts:[]};
+      return {exId:ref.exId, name:ex.name, desc:ex.desc, bodyGroup:ex.bodyGroup, bodyParts:ex.bodyParts, targetSets:ref.sets, targetReps:ref.reps};
+    });
+    const timeMin = estimateStrengthMinutes(w.exercises||[], Lib.exercises);
+    return {kind:"strengthblock", id:workoutId, title:w.name, desc:w.desc, bodyGroup:w.bodyGroup, timeMin, items};
+  }
+  return null;
+}
+
+/* ---------------- CALENDAR / DAILY QUEUE ---------------- */
+const Plan = {
+  start: null,          // ISO date, persisted
+  end: null,            // ISO date, fixed = PLAN_HARD_END
+  templates: [],         // original sequence (array of {date,...,refs})
+  templateByDate: {},
+  dailyQueue: [],        // persisted: array (same length as templates) of template-index or null(=skipped/rest)
+  dayOverrides: {}       // persisted: date -> {slots:{0:{workoutId,overrides}, 1:{...}}}
+};
+
+async function setPlanStart(newDate){
+  await saveJSON("planStart", newDate);
+  Plan.start = newDate;
+  Plan.templates = buildTemplateSequence(Plan.start, Plan.end);
+  Plan.templateByDate = {};
+  Plan.templates.forEach((t,i)=>{ Plan.templateByDate[t.date] = i; });
+  Plan.dailyQueue = Plan.templates.map((_,i)=>i);
+  await saveJSON("dailyQueue", Plan.dailyQueue);
+  Plan.dayOverrides = {};
+  await saveJSON("dayOverrides", Plan.dayOverrides);
+  const dates = allCalendarDates();
+  State.selectedDate = dates.includes(todayISO()) ? todayISO() : dates[0];
+  State.calendarSelectedDate = State.selectedDate;
+  const dp = getDayPlan(State.selectedDate);
+  State.openWeek = dp ? dp.weekNum : 1;
+  render();
+}
+
+async function initPlan(){
+  let start = await loadJSON("planStart");
+  if(!start){
+    start = todayISO();
+    if(start > PLAN_HARD_END) start = PLAN_HARD_END; // safety: event already passed
+    await saveJSON("planStart", start);
+  }
+  Plan.start = start;
+  Plan.end = PLAN_HARD_END;
+  Plan.templates = buildTemplateSequence(Plan.start, Plan.end);
+  Plan.templateByDate = {};
+  Plan.templates.forEach((t,i)=>{ Plan.templateByDate[t.date] = i; });
+
+  const savedQueue = await loadJSON("dailyQueue");
+  if(savedQueue && savedQueue.length === Plan.templates.length){
+    Plan.dailyQueue = savedQueue;
+  } else {
+    Plan.dailyQueue = Plan.templates.map((_,i)=>i); // identity
+    await saveJSON("dailyQueue", Plan.dailyQueue);
+  }
+  Plan.dayOverrides = (await loadJSON("dayOverrides")) || {};
+}
+
+function dateIndex(date){ return Plan.templateByDate[date]; }
+
+/* Resolve the full plan for a given calendar date: template content (possibly
+   shifted by skip/swap) + substitutions + user-added workouts + display order. */
+function getDayPlan(date){
+  const idx = dateIndex(date);
+  if(idx===undefined) return null;
+  const tIdx = Plan.dailyQueue[idx];
+  const template = tIdx===null || tIdx===undefined ? null : Plan.templates[tIdx];
+
+  let title, type, refs, phase, phaseLabel, weekNum, isSkipped=false;
+  if(template===null){
+    title = "Rest Day (Skipped)"; type = "rest"; refs = []; isSkipped = true;
+    const own = Plan.templates[idx];
+    phase = own.phase; phaseLabel = own.phaseLabel; weekNum = own.weekNum;
+  } else {
+    title = template.title; type = template.type; refs = template.refs.slice();
+    phase = template.phase; phaseLabel = template.phaseLabel; weekNum = template.weekNum;
+  }
+
+  const ov = Plan.dayOverrides[date] || {};
+  const slotDefs = refs.map((r,i)=>({slotKey:"t"+i, workoutId:r.workoutId, overrides:r.overrides}));
+  (ov.added||[]).forEach((a,i)=>slotDefs.push({slotKey:a.slotKey||("a"+i), workoutId:a.workoutId, overrides:a.overrides}));
+
+  let resolved = slotDefs.map(sd=>{
+    let wid = sd.workoutId, wov = sd.overrides;
+    if(ov.slots && ov.slots[sd.slotKey]){ wid = ov.slots[sd.slotKey].workoutId; wov = ov.slots[sd.slotKey].overrides; }
+    const w = resolveWorkout(wid, wov);
+    if(!w) return null;
+    w.slotKey = sd.slotKey;
+    if(w.kind==="strengthblock" && ov.exOrder && ov.exOrder[sd.slotKey]){
+      const orderArr = ov.exOrder[sd.slotKey];
+      const byOrig = w.items.map((it,i)=>({...it, origIndex:i}));
+      const reordered = orderArr.map(oi=>byOrig[oi]).filter(Boolean);
+      byOrig.forEach(it=>{ if(!orderArr.includes(it.origIndex)) reordered.push(it); });
+      w.items = reordered;
+    } else if(w.kind==="strengthblock"){
+      w.items = w.items.map((it,i)=>({...it, origIndex:i}));
+    }
+    return w;
+  }).filter(Boolean);
+
+  if(ov.order && ov.order.length){
+    const byKey = {}; resolved.forEach(w=>byKey[w.slotKey]=w);
+    const ordered = ov.order.map(k=>byKey[k]).filter(Boolean);
+    resolved.forEach(w=>{ if(!ov.order.includes(w.slotKey)) ordered.push(w); });
+    resolved = ordered;
+  }
+
+  return {
+    date, dow: dowKey(date), dowLabel: dowShort(date), weekNum, phase, phaseLabel,
+    title, type, workouts: resolved, isSkipped,
+    isSubstituted: !!(ov.slots && Object.keys(ov.slots).length) || !!(ov.added && ov.added.length) || !!(ov.order && ov.order.length),
+    originalTemplateDate: template ? template.date : null
+  };
+}
+
+function allCalendarDates(){ return Plan.templates.map(t=>t.date); }
+
+function addWorkoutToDay(date, workoutId){
+  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
+  const ov = Plan.dayOverrides[date];
+  ov.added = ov.added || [];
+  const slotKey = "a"+ov.added.length+"_"+Math.random().toString(36).slice(2,6);
+  ov.added.push({slotKey, workoutId});
+  saveJSON("dayOverrides", Plan.dayOverrides);
+  return slotKey;
+}
+function removeAddedWorkout(date, slotKey){
+  const ov = Plan.dayOverrides[date];
+  if(!ov || !ov.added) return;
+  ov.added = ov.added.filter(a=>a.slotKey!==slotKey);
+  if(ov.order) ov.order = ov.order.filter(k=>k!==slotKey);
+  saveJSON("dayOverrides", Plan.dayOverrides);
+}
+/* Non-permanent: reorder the workouts shown for a given day */
+function reorderDayWorkouts(date, slotKey, direction){
+  const day = getDayPlan(date);
+  const keys = day.workouts.map(w=>w.slotKey);
+  const i = keys.indexOf(slotKey);
+  const j = i + direction;
+  if(i<0 || j<0 || j>=keys.length) return;
+  [keys[i], keys[j]] = [keys[j], keys[i]];
+  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
+  Plan.dayOverrides[date].order = keys;
+  saveJSON("dayOverrides", Plan.dayOverrides);
+}
+/* Non-permanent: reorder exercises within one scheduled strength workout */
+function reorderExercisesInSlot(date, slotKey, exOrigIndex, direction){
+  const day = getDayPlan(date);
+  const w = day.workouts.find(x=>x.slotKey===slotKey);
+  if(!w || w.kind!=="strengthblock") return;
+  const order = w.items.map(it=>it.origIndex);
+  const i = order.indexOf(exOrigIndex);
+  const j = i + direction;
+  if(i<0 || j<0 || j>=order.length) return;
+  [order[i], order[j]] = [order[j], order[i]];
+  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
+  Plan.dayOverrides[date].exOrder = Plan.dayOverrides[date].exOrder || {};
+  Plan.dayOverrides[date].exOrder[slotKey] = order;
+  saveJSON("dayOverrides", Plan.dayOverrides);
+}
+
+/* ---------------- SKIP DAYS ----------------
+   Pushes the content that WAS scheduled for [fromDate .. fromDate+count-1]
+   later, compressing the lowest-priority days between here and race day
+   so the race date itself never moves. */
+function removalPriority(tIdx){
+  if(tIdx===null || tIdx===undefined) return -1; // already-blank slots go first
+  const t = Plan.templates[tIdx];
+  if(t.type==="race") return 999;
+  const hasLong = t.refs.some(r=>r.workoutId==="cy_long_ride" || r.workoutId==="cy_race_day");
+  if(hasLong) return 50;
+  if(t.type==="rest") return 0;
+  if(t.type==="recovery") return 1;
+  if(t.type==="strength") return 2;
+  if(t.type==="indoor") return 3;
+  if(t.type==="outdoor") return 4;
+  return 5;
+}
+
+function skipDays(fromDate, count){
+  const raceIdx = dateIndex(EVENT.date);
+  const idx = dateIndex(fromDate);
+  if(idx===undefined || raceIdx===undefined) return {ok:false, msg:"Date out of range."};
+  if(idx >= raceIdx) return {ok:false, msg:"You can't skip on or after race day."};
+  count = Math.min(count, raceIdx - idx);
+  if(count<=0) return {ok:false, msg:"Nothing to skip."};
+
+  const windowSlice = Plan.dailyQueue.slice(idx, raceIdx);
+  let combined = new Array(count).fill(null).concat(windowSlice);
+
+  // need to drop `count` entries to get back to windowSlice.length; prefer lowest-priority,
+  // never touch the first `count` (those are the intentional skip markers)
+  const removable = combined.map((val,i)=>({val,i})).slice(count);
+  removable.sort((a,b)=> removalPriority(a.val) - removalPriority(b.val));
+  const toRemove = new Set(removable.slice(0, count).map(r=>r.i));
+  combined = combined.filter((val,i)=> !toRemove.has(i));
+
+  for(let i=0;i<windowSlice.length;i++){
+    Plan.dailyQueue[idx+i] = combined[i];
+  }
+  saveJSON("dailyQueue", Plan.dailyQueue);
+  return {ok:true, msg:`Skipped ${count} day${count>1?'s':''}. Your remaining sessions shifted later; a few of the lowest-priority days were compressed out so race day stays on ${fmtDate(EVENT.date)}.`};
+}
+
+function swapDays(dateA, dateB){
+  const a = dateIndex(dateA), b = dateIndex(dateB);
+  if(a===undefined || b===undefined) return {ok:false, msg:"Date out of range."};
+  if(dateA===EVENT.date || dateB===EVENT.date) return {ok:false, msg:"Race day can't be swapped."};
+  const tmp = Plan.dailyQueue[a];
+  Plan.dailyQueue[a] = Plan.dailyQueue[b];
+  Plan.dailyQueue[b] = tmp;
+  saveJSON("dailyQueue", Plan.dailyQueue);
+  return {ok:true, msg:`Swapped ${fmtDate(dateA)} and ${fmtDate(dateB)}.`};
+}
+
+function resetDay(date){
+  const idx = dateIndex(date);
+  if(idx===undefined) return;
+  Plan.dailyQueue[idx] = idx;
+  saveJSON("dailyQueue", Plan.dailyQueue);
+  if(Plan.dayOverrides[date]){ delete Plan.dayOverrides[date]; saveJSON("dayOverrides", Plan.dayOverrides); }
+}
+
+/* ---------------- SUBSTITUTE A SINGLE WORKOUT SLOT ---------------- */
+function substituteWorkout(date, slotIndex, newWorkoutId){
+  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {slots:{}};
+  if(!Plan.dayOverrides[date].slots) Plan.dayOverrides[date].slots = {};
+  Plan.dayOverrides[date].slots[slotIndex] = {workoutId:newWorkoutId};
+  saveJSON("dayOverrides", Plan.dayOverrides);
+}
+function revertSlot(date, slotIndex){
+  if(Plan.dayOverrides[date] && Plan.dayOverrides[date].slots){
+    delete Plan.dayOverrides[date].slots[slotIndex];
+    saveJSON("dayOverrides", Plan.dayOverrides);
+  }
+}
+
+/* per-day temporary (non-permanent) target overrides for an exercise's sets/reps,
+   stored inside the day's log so they don't touch the library */
+async function setTempExerciseTarget(date, slotIndex, exIndex, sets, reps){
+  const log = await getLog(date);
+  log.targetOverrides = log.targetOverrides || {};
+  const key = slotIndex+"_"+exIndex;
+  log.targetOverrides[key] = {sets, reps};
+  await saveLog(date, log);
+}
+/* ============================================================
+   CENTURY READY — WEATHER
+   Uses the Anthropic API (with web search) from inside the artifact
+   to resolve a zip/city to current conditions + today's forecast.
+   ============================================================ */
+
+const Weather = {
+  location: null,
+  data: null,
+  fetchedAt: null,
+  loading: false,
+  error: null,
+  timer: null
+};
+
+const WEATHER_REFRESH_MS = 30*60*1000; // 30 minutes minimum, per spec
+
+async function initWeather(){
+  Weather.location = await loadJSON("weatherLocation");
+  const cached = await loadJSON("weatherCache");
+  if(cached){ Weather.data = cached.data; Weather.fetchedAt = cached.fetchedAt; }
+  if(Weather.location){
+    const age = cached ? (Date.now() - new Date(cached.fetchedAt).getTime()) : Infinity;
+    if(age > WEATHER_REFRESH_MS || !cached) refreshWeather();
+  }
+  if(Weather.timer) clearInterval(Weather.timer);
+  Weather.timer = setInterval(()=>{ if(Weather.location) refreshWeather(); }, WEATHER_REFRESH_MS);
+}
+
+async function setWeatherLocation(label){
+  Weather.location = {label};
+  await saveJSON("weatherLocation", Weather.location);
+  await refreshWeather();
+}
+
+async function refreshWeather(){
+  if(!Weather.location || Weather.loading) return;
+  Weather.loading = true; Weather.error = null;
+  if(document.getElementById("weather-widget")) renderWeatherWidget();
+
+  let data = null, lastError = null;
+
+  // Path 1: inside Claude.ai, use the Anthropic API (web search) for a natural forecast.
+  if(!window._usingLocalStoragePolyfill){
+    try{ data = await fetchWeatherViaClaude(Weather.location.label); }
+    catch(e){ lastError = e; console.warn("Claude weather path failed, will try direct source:", e); }
+  }
+
+  // Path 2: standalone (or Path 1 failed) — hit a free, CORS-enabled weather API directly
+  // from the browser. This is what makes live weather work outside Claude.ai.
+  if(!data){
+    try{ data = await fetchWeatherViaOpenMeteo(Weather.location.label); }
+    catch(e){ lastError = e; console.error("Open-Meteo weather path failed:", e); }
+  }
+
+  if(data){
+    Weather.data = data;
+    Weather.fetchedAt = new Date().toISOString();
+    await saveJSON("weatherCache", {data, fetchedAt: Weather.fetchedAt});
+  } else {
+    console.error("weather fetch failed", lastError);
+    Weather.error = "Couldn't fetch weather right now. Check the location spelling and your internet connection, then try again.";
+  }
+
+  Weather.loading = false;
+  if(document.getElementById("weather-widget")) renderWeatherWidget();
+  if(typeof checkOutdoorWeatherAlert==="function") checkOutdoorWeatherAlert();
+}
+
+async function fetchWeatherViaClaude(label){
+  const now = new Date();
+  const prompt = `Search the web for the CURRENT weather conditions and TODAY's forecast for this location: "${label}". `+
+    `Today's date is ${now.toISOString().slice(0,10)}. Respond with ONLY a single JSON object, no markdown fences, no commentary, matching exactly this shape:\n`+
+    `{"resolvedLocation":"City, ST","tempF":number,"feelsLikeF":number,"condition":"short label like Partly Cloudy","icon":"one of: sunny|partly-cloudy|cloudy|rain|thunderstorm|snow|fog|windy","forecastText":"one sentence forecast summary for today","highF":number,"lowF":number,"sunsetLocal":"h:mm AM/PM","severeAlert":boolean,"severeText":"short reason if severeAlert true, else empty string","precipChancePct":number,"windMph":number}`;
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      model:"claude-sonnet-4-6",
+      max_tokens:1000,
+      messages:[{role:"user", content:prompt}],
+      tools:[{type:"web_search_20250305", name:"web_search"}]
+    })
+  });
+  const json = await resp.json();
+  const textBlocks = (json.content||[]).filter(b=>b.type==="text").map(b=>b.text);
+  let raw = textBlocks.join("\n").trim();
+  raw = raw.replace(/^```json/i,"").replace(/^```/,"").replace(/```$/,"").trim();
+  const firstBrace = raw.indexOf("{"), lastBrace = raw.lastIndexOf("}");
+  if(firstBrace===-1 || lastBrace===-1) throw new Error("No JSON in Claude response");
+  return JSON.parse(raw.slice(firstBrace, lastBrace+1));
+}
+
+/* ---- Free/no-key/CORS-open weather source, for standalone browser use ----
+   Zippopotam.us resolves US zip codes; Open-Meteo's geocoder resolves city/state
+   names; Open-Meteo's forecast API needs no API key and allows cross-origin
+   requests from any page, including a file:// page opened directly in Chrome. */
+const WMO_ICON_MAP = {
+  0:{icon:"sunny",condition:"Clear"}, 1:{icon:"sunny",condition:"Mainly Clear"},
+  2:{icon:"partly-cloudy",condition:"Partly Cloudy"}, 3:{icon:"cloudy",condition:"Overcast"},
+  45:{icon:"fog",condition:"Fog"}, 48:{icon:"fog",condition:"Freezing Fog"},
+  51:{icon:"rain",condition:"Light Drizzle"}, 53:{icon:"rain",condition:"Drizzle"}, 55:{icon:"rain",condition:"Dense Drizzle"},
+  56:{icon:"rain",condition:"Freezing Drizzle"}, 57:{icon:"rain",condition:"Freezing Drizzle"},
+  61:{icon:"rain",condition:"Light Rain"}, 63:{icon:"rain",condition:"Rain"}, 65:{icon:"rain",condition:"Heavy Rain"},
+  66:{icon:"rain",condition:"Freezing Rain"}, 67:{icon:"rain",condition:"Freezing Rain"},
+  71:{icon:"snow",condition:"Light Snow"}, 73:{icon:"snow",condition:"Snow"}, 75:{icon:"snow",condition:"Heavy Snow"}, 77:{icon:"snow",condition:"Snow Grains"},
+  80:{icon:"rain",condition:"Rain Showers"}, 81:{icon:"rain",condition:"Rain Showers"}, 82:{icon:"rain",condition:"Violent Rain Showers"},
+  85:{icon:"snow",condition:"Snow Showers"}, 86:{icon:"snow",condition:"Snow Showers"},
+  95:{icon:"thunderstorm",condition:"Thunderstorm",severe:true}, 96:{icon:"thunderstorm",condition:"Thunderstorm with Hail",severe:true}, 99:{icon:"thunderstorm",condition:"Severe Thunderstorm",severe:true}
+};
+function fmtTimeFromISO(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+}
+async function geocodeLocation(label){
+  const trimmed = label.trim();
+  if(/^\d{5}$/.test(trimmed)){
+    const resp = await fetch(`https://api.zippopotam.us/us/${trimmed}`);
+    if(!resp.ok) throw new Error("ZIP not found");
+    const j = await resp.json();
+    const place = j.places && j.places[0];
+    if(!place) throw new Error("ZIP not found");
+    return {lat:parseFloat(place.latitude), lon:parseFloat(place.longitude), label:`${place["place name"]}, ${place["state abbreviation"]}`};
+  }
+  const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trimmed)}&count=1&language=en&format=json`);
+  if(!resp.ok) throw new Error("Geocoding request failed");
+  const j = await resp.json();
+  const r = j.results && j.results[0];
+  if(!r) throw new Error("Location not found");
+  return {lat:r.latitude, lon:r.longitude, label:r.admin1 ? `${r.name}, ${r.admin1}` : r.name};
+}
+async function fetchWeatherViaOpenMeteo(label){
+  const loc = await geocodeLocation(label);
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}`+
+    `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m`+
+    `&daily=sunset,temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code`+
+    `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1`;
+  const resp = await fetch(url);
+  if(!resp.ok) throw new Error("Forecast request failed");
+  const j = await resp.json();
+  const wmo = WMO_ICON_MAP[j.daily.weather_code[0]] || WMO_ICON_MAP[j.current.weather_code] || {icon:"partly-cloudy",condition:"Mixed"};
+  const highF = Math.round(j.daily.temperature_2m_max[0]), lowF = Math.round(j.daily.temperature_2m_min[0]);
+  const precip = Math.round(j.daily.precipitation_probability_max[0]||0);
+  return {
+    resolvedLocation: loc.label,
+    tempF: Math.round(j.current.temperature_2m),
+    feelsLikeF: Math.round(j.current.apparent_temperature),
+    condition: wmo.condition,
+    icon: wmo.icon,
+    forecastText: `${wmo.condition}, high ${highF}°F / low ${lowF}°F, ${precip}% chance of precipitation.`,
+    highF, lowF,
+    sunsetLocal: fmtTimeFromISO(j.daily.sunset[0]),
+    severeAlert: !!wmo.severe,
+    severeText: wmo.severe ? wmo.condition+" in the forecast" : "",
+    precipChancePct: precip,
+    windMph: Math.round(j.current.wind_speed_10m)
+  };
+}
+
+function weatherIconSVG(icon, size){
+  size = size||40;
+  const sun = `<circle cx="20" cy="20" r="8" fill="#ffd166"/><g stroke="#ffd166" stroke-width="2.4" stroke-linecap="round"><line x1="20" y1="2" x2="20" y2="7"/><line x1="20" y1="33" x2="20" y2="38"/><line x1="2" y1="20" x2="7" y2="20"/><line x1="33" y1="20" x2="38" y2="20"/><line x1="7" y1="7" x2="10.5" y2="10.5"/><line x1="29.5" y1="29.5" x2="33" y2="33"/><line x1="7" y1="33" x2="10.5" y2="29.5"/><line x1="29.5" y1="10.5" x2="33" y2="7"/></g>`;
+  const cloud = `<path d="M11 27a7 7 0 1 1 1.7-13.8A9 9 0 0 1 30 17a6 6 0 0 1-1 12H11z" fill="#e7edf2" stroke="#c7d2da" stroke-width="1"/>`;
+  const cloudSun = `<circle cx="14" cy="13" r="6" fill="#ffd166"/><path d="M14 27a7 7 0 1 1 1.7-13.8A9 9 0 0 1 33 17a6 6 0 0 1-1 12H14z" fill="#e7edf2" stroke="#c7d2da" stroke-width="1"/>`;
+  const rainDrops = `<g stroke="#5aa7d6" stroke-width="2" stroke-linecap="round"><line x1="14" y1="32" x2="12" y2="37"/><line x1="20" y1="32" x2="18" y2="37"/><line x1="26" y1="32" x2="24" y2="37"/></g>`;
+  const bolt = `<path d="M21 30l-5 8h4l-2 6 7-9h-4l3-5z" fill="#ffcc33"/>`;
+  const snow = `<g fill="#bcdcf0"><circle cx="13" cy="33" r="1.6"/><circle cx="20" cy="36" r="1.6"/><circle cx="27" cy="33" r="1.6"/></g>`;
+  const fogLines = `<g stroke="#c7d2da" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="30" x2="34" y2="30"/><line x1="6" y1="35" x2="30" y2="35"/></g>`;
+  const wind = `<g stroke="#9fb4c2" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M4 16h20a4 4 0 1 0-3-6.6"/><path d="M4 24h26a4 4 0 1 1-3 6.6"/></g>`;
+
+  const map = {
+    "sunny": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${sun}</svg>`,
+    "partly-cloudy": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${cloudSun}</svg>`,
+    "cloudy": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${cloud}</svg>`,
+    "rain": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${cloud}${rainDrops}</svg>`,
+    "thunderstorm": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${cloud}${bolt}</svg>`,
+    "snow": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${cloud}${snow}</svg>`,
+    "fog": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${cloud}${fogLines}</svg>`,
+    "windy": `<svg viewBox="0 0 40 40" width="${size}" height="${size}">${wind}</svg>`,
+  };
+  return map[icon] || map["partly-cloudy"];
+}
+
+function isUnsuitableWeather(data){
+  if(!data) return null;
+  if(data.severeAlert) return data.severeText || "Severe weather in the forecast.";
+  if(["rain","thunderstorm"].includes(data.icon)) return "Rain or thunderstorms in the forecast.";
+  if(data.tempF!=null && data.tempF>=95) return `Forecast high near ${data.tempF}°F — heat risk for a long outdoor ride.`;
+  return null;
+}
+function minutesUntilSunset(sunsetLocal){
+  if(!sunsetLocal) return null;
+  const m = sunsetLocal.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if(!m) return null;
+  let h = parseInt(m[1])%12; if(/pm/i.test(m[3])) h+=12;
+  const mins = parseInt(m[2]);
+  const now = new Date();
+  const sunset = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, mins, 0);
+  return Math.round((sunset - now)/60000);
+}
+
+function checkTodayOutdoorSuitability(dayPlan, log){
+  if(!dayPlan) return null;
+  const outdoorWorkouts = dayPlan.workouts.filter(w=>w.kind==="cycling" && w.platform==="Outdoor");
+  if(!outdoorWorkouts.length) return null;
+  const alreadyLogged = outdoorWorkouts.some(w=> log.workouts && log.workouts[w.slotKey] && log.workouts[w.slotKey].duration);
+  if(alreadyLogged) return null;
+  if(dayPlan.date !== todayISO()) return null;
+
+  const reasons = [];
+  if(Weather.data){
+    const wx = isUnsuitableWeather(Weather.data);
+    if(wx) reasons.push(wx);
+    const totalMin = outdoorWorkouts.reduce((s,w)=>s+(w.timeMin||0),0);
+    const untilSunset = minutesUntilSunset(Weather.data.sunsetLocal);
+    if(untilSunset!=null && untilSunset < totalMin && untilSunset > -600){
+      reasons.push(`Only about ${Math.max(untilSunset,0)} min of daylight left — not enough time to finish before sunset (${Weather.data.sunsetLocal}).`);
+    }
+  }
+  if(!reasons.length) return null;
+  return {reasons, outdoorWorkouts};
+}
+
+function checkOutdoorWeatherAlert(){
+  if(State.tab==="dashboard") renderTabContent();
+}
+/* ============================================================
+   CENTURY READY — GOOGLE DRIVE CLOUD SYNC
+   Lets the exact same app.html, hosted at a real URL (e.g. GitHub
+   Pages), sync its data through a single JSON file in the user's
+   own Google Drive — so phone and desktop stay in sync without
+   depending on Claude.ai's artifact storage or per-browser localStorage.
+   Uses the drive.file scope: the app can only ever see files it
+   creates itself, never the rest of the user's Drive.
+   ============================================================ */
+
+const DRIVE_FILE_NAME = "century-ready-data.json";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DRIVE_PUSH_DEBOUNCE_MS = 4000;
+
+const Drive = {
+  clientId: null,
+  connected: false,
+  userEmail: null,
+  fileId: null,
+  accessToken: null,
+  tokenExpiresAt: 0,
+  tokenClient: null,
+  gisLoaded: false,
+  syncing: false,
+  lastSyncAt: null,
+  lastError: null,
+  pushTimer: null,
+  dirtySincePush: false
+};
+
+async function initDriveSync(){
+  const cfg = await loadJSON("driveConfig");
+  if(cfg){ Drive.clientId = cfg.clientId; Drive.fileId = cfg.fileId || null; }
+  if(!Drive._listenerAttached){
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.visibilityState==="hidden" && Drive.connected && Drive.dirtySincePush) pushToDrive();
+    });
+    Drive._listenerAttached = true;
+  }
+}
+
+function loadGISScript(){
+  return new Promise((resolve, reject)=>{
+    if(window.google && window.google.accounts && window.google.accounts.oauth2){ Drive.gisLoaded = true; return resolve(); }
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = ()=>{ Drive.gisLoaded = true; resolve(); };
+    s.onerror = ()=> reject(new Error("Couldn't load Google's sign-in script — check your internet connection."));
+    document.head.appendChild(s);
+  });
+}
+
+async function saveDriveClientId(clientId){
+  Drive.clientId = clientId.trim();
+  await saveJSONRaw("driveConfig", {clientId: Drive.clientId, fileId: Drive.fileId});
+}
+/* raw save that bypasses the auto-push hook (avoids syncing before we're connected) */
+async function saveJSONRaw(key, obj){
+  try{ await window.storage.set(key, JSON.stringify(obj), false); return true; }
+  catch(e){ console.error("save failed", key, e); return false; }
+}
+
+async function connectDrive(){
+  if(!Drive.clientId){ Drive.lastError = "Enter a Client ID first."; return; }
+  Drive.lastError = null;
+  try{
+    await loadGISScript();
+    await new Promise((resolve, reject)=>{
+      Drive.tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: Drive.clientId,
+        scope: DRIVE_SCOPE,
+        callback: async (resp)=>{
+          if(resp.error){ reject(new Error(resp.error)); return; }
+          Drive.accessToken = resp.access_token;
+          Drive.tokenExpiresAt = Date.now() + (resp.expires_in||3600)*1000 - 60000;
+          resolve();
+        }
+      });
+      Drive.tokenClient.requestAccessToken({prompt: "consent"});
+    });
+    Drive.connected = true;
+    await findOrCreateDriveFile();
+    await fetchDriveUserInfo();
+    await pullFromDrive();
+    Drive.lastSyncAt = new Date().toISOString();
+  } catch(e){
+    console.error("Drive connect failed", e);
+    Drive.connected = false;
+    Drive.lastError = "Couldn't connect to Google Drive. " + (e.message||"");
+  }
+  if(typeof renderTabContent==="function") renderTabContent();
+}
+
+async function ensureFreshToken(){
+  if(Drive.accessToken && Date.now() < Drive.tokenExpiresAt) return true;
+  if(!Drive.tokenClient) return false;
+  return new Promise((resolve)=>{
+    Drive.tokenClient.callback = (resp)=>{
+      if(resp.error){ resolve(false); return; }
+      Drive.accessToken = resp.access_token;
+      Drive.tokenExpiresAt = Date.now() + (resp.expires_in||3600)*1000 - 60000;
+      resolve(true);
+    };
+    Drive.tokenClient.requestAccessToken({prompt: ""}); // silent refresh if session still active
+  });
+}
+
+async function fetchDriveUserInfo(){
+  try{
+    const resp = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {headers:{Authorization:"Bearer "+Drive.accessToken}});
+    if(resp.ok){ const j = await resp.json(); Drive.userEmail = j.email; }
+  } catch(e){ /* non-fatal */ }
+}
+
+async function findOrCreateDriveFile(){
+  const listResp = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`)}&fields=files(id,name,modifiedTime)`,
+    {headers:{Authorization:"Bearer "+Drive.accessToken}}
+  );
+  const listJson = await listResp.json();
+  if(listJson.files && listJson.files.length){
+    Drive.fileId = listJson.files[0].id;
+  } else {
+    const boundary = "centuryready" + Math.random().toString(36).slice(2);
+    const metadata = {name: DRIVE_FILE_NAME, mimeType: "application/json"};
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`+
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({updatedAt:new Date().toISOString(), data:{}})}\r\n`+
+      `--${boundary}--`;
+    const createResp = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
+      method:"POST",
+      headers:{Authorization:"Bearer "+Drive.accessToken, "Content-Type":`multipart/related; boundary=${boundary}`},
+      body
+    });
+    const createJson = await createResp.json();
+    Drive.fileId = createJson.id;
+  }
+  await saveJSONRaw("driveConfig", {clientId: Drive.clientId, fileId: Drive.fileId});
+}
+
+/* ---------------- EXPORT / IMPORT local data as one bundle ---------------- */
+async function exportAllData(){
+  const keys = await listKeys("");
+  const bundle = {};
+  for(const k of keys){
+    if(k==="driveConfig") continue;
+    bundle[k] = await loadJSON(k);
+  }
+  return {updatedAt: new Date().toISOString(), data: bundle};
+}
+async function importAllData(payload){
+  if(!payload || !payload.data) return;
+  for(const [k,v] of Object.entries(payload.data)){
+    await saveJSONRaw(k, v);
+  }
+  State.logs = {}; // clear in-memory log cache so re-reads pick up imported data
+}
+
+async function pullFromDrive(){
+  if(!Drive.connected || !Drive.fileId) return;
+  const ok = await ensureFreshToken();
+  if(!ok) return;
+  const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${Drive.fileId}?alt=media`, {
+    headers:{Authorization:"Bearer "+Drive.accessToken}
+  });
+  if(!resp.ok) return;
+  const remote = await resp.json();
+  const localMeta = await loadJSON("driveSyncMeta");
+  const remoteTime = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
+  const localTime = localMeta && localMeta.lastLocalWrite ? new Date(localMeta.lastLocalWrite).getTime() : 0;
+  if(remoteTime > localTime && remote.data && Object.keys(remote.data).length){
+    await importAllData(remote);
+    await saveJSONRaw("driveSyncMeta", {lastLocalWrite: remote.updatedAt});
+    // reload the whole app state from the newly-imported data
+    if(typeof init==="function"){ await init(); }
+  }
+}
+
+async function pushToDrive(){
+  if(!Drive.connected || !Drive.fileId || Drive.syncing) return;
+  Drive.syncing = true;
+  try{
+    const ok = await ensureFreshToken();
+    if(!ok) throw new Error("session expired — click Connect again");
+    const bundle = await exportAllData();
+    await saveJSONRaw("driveSyncMeta", {lastLocalWrite: bundle.updatedAt});
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${Drive.fileId}?uploadType=media`, {
+      method:"PATCH",
+      headers:{Authorization:"Bearer "+Drive.accessToken, "Content-Type":"application/json"},
+      body: JSON.stringify(bundle)
+    });
+    Drive.lastSyncAt = new Date().toISOString();
+    Drive.dirtySincePush = false;
+    Drive.lastError = null;
+  } catch(e){
+    console.error("Drive push failed", e);
+    Drive.lastError = "Sync failed — will retry on next change.";
+  } finally {
+    Drive.syncing = false;
+    if(typeof renderDriveStatus==="function") renderDriveStatus();
+  }
+}
+
+function scheduleDrivePush(){
+  if(!Drive.connected) return;
+  Drive.dirtySincePush = true;
+  if(Drive.pushTimer) clearTimeout(Drive.pushTimer);
+  Drive.pushTimer = setTimeout(pushToDrive, DRIVE_PUSH_DEBOUNCE_MS);
+}
+
+function disconnectDrive(){
+  Drive.connected = false;
+  Drive.accessToken = null;
+  Drive.userEmail = null;
+  if(typeof renderTabContent==="function") renderTabContent();
+}
+/* ============================================================
+   STORAGE POLYFILL — lets this exact file run standalone in any
+   Chrome browser (desktop or mobile), not only inside Claude.ai.
+   If the Claude.ai artifact storage API is present, it's used as-is;
+   otherwise we fall back to the browser's own localStorage.
+   ============================================================ */
+(function ensureStoragePolyfill(){
+  if(window.storage && typeof window.storage.get==="function") return;
+  const NS = "centuryReady:";
+  function k(key){ return NS+key; }
+  window.storage = {
+    get: async (key) => {
+      let raw = null;
+      try{ raw = localStorage.getItem(k(key)); } catch(e){ throw new Error("storage unavailable"); }
+      if(raw===null) return Promise.reject(new Error("not found"));
+      return {key, value:raw};
+    },
+    set: async (key, value) => { localStorage.setItem(k(key), value); return {key, value}; },
+    delete: async (key) => { localStorage.removeItem(k(key)); return {key, deleted:true}; },
+    list: async (prefix) => {
+      const keys = [];
+      for(let i=0;i<localStorage.length;i++){
+        const full = localStorage.key(i);
+        if(full && full.startsWith(NS)){ const bare = full.slice(NS.length); if(!prefix || bare.startsWith(prefix)) keys.push(bare); }
+      }
+      return {keys};
+    }
+  };
+  window._usingLocalStoragePolyfill = true;
+})();
+
+/* ============================================================
+   CENTURY READY — APPLICATION SHELL
+   ============================================================ */
+
+const State = {
+  tab: "dashboard",
+  profile: null,
+  logs: {},
+  selectedDate: null,
+  openWeek: null,
+  _openItems: {},
+  editorTab: "workouts",
+  editorFilter: {q:"", bodyGroup:"all", bodyPart:"all"},
+  editingExerciseId: null,
+  editingWorkoutId: null,
+  scheduleView: "list",
+  calendarMonth: null,
+  calendarSelectedDate: null
+};
+
+const DEFAULT_PROFILE = {
+  heightIn: 70, weightLb: 185, age: 40, sex: "male",
+  activity: "1.375", ftp: 180, thresholdHR: 158, restingHR: 60, maxHR: 178, set:false
+};
+
+/* ---------------- STORAGE HELPERS ---------------- */
+async function saveJSON(key, obj){
+  try{
+    const r = await window.storage.set(key, JSON.stringify(obj), false);
+    if(typeof scheduleDrivePush==="function" && key!=="driveConfig") scheduleDrivePush();
+    return !!r;
+  }
+  catch(e){ console.error("save failed", key, e); return false; }
+}
+async function loadJSON(key){
+  try{ const r = await window.storage.get(key, false); return r && r.value ? JSON.parse(r.value) : null; }
+  catch(e){ return null; }
+}
+async function listKeys(prefix){
+  try{ const r = await window.storage.list(prefix, false); return r && r.keys ? r.keys : []; }
+  catch(e){ return []; }
+}
+function logKey(date){ return "log:" + date; }
+async function getLog(date){
+  if(State.logs[date]) return State.logs[date];
+  const l = await loadJSON(logKey(date)) || {date, workouts:{}, nutrition:{}, bodyweight:null, notes:"", targetOverrides:{}};
+  State.logs[date] = l;
+  return l;
+}
+async function saveLog(date, log){
+  State.logs[date] = log;
+  await saveJSON(logKey(date), log);
+}
+
+/* ---------------- PROFILE / ZONE / NUTRITION MATH ---------------- */
+function bmi(weightLb, heightIn){ const kg=weightLb*0.453592, m=heightIn*0.0254; return kg/(m*m); }
+function bmiCategory(v){ if(v<18.5) return "Underweight"; if(v<25) return "Normal"; if(v<30) return "Overweight"; return "Higher range"; }
+function bmr(p){ const kg=p.weightLb*0.453592, cm=p.heightIn*2.54; const base=10*kg+6.25*cm-5*p.age; return p.sex==="male"?base+5:base-161; }
+function tdeeBaseline(p){ return bmr(p)*parseFloat(p.activity); }
+function workoutKcal(day, p){
+  if(!day) return 0;
+  const wKg = p.weightLb*0.453592;
+  let kcal = 0;
+  day.workouts.forEach(w=>{
+    if(w.kind==="cycling"){
+      const mets = w.isRace ? 8 : (w.timeMin>=150 ? 7 : (w.zoneText&&w.zoneText.includes("Zone 5")?9:(w.zoneText&&w.zoneText.includes("Sweet Spot")?8.5:6.5)));
+      kcal += mets*3.5*wKg/200*w.timeMin;
+    } else if(w.kind==="strengthblock"){
+      kcal += 5*3.5*wKg/200*w.timeMin;
+    }
+  });
+  return Math.round(kcal);
+}
+function nutritionTargets(day, p){
+  const wKg = p.weightLb*0.453592;
+  const base = tdeeBaseline(p);
+  const extra = workoutKcal(day, p);
+  const kcal = Math.round(base+extra);
+  let carbFactor = 3;
+  if(day){
+    if(day.type==="race" || (day.workouts||[]).some(w=>w.isLongRide)) carbFactor = 7.5;
+    else if(day.type==="indoor" || day.type==="outdoor") carbFactor = 5;
+    else if(day.type==="strength") carbFactor = 4;
+    else carbFactor = 3;
+  }
+  const carbsG = Math.round(carbFactor*wKg);
+  const proteinG = Math.round(1.6*wKg);
+  const trainMin = day ? day.workouts.reduce((s,w)=>s+(w.timeMin||0),0) : 0;
+  const waterOz = Math.round(0.5*p.weightLb + (trainMin/60)*20);
+  return {kcal, carbsG, proteinG, waterOz, carbFactor, trainMin};
+}
+
+const POWER_ZONES = [
+  {z:"Z1",name:"Active Recovery",lo:0,hi:55,color:"#9aa7b2"}, {z:"Z2",name:"Endurance",lo:56,hi:75,color:"#2f6690"},
+  {z:"Z3",name:"Tempo",lo:76,hi:90,color:"#2f9e8f"}, {z:"Z4",name:"Threshold",lo:91,hi:105,color:"#e0894f"},
+  {z:"Z5",name:"VO2max",lo:106,hi:120,color:"#c1554a"}, {z:"Z6",name:"Anaerobic Capacity",lo:121,hi:150,color:"#8a3a63"},
+];
+const HR_ZONES = [
+  {z:"Z1",name:"Active Recovery",lo:0,hi:80,color:"#9aa7b2"}, {z:"Z2",name:"Endurance",lo:81,hi:89,color:"#2f6690"},
+  {z:"Z3",name:"Tempo",lo:90,hi:93,color:"#2f9e8f"}, {z:"Z4",name:"Threshold",lo:94,hi:99,color:"#e0894f"},
+  {z:"Z5a",name:"VO2max",lo:100,hi:102,color:"#c1554a"}, {z:"Z5b",name:"Anaerobic",lo:103,hi:106,color:"#8a3a63"},
+];
+function powerZoneRows(ftp){ return POWER_ZONES.map(z=>{ const loW=z.lo===0?0:Math.round(ftp*z.lo/100); const hiW=z.hi>=150?"+":Math.round(ftp*z.hi/100); return {...z, watts: z.lo===0?`≤${hiW}W`:(z.hi>=150?`${loW}W+`:`${loW}–${hiW}W`)}; }); }
+function hrZoneRows(thr){ return HR_ZONES.map(z=>{ const loB=z.lo===0?0:Math.round(thr*z.lo/100); const hiB=Math.round(thr*z.hi/100); return {...z, bpm: z.lo===0?`≤${hiB} bpm`:`${loB}–${hiB} bpm`}; }); }
+
+/* ---------------- UTIL ---------------- */
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmtHrs(min){ if(!min || min<=0) return "—"; const h=Math.floor(min/60), m=min%60; if(h===0) return `${m} min`; if(m===0) return `${h} hr`; return `${h}h ${m}m`; }
+function typeBadge(type){
+  const map = {rest:["badge-rest","Rest"], indoor:["badge-indoor","Indoor Ride"], outdoor:["badge-outdoor","Outdoor Ride"], strength:["badge-strength","Strength"], recovery:["badge-recovery","Recovery"], race:["badge-race","Race Day"]};
+  const [cls,label] = map[type]||["badge-rest","—"];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+function phaseBadge(phase, label){
+  const map = {prep:"badge-recoveryweek", foundation:"badge-foundation", build:"badge-build", recovery:"badge-recoveryweek", peak:"badge-peak", taper:"badge-taper"};
+  return `<span class="badge ${map[phase]||"badge-rest"}">${esc(label)}</span>`;
+}
+function totalDayMinutes(day){ return day.workouts.reduce((s,w)=>s+(w.timeMin||0),0); }
+function daysUntilEvent(){ return daysBetween(todayISO(), EVENT.date); }
+function parseUid(u){ return {date:u.slice(0,10), slotKey:u.slice(12)}; }
+
+/* ============================================================
+   RENDER: SHELL
+   ============================================================ */
+const root = document.getElementById("root");
+
+async function init(){
+  State.profile = (await loadJSON("profile")) || {...DEFAULT_PROFILE};
+  State.weightHistory = (await loadJSON("weightHistory")) || [];
+  await loadLibraries();
+  await initPlan();
+  await initWeather();
+  await initDriveSync();
+
+  let today = todayISO();
+  const dates = allCalendarDates();
+  if(!dates.includes(today)){
+    today = today < dates[0] ? dates[0] : dates[dates.length-1];
+  }
+  State.selectedDate = today;
+  const dp = getDayPlan(today);
+  State.openWeek = dp ? dp.weekNum : 1;
+  render();
+}
+
+function render(){
+  root.innerHTML = `
+    ${renderHeader()}
+    ${renderTabs()}
+    <div id="tabcontent"></div>
+    <div id="modal-root"></div>
+    <div class="footer-note">Century Ready · Built for the ${esc(EVENT.name)}, ${esc(fmtDateLong(EVENT.date))} · Data stays on this device</div>
+  `;
+  renderTabContent();
+}
+
+function renderModalRoot(){
+  const m = document.getElementById("modal-root");
+  if(!m) return;
+  if(State._openModal==="weather") m.innerHTML = weatherFormModal();
+  else if(State._openModal==="skip") m.innerHTML = skipSwapModal(State._modalDate);
+  else if(State._openModal==="swap") m.innerHTML = swapModal(State._modalDate);
+  else { m.innerHTML = ""; return; }
+  wireModalEvents(m);
+}
+
+function wireModalEvents(m){
+  m.querySelectorAll("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>{ State._openModal=null; renderModalRoot(); }));
+  m.querySelectorAll("[data-save-weather-loc]").forEach(b=>b.addEventListener("click", async ()=>{
+    const v = document.getElementById("weather-loc-input").value.trim();
+    if(v){ State._openModal=null; renderModalRoot(); await setWeatherLocation(v); renderWeatherWidget(); }
+  }));
+  m.querySelectorAll("[data-confirm-skip]").forEach(b=>b.addEventListener("click",()=>{
+    const date=b.dataset.confirmSkip; const n=parseInt(document.getElementById("skip-count-select").value);
+    const res=skipDays(date,n); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
+  }));
+  m.querySelectorAll("[data-confirm-swap]").forEach(b=>b.addEventListener("click",()=>{
+    const dateA=b.dataset.confirmSwap; const dateB=document.getElementById("swap-target-select").value;
+    const res=swapDays(dateA,dateB); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
+  }));
+}
+
+function renderHeader(){
+  const d = daysUntilEvent();
+  const dp = getDayPlan(State.selectedDate);
+  return `
+  <div class="app-header">
+    <div class="eyebrow">Training Plan · Started ${esc(fmtDate(Plan.start))}</div>
+    <h1>Century Ready</h1>
+    <p class="sub">${esc(EVENT.name)} — ${esc(EVENT.location)} · ${esc(fmtDateLong(EVENT.date))}</p>
+    <div class="header-stats" id="header-stats-row">
+      <div class="stat-pill"><div class="num">${d}</div><div class="lbl">Days to go</div></div>
+      <div class="stat-pill"><div class="num">${dp?("Wk "+dp.weekNum+"/10"):"—"}</div><div class="lbl">${dp?esc(dp.phaseLabel):""}</div></div>
+      <div class="stat-pill"><div class="num">${State.profile.ftp}W</div><div class="lbl">Current FTP</div></div>
+      <div id="weather-widget"></div>
+    </div>
+  </div>`;
+}
+
+function renderTabs(){
+  const tabs = [["dashboard","Today"],["schedule","10-Week Schedule"],["profile","Profile & Zones"],["progress","Progress Log"],["editor","Workout & Exercise Editor"]];
+  return `<div class="tabnav">${tabs.map(([id,label])=>`<button data-tab="${id}" class="${State.tab===id?'active':''}">${label}</button>`).join("")}</div>`;
+}
+
+function switchTab(id){
+  State.tab = id;
+  document.querySelectorAll(".tabnav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  renderTabContent();
+}
+
+async function renderTabContent(){
+  const el = document.getElementById("tabcontent");
+  if(State.tab==="dashboard") el.innerHTML = await renderDashboard();
+  else if(State.tab==="schedule") el.innerHTML = await renderSchedule();
+  else if(State.tab==="profile") el.innerHTML = renderProfile();
+  else if(State.tab==="progress") el.innerHTML = await renderProgress();
+  else if(State.tab==="editor") el.innerHTML = renderEditor();
+  wireTabEvents();
+  renderWeatherWidget();
+  renderModalRoot();
+  if(State.tab==="schedule" && State.scheduleView==="calendar"){
+    const detailEl = document.getElementById("cal-day-detail");
+    if(detailEl){
+      detailEl.innerHTML = `<div class="card"><h2 style="font-size:15px; margin-bottom:10px;">${esc(fmtDateLong(State.calendarSelectedDate))}</h2>${await renderDayRow(State.calendarSelectedDate)}</div>`;
+      wireTabEvents();
+    }
+  }
+}
+
+document.addEventListener("click", (e)=>{
+  const tb = e.target.closest(".tabnav button");
+  if(tb){ switchTab(tb.dataset.tab); return; }
+  const wf = e.target.closest("[data-open-weather-form]");
+  if(wf){ State._openModal="weather"; renderModalRoot(); return; }
+  const wr = e.target.closest("[data-refresh-weather]");
+  if(wr){ refreshWeather(); return; }
+});
+
+init();
+/* ============================================================
+   WEATHER WIDGET (renders into header)
+   ============================================================ */
+function renderWeatherWidget(){
+  const el = document.getElementById("weather-widget");
+  if(!el) return;
+  if(!Weather.location){
+    el.innerHTML = `<div class="stat-pill" style="min-width:170px;">
+      <div class="lbl" style="margin-bottom:6px;">Today's Weather</div>
+      <button class="btn btn-ghost" style="background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.3); color:#fff; padding:6px 10px; font-size:11.5px;" data-open-weather-form="1">Set location</button>
+    </div>`;
+    return;
+  }
+  if(Weather.loading && !Weather.data){
+    el.innerHTML = `<div class="stat-pill" style="min-width:170px;"><div class="lbl">Today's Weather</div><div style="font-size:12px;color:#cfe3f0;margin-top:6px;">Loading…</div></div>`;
+    return;
+  }
+  if(Weather.error && !Weather.data){
+    el.innerHTML = `<div class="stat-pill" style="min-width:190px;"><div class="lbl">Today's Weather</div><div style="font-size:11.5px;color:#f3c9c9;margin-top:6px;">${esc(Weather.error)}</div><button class="btn btn-ghost" style="margin-top:6px; background:rgba(255,255,255,0.14); border-color:rgba(255,255,255,0.3); color:#fff; padding:4px 9px; font-size:11px;" data-refresh-weather="1">Retry</button></div>`;
+    return;
+  }
+  const d = Weather.data;
+  if(!d) return;
+  const ago = Weather.fetchedAt ? Math.round((Date.now()-new Date(Weather.fetchedAt).getTime())/60000) : null;
+  el.innerHTML = `
+  <div class="stat-pill" style="min-width:230px; cursor:pointer;" data-open-weather-form="1">
+    <div class="lbl">Today's Weather · ${esc(d.resolvedLocation||Weather.location.label)}</div>
+    <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+      ${weatherIconSVG(d.icon,34)}
+      <div>
+        <div class="num" style="font-size:22px;">${Math.round(d.tempF)}°F</div>
+        <div style="font-size:11px; color:#cfe3f0;">${esc(d.condition||"")}</div>
+      </div>
+    </div>
+    <div style="font-size:11px; color:#cfe3f0; margin-top:5px; max-width:210px; line-height:1.4;">${esc(d.forecastText||"")}</div>
+    <div style="font-size:10px; color:#9dc0d6; margin-top:4px;">H ${Math.round(d.highF)}° / L ${Math.round(d.lowF)}° · Sunset ${esc(d.sunsetLocal||"—")} ${ago!=null?`· updated ${ago}m ago`:""}</div>
+  </div>`;
+}
+
+function weatherFormModal(){
+  const label = Weather.location ? Weather.location.label : "";
+  return `
+  <div class="modal-backdrop" id="weather-modal">
+    <div class="modal-box">
+      <h3 style="margin-bottom:10px;">Set weather location</h3>
+      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:12px;">Enter a ZIP code or "City, State" — used for today's forecast and outdoor-ride safety checks. Refreshes automatically every 30 minutes.</p>
+      <input type="text" id="weather-loc-input" placeholder="e.g. 21788 or Thurmont, MD" value="${esc(label)}" style="width:100%; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; font-size:14px;">
+      <div class="save-row" style="margin-top:14px; justify-content:flex-end;">
+        <button class="btn btn-ghost" data-close-modal="1">Cancel</button>
+        <button class="btn btn-primary" data-save-weather-loc="1">Save & Refresh</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   WORKOUT ITEM COMPONENT
+   ============================================================ */
+function renderWorkoutItem(dayPlan, wIndex, w, log){
+  const date = dayPlan.date;
+  const slotKey = w.slotKey;
+  const uidStr = `${date}::${slotKey}`;
+  const savedW = (log.workouts && log.workouts[slotKey]) || {};
+  const isOpen = State._openItems[uidStr];
+  const subOpen = State._openItems["sub_"+uidStr];
+  const total = dayPlan.workouts.length;
+  const reorderBtns = total>1 ? `
+    <div style="display:flex; flex-direction:column; gap:2px; margin-right:4px;">
+      <button data-reorder-workout="${uidStr}" data-dir="-1" ${wIndex===0?'disabled':''} title="Move earlier" style="border:1px solid var(--grey-200); background:#fff; border-radius:4px; width:20px; height:18px; font-size:10px; cursor:pointer; color:var(--grey-600); ${wIndex===0?'opacity:.3;':''}">▲</button>
+      <button data-reorder-workout="${uidStr}" data-dir="1" ${wIndex===total-1?'disabled':''} title="Move later" style="border:1px solid var(--grey-200); background:#fff; border-radius:4px; width:20px; height:18px; font-size:10px; cursor:pointer; color:var(--grey-600); ${wIndex===total-1?'opacity:.3;':''}">▼</button>
+    </div>` : "";
+
+  if(w.kind==="cycling"){
+    const platBadge = w.platform==="Rouvy (Indoor)" ? "🚴 Rouvy" : (w.platform&&w.platform.startsWith("Rouvy") ? "🚴 "+w.platform : (w.platform==="Outdoor" ? "🌤 Outdoor" : ""));
+    return `
+    <div class="workout-item" data-uid="${uidStr}">
+      <div class="wi-head" data-toggle="${uidStr}">
+        ${reorderBtns}
+        <div style="flex:1;">
+          <div class="wi-title">${esc(w.name)} ${w.isRace?'🏆':''}</div>
+          <div class="wi-desc">${esc(w.desc)}</div>
+        </div>
+        <div class="wi-right">
+          <span class="wi-time">${fmtHrs(w.timeMin)}${w.estMiles?` · ~${w.estMiles}mi`:""}</span>
+          <svg class="chev ${isOpen?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="wi-body ${isOpen?'open':''}">
+        <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Rouvy library ↗</a>`:""}</div>
+        <div class="field-grid">
+          <div class="field"><label>Actual Duration (min)</label><input type="number" min="0" data-f="duration" data-uid="${uidStr}" value="${savedW.duration??''}" placeholder="${w.timeMin}"></div>
+          <div class="field"><label>Distance (mi)</label><input type="number" min="0" step="0.1" data-f="distance" data-uid="${uidStr}" value="${savedW.distance??''}" placeholder="${w.estMiles||''}"></div>
+          <div class="field"><label>Avg Power (W)</label><input type="number" min="0" data-f="avgPower" data-uid="${uidStr}" value="${savedW.avgPower??''}"></div>
+          <div class="field"><label>Avg HR (bpm)</label><input type="number" min="0" data-f="avgHR" data-uid="${uidStr}" value="${savedW.avgHR??''}"></div>
+          <div class="field"><label>Avg Cadence (rpm)</label><input type="number" min="0" data-f="cadence" data-uid="${uidStr}" value="${savedW.cadence??''}"></div>
+          <div class="field"><label>Elevation Gain (ft)</label><input type="number" min="0" data-f="elevation" data-uid="${uidStr}" value="${savedW.elevation??''}"></div>
+          <div class="field"><label>TSS</label><input type="number" min="0" data-f="tss" data-uid="${uidStr}" value="${savedW.tss??''}"></div>
+          <div class="field"><label>RPE (1–10)</label><input type="number" min="1" max="10" data-f="rpe" data-uid="${uidStr}" value="${savedW.rpe??''}"></div>
+          <div class="field wide"><label>Notes (nutrition on bike, how it felt, weather...)</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
+        </div>
+        <div class="save-row">
+          <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
+          <span class="save-tick" data-tick="${uidStr}">✓ Saved</span>
+          <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">${w.isRace?'':'Substitute workout'}</button>
+          ${slotKey[0]==='a' ? `<button class="btn btn-ghost" data-remove-added="${uidStr}" style="color:var(--red);">Remove</button>` : ""}
+        </div>
+        ${!w.isRace ? renderSubPicker(uidStr, date, slotKey, "cycling", subOpen) : ""}
+      </div>
+    </div>`;
+  }
+
+  if(w.kind==="strengthblock"){
+    const rows = w.items.map((it, ii)=>{
+      const oi = it.origIndex;
+      const key = `s${oi}`;
+      const sv = savedW[key] || {};
+      const ovKey = slotKey+"_"+oi;
+      const ov = (log.targetOverrides && log.targetOverrides[ovKey]) || null;
+      const dispSets = ov ? ov.sets : it.targetSets;
+      const dispReps = ov ? ov.reps : it.targetReps;
+      const itemCount = w.items.length;
+      return `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--grey-100);">
+        <div style="display:flex; flex-direction:column; gap:2px; margin-top:2px;">
+          <button data-reorder-ex="${uidStr}" data-origidx="${oi}" data-dir="-1" ${ii===0?'disabled':''} style="border:1px solid var(--grey-200); background:#fff; border-radius:4px; width:18px; height:16px; font-size:9px; cursor:pointer; color:var(--grey-600); ${ii===0?'opacity:.3;':''}">▲</button>
+          <button data-reorder-ex="${uidStr}" data-origidx="${oi}" data-dir="1" ${ii===itemCount-1?'disabled':''} style="border:1px solid var(--grey-200); background:#fff; border-radius:4px; width:18px; height:16px; font-size:9px; cursor:pointer; color:var(--grey-600); ${ii===itemCount-1?'opacity:.3;':''}">▼</button>
+        </div>
+        <div style="flex:1; min-width:160px;">
+          <div style="font-weight:700; font-size:13.5px; color:var(--navy);">${esc(it.name)}</div>
+          <div style="font-size:12px; color:var(--grey-600); margin-top:2px;">${esc(it.desc)}</div>
+          <div style="display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap;">
+            <span style="font-size:11px; color:var(--grey-600); font-weight:700;">Target:</span>
+            <input type="text" data-target="sets" data-uid="${uidStr}" data-exidx="${oi}" value="${esc(dispSets)}" style="width:44px; border:1px solid var(--grey-200); border-radius:4px; padding:3px 5px; font-size:11.5px;"> sets ×
+            <input type="text" data-target="reps" data-uid="${uidStr}" data-exidx="${oi}" value="${esc(dispReps)}" style="width:80px; border:1px solid var(--grey-200); border-radius:4px; padding:3px 5px; font-size:11.5px;">
+            ${ov?`<button data-reset-target="${uidStr}" data-exidx="${oi}" style="border:none;background:none;color:var(--teal-dark);font-size:10.5px;font-weight:700;cursor:pointer;">reset</button>`:""}
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <div class="field" style="width:70px;"><label>Sets</label><input type="text" data-f="${key}_sets" data-uid="${uidStr}" value="${esc(sv.sets||'')}" placeholder="${esc(dispSets)}"></div>
+          <div class="field" style="width:90px;"><label>Reps done</label><input type="text" data-f="${key}_reps" data-uid="${uidStr}" value="${esc(sv.reps||'')}" placeholder="${esc(dispReps)}"></div>
+          <div class="field" style="width:80px;"><label>Weight</label><input type="text" data-f="${key}_weight" data-uid="${uidStr}" value="${esc(sv.weight||'')}" placeholder="lb/band"></div>
+        </div>
+      </div>`;
+    }).join("");
+    return `
+    <div class="workout-item" data-uid="${uidStr}">
+      <div class="wi-head" data-toggle="${uidStr}">
+        ${reorderBtns}
+        <div style="flex:1;">
+          <div class="wi-title">${esc(w.title)}</div>
+          <div class="wi-desc">${w.items.length} exercise${w.items.length===1?'':'s'} · ${esc(w.desc||"")}</div>
+        </div>
+        <div class="wi-right">
+          <span class="wi-time">${fmtHrs(w.timeMin)}</span>
+          <svg class="chev ${isOpen?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="wi-body ${isOpen?'open':''}">
+        <p style="font-size:11px; color:var(--grey-600); margin-bottom:4px;">Use the ▲▼ arrows to reorder exercises for today only — permanent order changes are made in the Workout &amp; Exercise Editor.</p>
+        ${rows}
+        <div class="field wide" style="margin-top:12px;"><label>Session Notes</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
+        <div class="save-row">
+          <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
+          <span class="save-tick" data-tick="${uidStr}">✓ Saved</span>
+          <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">Substitute workout</button>
+          ${slotKey[0]==='a' ? `<button class="btn btn-ghost" data-remove-added="${uidStr}" style="color:var(--red);">Remove</button>` : ""}
+        </div>
+        ${renderSubPicker(uidStr, date, slotKey, "strengthblock", subOpen)}
+      </div>
+    </div>`;
+  }
+  return "";
+}
+
+function renderSubPicker(uidStr, date, slotKey, kind, open){
+  if(!open) return "";
+  const q = (State.editorFilter.subQ||"").toLowerCase();
+  const results = Object.entries(Lib.workouts).filter(([id,w])=> w.kind===kind && (!q || w.name.toLowerCase().includes(q)));
+  return `
+  <div style="background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:12px; margin-top:12px;">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+      <input type="text" placeholder="Search workout library..." data-subsearch="${uidStr}" value="${esc(State.editorFilter.subQ||"")}" style="flex:1; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px;">
+      <button class="btn btn-ghost" data-swap-day="${date}">Swap with another day</button>
+    </div>
+    <div style="max-height:220px; overflow-y:auto;">
+      ${results.length ? results.map(([id,w])=>`
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 4px; border-bottom:1px solid var(--grey-100);">
+          <div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(w.name)}</div>
+            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):esc((w.exercises||[]).length+' exercises')} ${w.platform?(' · '+esc(w.platform)):''}</div>
+          </div>
+          <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-sub="${uidStr}" data-workoutid="${id}">Use this</button>
+        </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
+    </div>
+    <div class="save-row" style="margin-top:10px;">
+      <button class="btn btn-ghost" data-revert-slot="${uidStr}">Revert to scheduled</button>
+    </div>
+  </div>`;
+}
+
+function collectWorkoutFields(uidStr){
+  const wrap = document.querySelector(`[data-uid="${uidStr}"].workout-item`);
+  if(!wrap) return {};
+  const obj = {};
+  wrap.querySelectorAll(`input[data-uid="${uidStr}"][data-f], textarea[data-uid="${uidStr}"][data-f]`).forEach(inp=>{
+    const f = inp.dataset.f;
+    if(f.includes("_")){ const [k,sub]=f.split("_"); obj[k]=obj[k]||{}; obj[k][sub]=inp.value; }
+    else obj[f]=inp.value;
+  });
+  return obj;
+}
+
+async function saveWorkoutEntry(dayDate, slotKey, uidStr){
+  const log = await getLog(dayDate);
+  log.workouts = log.workouts || {};
+  log.workouts[slotKey] = collectWorkoutFields(uidStr);
+  await saveLog(dayDate, log);
+  const tick = document.querySelector(`[data-tick="${uidStr}"]`);
+  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+}
+
+/* ============================================================
+   NUTRITION WIDGET
+   ============================================================ */
+function renderNutritionWidget(day, log){
+  const targets = nutritionTargets(day, State.profile);
+  const n = log.nutrition || {};
+  function box(label,key,target,unit,step){
+    const val = n[key] ?? "";
+    const pct = val ? Math.min(150, Math.round((parseFloat(val)/target)*100)) : 0;
+    return `<div class="nutri-box"><div class="nlabel">${label}</div>
+      <input type="number" min="0" step="${step||1}" data-nutri="${key}" value="${val}" style="border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--navy);width:100%;padding:0;margin-top:4px;" placeholder="0">
+      <div class="ntarget">of ${target}${unit} target</div><div class="bar-track"><div class="bar-fill ${pct>105?'over':''}" style="width:${Math.min(100,pct)}%"></div></div></div>`;
+  }
+  return `
+  <div class="nutri-grid">${box("Food (kcal)","kcal",targets.kcal,"","10")}${box("Carbs (g)","carbs",targets.carbsG,"g","1")}${box("Protein (g)","protein",targets.proteinG,"g","1")}${box("Water (oz)","water",targets.waterOz,"oz","1")}</div>
+  <div class="info-callout"><b>Why these numbers:</b> Baseline calories come from your profile (Mifflin-St Jeor BMR × activity) plus an estimate for today's training load. Carbs scale up on long-ride/race days (~7.5 g/kg) and stay moderate on rest days (~3 g/kg). Protein targets 1.6 g/kg daily. Water = 0.5 oz/lb bodyweight + ~20 oz per hour trained.</div>
+  <div class="save-row"><button class="btn btn-primary" data-save-nutri="${day.date}">Save nutrition</button><span class="save-tick" data-tick="nutri_${day.date}">✓ Saved</span></div>`;
+}
+async function saveNutrition(date){
+  const log = await getLog(date);
+  log.nutrition = log.nutrition || {};
+  document.querySelectorAll(`[data-nutri]`).forEach(inp=>{ log.nutrition[inp.dataset.nutri] = inp.value; });
+  await saveLog(date, log);
+  const tick = document.querySelector(`[data-tick="nutri_${date}"]`);
+  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+}
+
+function renderAddWorkoutPanel(date){
+  const open = State._openItems["addwk_"+date];
+  if(!open) return `<button class="btn btn-ghost" data-toggle-addworkout="${date}" style="margin-top:10px;">+ Add a workout to this day</button>`;
+  const q = (State.editorFilter.addWkQ||"").toLowerCase();
+  const kindFilter = State.editorFilter.addWkKind||"all";
+  const results = Object.entries(Lib.workouts).filter(([id,w])=>{
+    if(kindFilter!=="all" && w.kind!==kindFilter) return false;
+    if(q && !w.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  return `
+  <div style="background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:12px; margin-top:10px;">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+      <input type="text" placeholder="Search workout library..." data-addwk-search="1" value="${esc(State.editorFilter.addWkQ||"")}" style="flex:1; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px;">
+      <div class="filter-chips">
+        ${["all","cycling","strengthblock"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-addwk-kind="${k}">${k==='all'?'All':(k==='cycling'?'Cycling':'Strength')}</button>`).join("")}
+      </div>
+    </div>
+    <div style="max-height:220px; overflow-y:auto;">
+      ${results.length ? results.map(([id,w])=>`
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 4px; border-bottom:1px solid var(--grey-100);">
+          <div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(w.name)}</div>
+            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):esc((w.exercises||[]).length+' exercises')} ${w.platform?(' · '+esc(w.platform)):''}</div>
+          </div>
+          <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-add="1" data-date="${date}" data-workoutid="${id}">Add</button>
+        </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
+    </div>
+    <div class="save-row" style="margin-top:8px;"><button class="btn btn-ghost" data-toggle-addworkout="${date}">Close</button></div>
+  </div>`;
+}
+
+/* ============================================================
+   SKIP / SWAP CONTROLS
+   ============================================================ */
+function skipSwapModal(date){
+  return `
+  <div class="modal-backdrop" id="skipswap-modal">
+    <div class="modal-box">
+      <h3 style="margin-bottom:4px;">Adjust schedule from ${esc(fmtDate(date))}</h3>
+      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:14px;">Skip today (life happens) — your remaining sessions shift later, and race day stays fixed.</p>
+      <div class="field"><label>Skip how many days, starting ${esc(fmtDate(date))}?</label>
+        <select id="skip-count-select">
+          ${[1,2,3,4,5,6,7].map(n=>`<option value="${n}">${n} day${n>1?'s':''}</option>`).join("")}
+        </select>
+      </div>
+      <div class="save-row" style="justify-content:flex-end;">
+        <button class="btn btn-ghost" data-close-modal="1">Cancel</button>
+        <button class="btn btn-primary" data-confirm-skip="${date}">Skip & Shift Plan</button>
+      </div>
+    </div>
+  </div>`;
+}
+function swapModal(dateA){
+  const dates = allCalendarDates().filter(d=>d!==dateA && d!==EVENT.date);
+  return `
+  <div class="modal-backdrop" id="swap-modal">
+    <div class="modal-box">
+      <h3 style="margin-bottom:4px;">Swap ${esc(fmtDate(dateA))} with another day</h3>
+      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:14px;">e.g. move Friday's workout to today, and today's workout to Friday.</p>
+      <div class="field"><label>Swap with</label>
+        <select id="swap-target-select">
+          ${dates.map(d=>`<option value="${d}">${esc(fmtDate(d))}</option>`).join("")}
+        </select>
+      </div>
+      <div class="save-row" style="justify-content:flex-end;">
+        <button class="btn btn-ghost" data-close-modal="1">Cancel</button>
+        <button class="btn btn-primary" data-confirm-swap="${dateA}">Swap Days</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   DASHBOARD TAB
+   ============================================================ */
+async function renderDashboard(){
+  const date = State.selectedDate;
+  const day = getDayPlan(date);
+  if(!day) return `<div class="empty-state"><h3>No plan data for this date</h3><p>Pick a day within the training window.</p></div>`;
+  const log = await getLog(date);
+  const totalMin = totalDayMinutes(day);
+  const isToday = date===todayISO();
+  const weekDays = allCalendarDates().filter(d=>getDayPlan(d).weekNum===day.weekNum);
+
+  const wxAlert = checkTodayOutdoorSuitability(day, log);
+
+  return `
+  ${wxAlert ? renderWeatherAlertBanner(day, wxAlert) : ""}
+  <div class="card">
+    <div class="today-banner">
+      <div>
+        <div class="dateline">${isToday?"Today · ":""}${esc(fmtDateLong(date))}</div>
+        <h2>${esc(day.title)}${day.isSubstituted?' <span style="font-size:12px;color:var(--orange);font-weight:700;">(modified)</span>':''}</h2>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        ${typeBadge(day.type)} ${phaseBadge(day.phase, day.phaseLabel)}
+        <span class="wi-time">${totalMin>0?fmtHrs(totalMin)+" planned":""}</span>
+      </div>
+    </div>
+    <div class="week-strip">
+      ${weekDays.map(d=>{
+        const dd = getDayPlan(d);
+        return `<div class="day-pill ${d===date?'selected':''} ${d===todayISO()?'today':''}" data-selectday="${d}">
+          <div class="dp-dow">${dd.dowLabel}</div><div class="dp-date">${dayNum(d)}</div><div class="dp-tag">${esc(dd.type==='race'?'RACE':dd.type)}</div>
+        </div>`;
+      }).join("")}
+    </div>
+    <div class="save-row" style="margin-top:14px;">
+      <button class="btn btn-ghost" data-open-skip="${date}">Skip day(s) from here</button>
+      <button class="btn btn-ghost" data-open-swap="${date}">Swap with another day</button>
+      ${day.isSkipped || day.isSubstituted || day.originalTemplateDate!==date ? `<button class="btn btn-ghost" data-reset-day="${date}">Reset to original plan</button>` : ""}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Workouts</h2><span class="meta">Week ${day.weekNum} of 10 · ${esc(day.phaseLabel)}</span></div>
+    ${day.workouts.length ? day.workouts.map((w,i)=>renderWorkoutItem(day,i,w,log)).join("") : `<p style="color:var(--grey-600); font-size:13.5px;">Nothing scheduled — full rest. Prioritize sleep and hydration.</p>`}
+    ${renderAddWorkoutPanel(date)}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Nutrition Consumed</h2><span class="meta">Targets update automatically with today's training load</span></div>
+    ${renderNutritionWidget(day, log)}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Daily Check-In</h2></div>
+    <div class="field-grid">
+      <div class="field"><label>Body Weight (lb)</label><input type="number" step="0.1" id="dc-weight" value="${log.bodyweight??''}"></div>
+      <div class="field"><label>Resting HR (bpm)</label><input type="number" id="dc-rhr" value="${log.restingHR??''}"></div>
+      <div class="field"><label>Sleep (hrs)</label><input type="number" step="0.1" id="dc-sleep" value="${log.sleep??''}"></div>
+      <div class="field"><label>Overall Fatigue (1–10)</label><input type="number" min="1" max="10" id="dc-fatigue" value="${log.fatigue??''}"></div>
+      <div class="field wide"><label>Notes</label><textarea id="dc-notes">${esc(log.notes||'')}</textarea></div>
+    </div>
+    <div class="save-row"><button class="btn btn-primary" data-save-checkin="${date}">Save check-in</button><span class="save-tick" data-tick="checkin_${date}">✓ Saved</span></div>
+  </div>
+  `;
+}
+
+function renderWeatherAlertBanner(day, wxAlert){
+  const altText = "The scheduled outdoor ride can be swapped for an equivalent indoor session.";
+  return `
+  <div class="card" style="border-color:var(--orange); background:var(--orange-pale);">
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <div style="font-size:22px;">⚠️</div>
+      <div style="flex:1;">
+        <h3 style="font-size:15px; color:#7a4622;">Today's outdoor ride may not be a good idea</h3>
+        <ul style="margin:8px 0 0; padding-left:18px; font-size:13px; color:#5c3517; line-height:1.6;">
+          ${wxAlert.reasons.map(r=>`<li>${esc(r)}</li>`).join("")}
+        </ul>
+        <p style="font-size:12px; color:#7a4622; margin-top:8px;">${altText}</p>
+        <div class="save-row" style="margin-top:10px;">
+          ${wxAlert.outdoorWorkouts.map(w=>{
+            return `<button class="btn btn-primary" data-weather-swap="${day.date}" data-slot="${w.slotKey}">Use Indoor Alternative for "${esc(w.name)}"</button>`;
+          }).join("")}
+          <button class="btn btn-ghost" data-dismiss-weather-alert="1">Dismiss for now</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function saveCheckin(date){
+  const log = await getLog(date);
+  log.bodyweight = document.getElementById("dc-weight").value;
+  log.restingHR = document.getElementById("dc-rhr").value;
+  log.sleep = document.getElementById("dc-sleep").value;
+  log.fatigue = document.getElementById("dc-fatigue").value;
+  log.notes = document.getElementById("dc-notes").value;
+  await saveLog(date, log);
+  if(log.bodyweight){
+    State.weightHistory = State.weightHistory.filter(w=>w.date!==date);
+    State.weightHistory.push({date, weight:parseFloat(log.bodyweight)});
+    State.weightHistory.sort((a,b)=>a.date.localeCompare(b.date));
+    await saveJSON("weightHistory", State.weightHistory);
+    State.profile.weightLb = parseFloat(log.bodyweight);
+    await saveJSON("profile", State.profile);
+  }
+  const tick = document.querySelector(`[data-tick="checkin_${date}"]`);
+  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  render();
+}
+
+/* ============================================================
+   SCHEDULE TAB
+   ============================================================ */
+async function renderSchedule(){
+  const view = State.scheduleView||"list";
+  let html = `<div class="card" style="padding:18px 22px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>
+        <h2 style="font-size:16px;">10-Week Plan Overview</h2>
+        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">Started ${esc(fmtDate(Plan.start))} → Century Day ${esc(fmtDate(EVENT.date))}.</p>
+      </div>
+      <div class="pill-toggle">
+        <button class="${view==='list'?'active':''}" data-view-toggle="list">List</button>
+        <button class="${view==='calendar'?'active':''}" data-view-toggle="calendar">Calendar</button>
+      </div>
+    </div>
+  </div>`;
+
+  if(view==="calendar") return html + renderCalendarView();
+
+  const allDates = allCalendarDates();
+  const weeks = {};
+  allDates.forEach(d=>{ const dp=getDayPlan(d); (weeks[dp.weekNum]=weeks[dp.weekNum]||[]).push(d); });
+
+  for(const wnStr of Object.keys(weeks).sort((a,b)=>a-b)){
+    const wn = parseInt(wnStr);
+    const weekDates = weeks[wn];
+    const isOpen = State.openWeek===wn;
+    const wm = WEEK_META_BY_N[wn];
+    html += `
+    <div class="week-block">
+      <div class="week-block-head" data-toggleweek="${wn}">
+        <div>
+          <div class="wtitle">Week ${wn} — ${esc(wm.phaseLabel)} ${wn===9?phaseBadge('peak','Final Big Ride'):(wn===10?phaseBadge('taper','Race Week'):'')}</div>
+          <div class="wsub">${esc(fmtDate(weekDates[0]))} – ${esc(fmtDate(weekDates[weekDates.length-1]))} · ~${esc(wm.hours)} total training</div>
+        </div>
+        <svg class="chev ${isOpen?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--grey-600)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="week-block-body ${isOpen?'open':''}">
+        ${isOpen ? (await Promise.all(weekDates.map(async d=>renderDayRow(d)))).join("") : ""}
+      </div>
+    </div>`;
+  }
+  return html;
+}
+
+async function renderDayRow(d){
+  const dp = getDayPlan(d);
+  const log = await getLog(d);
+  const totalMin = totalDayMinutes(dp);
+  return `
+  <div class="day-row">
+    <div class="day-row-head">
+      <div><span class="drdate">${esc(fmtDate(d))}</span> &nbsp; <span class="drtitle">${esc(dp.title)}</span></div>
+      <div style="display:flex; gap:8px; align-items:center;">${typeBadge(dp.type)}<span class="wi-time">${totalMin>0?fmtHrs(totalMin):''}</span></div>
+    </div>
+    <div style="margin-top:10px;">
+      ${dp.workouts.length ? dp.workouts.map((w,i)=>renderWorkoutItem(dp,i,w,log)).join("") : `<p style="color:var(--grey-600); font-size:12.5px;">Full rest day.</p>`}
+      ${renderAddWorkoutPanel(d)}
+    </div>
+  </div>`;
+}
+
+/* ---------------- CALENDAR VIEW ---------------- */
+function navCalendarMonth(delta){
+  const [y,m] = (State.calendarMonth||Plan.start.slice(0,7)).split("-").map(Number);
+  const nd = new Date(y, m-1+delta, 1);
+  State.calendarMonth = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
+}
+const TYPE_DOT_COLOR = {rest:"#9aa7b2", indoor:"#2f6690", outdoor:"#2f9e8f", strength:"#e0894f", recovery:"#9aa7b2", race:"#c1554a"};
+
+function renderCalendarView(){
+  const allDates = allCalendarDates();
+  if(!State.calendarMonth) State.calendarMonth = (State.selectedDate||todayISO()).slice(0,7);
+  if(!State.calendarSelectedDate) State.calendarSelectedDate = State.selectedDate||todayISO();
+  const [y,m] = State.calendarMonth.split("-").map(Number);
+  const firstOfMonth = new Date(y, m-1, 1);
+  const startDow = firstOfMonth.getDay(); // 0=Sun
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const monthLabel = firstOfMonth.toLocaleDateString('en-US',{month:'long', year:'numeric'});
+
+  const cells = [];
+  for(let i=0;i<startDow;i++) cells.push(null);
+  for(let d=1; d<=daysInMonth; d++){
+    const iso = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells.push(iso);
+  }
+
+  let grid = `<div class="card" style="padding:18px 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <button class="btn btn-ghost" data-cal-nav="-1">← Prev</button>
+      <h3 style="font-size:16px;">${esc(monthLabel)}</h3>
+      <button class="btn btn-ghost" data-cal-nav="1">Next →</button>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px; font-size:10.5px; font-weight:700; color:var(--grey-600); text-transform:uppercase; margin-bottom:6px; text-align:center;">
+      ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>`<div>${d}</div>`).join("")}
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px;">
+      ${cells.map(iso=>{
+        if(!iso) return `<div></div>`;
+        const inPlan = allDates.includes(iso);
+        const isSelected = iso===State.calendarSelectedDate;
+        const isToday = iso===todayISO();
+        if(!inPlan){
+          return `<div style="border:1px solid var(--grey-100); border-radius:8px; padding:6px; min-height:64px; color:var(--grey-400); font-size:11px; background:var(--grey-50);">${dayNum(iso)}</div>`;
+        }
+        const dp = getDayPlan(iso);
+        const dots = dp.workouts.slice(0,4).map(w=>`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${TYPE_DOT_COLOR[dp.type]||'#9aa7b2'};margin:1px;"></span>`).join("");
+        return `<div data-cal-day="${iso}" style="cursor:pointer; border:1.5px solid ${isSelected?'var(--teal)':(isToday?'var(--blue)':'var(--grey-200)')}; background:${isSelected?'var(--teal-pale)':'#fff'}; border-radius:8px; padding:6px; min-height:64px; font-size:11px;">
+          <div style="font-weight:700; color:var(--navy);">${dayNum(iso)}</div>
+          <div style="font-size:9.5px; color:var(--grey-600); margin-top:2px; line-height:1.3;">${esc(dp.title.length>16?dp.title.slice(0,15)+'…':dp.title)}</div>
+          <div style="margin-top:3px;">${dots}</div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+
+  return grid + `<div id="cal-day-detail"></div>`;
+}
+
+
+/* ============================================================
+   PROFILE TAB
+   ============================================================ */
+function renderCloudSyncCard(){
+  const cid = Drive.clientId || "";
+  let body = "";
+  if(Drive.connected){
+    body = `
+      <div class="calc-box" style="background:var(--teal-pale);">
+        <div class="cline"><span>Status</span><span style="color:var(--teal-dark); font-weight:700;">● Connected${Drive.userEmail?' as '+esc(Drive.userEmail):''}</span></div>
+        <div class="cline"><span>Last synced</span><span>${Drive.lastSyncAt ? new Date(Drive.lastSyncAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : (Drive.syncing?'syncing…':'not yet')}</span></div>
+      </div>
+      ${Drive.lastError ? `<p style="font-size:12px; color:var(--red); margin-top:8px;">${esc(Drive.lastError)}</p>` : ""}
+      <div class="save-row">
+        <button class="btn btn-primary" data-drive-sync-now="1">${Drive.syncing?'Syncing…':'Sync Now'}</button>
+        <button class="btn btn-ghost" data-drive-disconnect="1">Disconnect</button>
+      </div>
+      <div class="info-callout">This browser tab auto-syncs a few seconds after any change, and again when you switch away from the tab. Open the same URL signed into the same Google account on your other device to pick up where you left off.</div>`;
+  } else {
+    body = `
+      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:10px;">Paste the OAuth Client ID from your Google Cloud project, then connect. Your data syncs through a single private file in your own Drive — this app never sees anything else in your account.</p>
+      <div class="field-grid">
+        <div class="field wide"><label>Google OAuth Client ID</label><input type="text" id="drive-clientid-input" value="${esc(cid)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
+      </div>
+      ${Drive.lastError ? `<p style="font-size:12px; color:var(--red); margin-top:6px;">${esc(Drive.lastError)}</p>` : ""}
+      <div class="save-row">
+        <button class="btn btn-ghost" data-drive-save-clientid="1">Save Client ID</button>
+        <button class="btn btn-primary" data-drive-connect="1" ${!Drive.clientId?'disabled':''}>Connect Google Drive</button>
+      </div>`;
+  }
+  return `
+  <div class="card" id="cloud-sync-card">
+    <div class="card-header"><h2>Cloud Sync</h2><span class="meta">Keep phone &amp; desktop in sync via Google Drive</span></div>
+    ${body}
+  </div>`;
+}
+function renderDriveStatus(){
+  const el = document.getElementById("cloud-sync-card");
+  if(!el || !el.parentNode) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = renderCloudSyncCard();
+  const fresh = wrap.firstElementChild;
+  el.replaceWith(fresh);
+  fresh.querySelectorAll("[data-drive-save-clientid]").forEach(b=>b.addEventListener("click", async ()=>{
+    const v = document.getElementById("drive-clientid-input").value.trim();
+    if(!v) return;
+    await saveDriveClientId(v);
+    renderDriveStatus();
+  }));
+  fresh.querySelectorAll("[data-drive-connect]").forEach(b=>b.addEventListener("click", connectDrive));
+  fresh.querySelectorAll("[data-drive-sync-now]").forEach(b=>b.addEventListener("click", async ()=>{ await pullFromDrive(); await pushToDrive(); renderDriveStatus(); }));
+  fresh.querySelectorAll("[data-drive-disconnect]").forEach(b=>b.addEventListener("click", disconnectDrive));
+}
+
+function renderProfile(){
+  const p = State.profile;
+  const b = bmi(p.weightLb, p.heightIn);
+  const pZones = powerZoneRows(p.ftp);
+  const hZones = hrZoneRows(p.thresholdHR);
+  const todayDay = getDayPlan(State.selectedDate) || getDayPlan(todayISO());
+  const t = nutritionTargets(todayDay, p);
+
+  return `
+  ${renderCloudSyncCard()}
+  <div class="profile-grid">
+    <div class="card">
+      <div class="card-header"><h2>Biometrics</h2><span class="meta">Update anytime — targets recalculate instantly</span></div>
+      <div class="field-grid">
+        <div class="field"><label>Height (in)</label><input type="number" id="pf-height" value="${p.heightIn}"></div>
+        <div class="field"><label>Weight (lb)</label><input type="number" step="0.1" id="pf-weight" value="${p.weightLb}"></div>
+        <div class="field"><label>Age</label><input type="number" id="pf-age" value="${p.age}"></div>
+        <div class="field"><label>Sex (for BMR calc)</label><select id="pf-sex"><option value="male" ${p.sex==='male'?'selected':''}>Male</option><option value="female" ${p.sex==='female'?'selected':''}>Female</option></select></div>
+        <div class="field wide"><label>Daily Activity (outside training)</label>
+          <select id="pf-activity">
+            <option value="1.2" ${p.activity==='1.2'?'selected':''}>Sedentary (desk job, little walking)</option>
+            <option value="1.375" ${p.activity==='1.375'?'selected':''}>Lightly active</option>
+            <option value="1.55" ${p.activity==='1.55'?'selected':''}>Moderately active</option>
+            <option value="1.725" ${p.activity==='1.725'?'selected':''}>Very active</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-box">
+        <div class="cline"><span>BMI</span><span>${b.toFixed(1)} — ${bmiCategory(b)}</span></div>
+        <div class="cline"><span>BMR (Mifflin-St Jeor)</span><span>${Math.round(bmr(p))} kcal/day</span></div>
+        <div class="cline"><span>Baseline TDEE</span><span>${Math.round(tdeeBaseline(p))} kcal/day</span></div>
+        <div class="cline"><span>Today's target (incl. training)</span><span>${t.kcal} kcal</span></div>
+      </div>
+      <div class="section-title">Cycling Thresholds</div>
+      <div class="field-grid">
+        <div class="field"><label>FTP (watts)</label><input type="number" id="pf-ftp" value="${p.ftp}"></div>
+        <div class="field"><label>Threshold HR (bpm)</label><input type="number" id="pf-thr" value="${p.thresholdHR}"></div>
+        <div class="field"><label>Resting HR (bpm)</label><input type="number" id="pf-rhr" value="${p.restingHR}"></div>
+        <div class="field"><label>Max HR (bpm)</label><input type="number" id="pf-maxhr" value="${p.maxHR}"></div>
+      </div>
+      <div class="info-callout">Re-test FTP and threshold HR every 4–6 weeks with a 30-min time-trial effort. Update here after each test so workout targets and zones stay accurate.</div>
+      <div class="save-row"><button class="btn btn-primary" data-save-profile="1">Save profile</button><span class="save-tick" data-tick="profile">✓ Saved</span></div>
+
+      <div class="section-title">Program Start Date</div>
+      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:10px;">Currently started ${esc(fmtDate(Plan.start))}. Changing this regenerates your whole schedule from the new date (10-week build ending on race day) and clears any skip/swap/substitution changes.</p>
+      <div class="field-grid">
+        <div class="field"><label>New Start Date</label><input type="date" id="start-date-input" value="${Plan.start}" min="2020-01-01" max="${EVENT.date}"></div>
+      </div>
+      <div class="save-row"><button class="btn btn-ghost" data-set-start="1">Set Start Date</button></div>
+    </div>
+    <div>
+      <div class="card"><div class="card-header"><h2>Power Zones</h2><span class="meta">Coggan Classic, from FTP</span></div>
+        <table class="zone-table"><thead><tr><th>Zone</th><th>Name</th><th>Watts</th></tr></thead><tbody>
+          ${pZones.map(z=>`<tr><td><span class="zone-swatch" style="background:${z.color}"></span>${z.z}</td><td>${z.name}</td><td style="font-family:var(--font-mono)">${z.watts}</td></tr>`).join("")}
+        </tbody></table>
+      </div>
+      <div class="card"><div class="card-header"><h2>Heart Rate Zones</h2><span class="meta">Joe Friel bike zones, from threshold HR</span></div>
+        <table class="zone-table"><thead><tr><th>Zone</th><th>Name</th><th>BPM</th></tr></thead><tbody>
+          ${hZones.map(z=>`<tr><td><span class="zone-swatch" style="background:${z.color}"></span>${z.z}</td><td>${z.name}</td><td style="font-family:var(--font-mono)">${z.bpm}</td></tr>`).join("")}
+        </tbody></table>
+      </div>
+      <div class="card"><div class="card-header"><h2>Nutrition Formula</h2></div>
+        <div class="calc-box" style="background:var(--teal-pale);">
+          <div class="cline"><span>Carbs (rest day)</span><span>~3 g/kg</span></div>
+          <div class="cline"><span>Carbs (training day)</span><span>~5 g/kg</span></div>
+          <div class="cline"><span>Carbs (long ride / race)</span><span>~7.5 g/kg</span></div>
+          <div class="cline"><span>Protein (daily)</span><span>1.6 g/kg</span></div>
+          <div class="cline"><span>Water</span><span>0.5 oz/lb + 20 oz/hr trained</span></div>
+        </div>
+        <div class="info-callout"><b>On the bike (rides ≥ 90 min):</b> target 300–400 kcal/hr, eating every 15–20 minutes; sip fluids/electrolytes continuously rather than gulping periodically.</div>
+      </div>
+    </div>
+  </div>`;
+}
+async function saveProfile(){
+  const p = State.profile;
+  p.heightIn=parseFloat(document.getElementById("pf-height").value)||p.heightIn;
+  p.weightLb=parseFloat(document.getElementById("pf-weight").value)||p.weightLb;
+  p.age=parseInt(document.getElementById("pf-age").value)||p.age;
+  p.sex=document.getElementById("pf-sex").value;
+  p.activity=document.getElementById("pf-activity").value;
+  p.ftp=parseFloat(document.getElementById("pf-ftp").value)||p.ftp;
+  p.thresholdHR=parseFloat(document.getElementById("pf-thr").value)||p.thresholdHR;
+  p.restingHR=parseFloat(document.getElementById("pf-rhr").value)||p.restingHR;
+  p.maxHR=parseFloat(document.getElementById("pf-maxhr").value)||p.maxHR;
+  p.set=true;
+  await saveJSON("profile", p);
+  const tick = document.querySelector(`[data-tick="profile"]`);
+  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  render();
+}
+
+/* ============================================================
+   PROGRESS TAB
+   ============================================================ */
+async function renderProgress(){
+  const keys = await listKeys("log:");
+  const dates = keys.map(k=>k.replace("log:","")).sort();
+  const logs = [];
+  for(const d of dates){ logs.push(await getLog(d)); }
+  const withWeight = State.weightHistory;
+  const complianceRows = logs.filter(l=>(l.workouts&&Object.keys(l.workouts).length)||l.bodyweight||(l.nutrition&&Object.keys(l.nutrition).length)).sort((a,b)=>b.date.localeCompare(a.date));
+
+  let sparkline = "";
+  if(withWeight.length>=2){
+    const w = withWeight.slice(-14);
+    const minW=Math.min(...w.map(x=>x.weight)), maxW=Math.max(...w.map(x=>x.weight));
+    const range=Math.max(1,maxW-minW);
+    const pts = w.map((x,i)=>{const px=(i/(w.length-1))*580+10; const py=90-((x.weight-minW)/range)*70; return `${px},${py}`;}).join(" ");
+    sparkline = `<svg class="sparkline" viewBox="0 0 600 100" preserveAspectRatio="none">
+      <polyline points="${pts}" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      ${w.map((x,i)=>{const px=(i/(w.length-1))*580+10; const py=90-((x.weight-minW)/range)*70; return `<circle cx="${px}" cy="${py}" r="3" fill="var(--navy)"/>`;}).join("")}
+    </svg><div style="display:flex; justify-content:space-between; font-size:11px; color:var(--grey-600);"><span>${esc(fmtDate(w[0].date))} · ${w[0].weight} lb</span><span>${esc(fmtDate(w[w.length-1].date))} · ${w[w.length-1].weight} lb</span></div>`;
+  } else {
+    sparkline = `<p style="color:var(--grey-600); font-size:13px;">Log body weight on the Daily Check-In (Today tab) a few times to see a trend line here.</p>`;
+  }
+
+  return `
+  <div class="two-col">
+    <div class="card"><div class="card-header"><h2>Body Weight Trend</h2><span class="meta">Last 14 logged entries</span></div>${sparkline}</div>
+    <div class="card"><div class="card-header"><h2>Plan Snapshot</h2></div>
+      <div class="calc-box">
+        <div class="cline"><span>Days logged</span><span>${complianceRows.length}</span></div>
+        <div class="cline"><span>Days into plan</span><span>${Math.max(0,daysBetween(Plan.start, todayISO())+1)} of ${allCalendarDates().length}</span></div>
+        <div class="cline"><span>Days to race</span><span>${daysUntilEvent()}</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="card-header"><h2>Logged Days</h2><span class="meta">Most recent first</span></div>
+    ${complianceRows.length ? `<table class="progress-table"><thead><tr><th>Date</th><th>Workout Entries</th><th>Weight</th><th>Sleep</th><th>Nutrition Logged</th><th>Notes</th></tr></thead><tbody>
+      ${complianceRows.map(l=>`<tr><td>${esc(fmtDate(l.date))}</td><td>${l.workouts?Object.keys(l.workouts).length:0}</td><td>${l.bodyweight?l.bodyweight+' lb':'—'}</td><td>${l.sleep?l.sleep+' hr':'—'}</td><td>${l.nutrition&&Object.keys(l.nutrition).length?(l.nutrition.kcal||'—')+' kcal':'—'}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(l.notes||'')}</td></tr>`).join("")}
+    </tbody></table>` : `<div class="empty-state"><h3>No entries yet</h3><p>Log a workout or check-in on the Today tab and it will show up here.</p></div>`}
+  </div>`;
+}
+
+/* ============================================================
+   EVENT WIRING
+   ============================================================ */
+function wireTabEvents(){
+  const el = document.getElementById("tabcontent");
+  if(!el) return;
+
+  el.querySelectorAll("[data-toggle]").forEach(h=>h.addEventListener("click",(e)=>{
+    if(e.target.closest("[data-reorder-workout]")) return;
+    const u=h.dataset.toggle; State._openItems[u]=!State._openItems[u];
+    const item=document.querySelector(`.workout-item[data-uid="${u}"]`);
+    item.querySelector(".wi-body").classList.toggle("open"); item.querySelector(".chev").classList.toggle("open");
+  }));
+  el.querySelectorAll("[data-selectday]").forEach(p=>p.addEventListener("click",()=>{ State.selectedDate=p.dataset.selectday; renderTabContent(); }));
+  el.querySelectorAll("[data-toggleweek]").forEach(h=>h.addEventListener("click",()=>{ const n=parseInt(h.dataset.toggleweek); State.openWeek=State.openWeek===n?null:n; renderTabContent(); }));
+  el.querySelectorAll("[data-save]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const {date,slotKey}=parseUid(btn.dataset.save);
+    await saveWorkoutEntry(date, slotKey, btn.dataset.save);
+  }));
+  el.querySelectorAll("[data-save-nutri]").forEach(btn=>btn.addEventListener("click",()=>saveNutrition(btn.dataset.saveNutri)));
+  el.querySelectorAll("[data-save-checkin]").forEach(btn=>btn.addEventListener("click",()=>saveCheckin(btn.dataset.saveCheckin)));
+  el.querySelectorAll("[data-save-profile]").forEach(btn=>btn.addEventListener("click",saveProfile));
+
+  el.querySelectorAll("[data-toggle-sub]").forEach(btn=>btn.addEventListener("click",()=>{
+    const u="sub_"+btn.dataset.toggleSub; State._openItems[u]=!State._openItems[u]; renderTabContent();
+  }));
+  el.querySelectorAll("[data-subsearch]").forEach(inp=>inp.addEventListener("input",()=>{
+    State.editorFilter.subQ = inp.value; renderTabContent();
+    setTimeout(()=>{ const f=document.querySelector(`[data-subsearch]`); if(f){ f.focus(); f.selectionStart=f.selectionEnd=f.value.length; } },0);
+  }));
+  el.querySelectorAll("[data-pick-sub]").forEach(btn=>btn.addEventListener("click",()=>{
+    const {date,slotKey}=parseUid(btn.dataset.pickSub);
+    substituteWorkout(date, slotKey, btn.dataset.workoutid);
+    State._openItems["sub_"+btn.dataset.pickSub]=false;
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-revert-slot]").forEach(btn=>btn.addEventListener("click",()=>{
+    const {date,slotKey}=parseUid(btn.dataset.revertSlot);
+    revertSlot(date, slotKey); renderTabContent();
+  }));
+  el.querySelectorAll("[data-remove-added]").forEach(btn=>btn.addEventListener("click",()=>{
+    const {date,slotKey}=parseUid(btn.dataset.removeAdded);
+    removeAddedWorkout(date, slotKey); renderTabContent();
+  }));
+  el.querySelectorAll("[data-reorder-workout]").forEach(btn=>btn.addEventListener("click",(e)=>{
+    e.stopPropagation();
+    const {date,slotKey}=parseUid(btn.dataset.reorderWorkout);
+    reorderDayWorkouts(date, slotKey, parseInt(btn.dataset.dir));
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-reorder-ex]").forEach(btn=>btn.addEventListener("click",(e)=>{
+    e.stopPropagation();
+    const {date,slotKey}=parseUid(btn.dataset.reorderEx);
+    reorderExercisesInSlot(date, slotKey, parseInt(btn.dataset.origidx), parseInt(btn.dataset.dir));
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-toggle-addworkout]").forEach(btn=>btn.addEventListener("click",()=>{
+    State._openItems["addwk_"+btn.dataset.toggleAddworkout] = !State._openItems["addwk_"+btn.dataset.toggleAddworkout];
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-addwk-search]").forEach(inp=>inp.addEventListener("input",()=>{
+    State.editorFilter.addWkQ = inp.value; renderTabContent();
+    setTimeout(()=>{ const f=document.querySelector(`[data-addwk-search]`); if(f){ f.focus(); f.selectionStart=f.selectionEnd=f.value.length; } },0);
+  }));
+  el.querySelectorAll("[data-addwk-kind]").forEach(btn=>btn.addEventListener("click",()=>{ State.editorFilter.addWkKind=btn.dataset.addwkKind; renderTabContent(); }));
+  el.querySelectorAll("[data-pick-add]").forEach(btn=>btn.addEventListener("click",()=>{
+    addWorkoutToDay(btn.dataset.date, btn.dataset.workoutid);
+    State._openItems["addwk_"+btn.dataset.date]=false;
+    renderTabContent();
+  }));
+
+  el.querySelectorAll("[data-target]").forEach(inp=>inp.addEventListener("change", async ()=>{
+    const {date,slotKey}=parseUid(inp.dataset.uid); const exIdx=parseInt(inp.dataset.exidx);
+    const wrap=document.querySelector(`.workout-item[data-uid="${inp.dataset.uid}"]`);
+    const setsInp=wrap.querySelector(`[data-target="sets"][data-exidx="${exIdx}"]`);
+    const repsInp=wrap.querySelector(`[data-target="reps"][data-exidx="${exIdx}"]`);
+    await setTempExerciseTarget(date, slotKey, exIdx, setsInp.value, repsInp.value);
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-reset-target]").forEach(btn=>btn.addEventListener("click", async ()=>{
+    const {date,slotKey}=parseUid(btn.dataset.resetTarget); const exIdx=parseInt(btn.dataset.exidx);
+    const log=await getLog(date); if(log.targetOverrides) delete log.targetOverrides[slotKey+"_"+exIdx];
+    await saveLog(date, log); renderTabContent();
+  }));
+
+  el.querySelectorAll("[data-open-skip]").forEach(btn=>btn.addEventListener("click",()=>{ State._openModal="skip"; State._modalDate=btn.dataset.openSkip; renderModalRoot(); }));
+  el.querySelectorAll("[data-open-swap]").forEach(btn=>btn.addEventListener("click",()=>{ State._openModal="swap"; State._modalDate=btn.dataset.openSwap; renderModalRoot(); }));
+  el.querySelectorAll("[data-swap-day]").forEach(btn=>btn.addEventListener("click",()=>{ State._openModal="swap"; State._modalDate=btn.dataset.swapDay; renderModalRoot(); }));
+  el.querySelectorAll("[data-reset-day]").forEach(btn=>btn.addEventListener("click",()=>{ resetDay(btn.dataset.resetDay); render(); }));
+
+  el.querySelectorAll("[data-weather-swap]").forEach(b=>b.addEventListener("click",()=>{
+    const date=b.dataset.weatherSwap, slotKey=b.dataset.slot;
+    substituteWorkout(date, slotKey, "cy_indoor_recovery");
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-dismiss-weather-alert]").forEach(b=>b.addEventListener("click",()=>{ State._dismissWeatherAlert=true; renderTabContent(); }));
+
+  el.querySelectorAll("[data-view-toggle]").forEach(b=>b.addEventListener("click",()=>{ State.scheduleView=b.dataset.viewToggle; renderTabContent(); }));
+  el.querySelectorAll("[data-cal-nav]").forEach(b=>b.addEventListener("click",()=>{ navCalendarMonth(parseInt(b.dataset.calNav)); renderTabContent(); }));
+  el.querySelectorAll("[data-cal-day]").forEach(b=>b.addEventListener("click",()=>{ State.calendarSelectedDate=b.dataset.calDay; renderTabContent(); }));
+
+  el.querySelectorAll("[data-set-start]").forEach(b=>b.addEventListener("click", async ()=>{
+    const v = document.getElementById("start-date-input").value;
+    if(!v) return;
+    if(confirm(`Set the program start date to ${fmtDate(v)}? This will regenerate your schedule and clear any skip/swap/substitution changes you've made.`)){
+      await setPlanStart(v);
+    }
+  }));
+
+  el.querySelectorAll("[data-drive-save-clientid]").forEach(b=>b.addEventListener("click", async ()=>{
+    const v = document.getElementById("drive-clientid-input").value.trim();
+    if(!v) return;
+    await saveDriveClientId(v);
+    renderDriveStatus();
+  }));
+  el.querySelectorAll("[data-drive-connect]").forEach(b=>b.addEventListener("click", connectDrive));
+  el.querySelectorAll("[data-drive-sync-now]").forEach(b=>b.addEventListener("click", async ()=>{ await pullFromDrive(); await pushToDrive(); renderDriveStatus(); }));
+  el.querySelectorAll("[data-drive-disconnect]").forEach(b=>b.addEventListener("click", disconnectDrive));
+
+  wireEditorEvents(el);
+}
+/* ============================================================
+   WORKOUT & EXERCISE EDITOR
+   ============================================================ */
+const BODY_GROUPS = ["upper","lower","core","mobility","recovery"];
+const BODY_PARTS = ["chest","back","shoulders","arms","legs","glutes","hips","abs/core","full body"];
+
+function renderEditor(){
+  const isWorkouts = State.editorTab==="workouts";
+  return `
+  <div class="card" style="padding:16px 20px;">
+    <div class="pill-toggle">
+      <button class="${isWorkouts?'active':''}" data-editortab="workouts">Workouts</button>
+      <button class="${!isWorkouts?'active':''}" data-editortab="exercises">Exercises</button>
+    </div>
+    <p style="font-size:12.5px; color:var(--grey-600); margin-top:10px;">Edits here are permanent and apply everywhere that workout or exercise is used in the plan. Includes Rouvy library references (search "Rouvy" or filter by platform) alongside your custom entries.</p>
+  </div>
+  ${isWorkouts ? renderWorkoutEditor() : renderExerciseEditor()}
+  `;
+}
+
+/* ---------------- WORKOUT EDITOR ---------------- */
+function renderWorkoutEditor(){
+  const q = (State.editorFilter.q||"").toLowerCase();
+  const kindFilter = State.editorFilter.kind||"all";
+  const list = Object.entries(Lib.workouts).filter(([id,w])=>{
+    if(kindFilter!=="all" && w.kind!==kindFilter) return false;
+    if(q && !w.name.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+
+  const editing = State.editingWorkoutId;
+  const editingIsNew = editing==="__new__";
+  let w;
+  if(State._workoutDraft && (editingIsNew || editing===State._workoutDraftId)){
+    w = State._workoutDraft;
+  } else if(editingIsNew){
+    w = {name:"", kind:"strengthblock", desc:"", bodyGroup:"upper", exercises:[], platform:"Rouvy (Indoor)", zoneText:"", timeMin:30, estMiles:""};
+  } else if(editing){
+    w = Lib.workouts[editing];
+  } else {
+    w = null;
+  }
+
+  return `
+  <div class="editor-layout">
+    <div>
+      <div class="card" style="padding:16px;">
+        <div class="editor-search">
+          <input type="text" placeholder="Search workouts..." id="wk-search" value="${esc(State.editorFilter.q||"")}">
+          <div class="filter-chips">
+            ${["all","cycling","strengthblock"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-wkkind="${k}">${k==='all'?'All':(k==='cycling'?'Cycling':'Strength')}</button>`).join("")}
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" data-new-workout="1">+ New Workout</button>
+        <div class="lib-list">
+          ${list.map(([id,item])=>`
+            <div class="lib-row ${editing===id?'active':''}" data-editworkout="${id}">
+              <div class="lr-name">${esc(item.name)}</div>
+              <div class="lr-meta">
+                <span class="tag-chip">${item.kind==='cycling'?'Cycling':'Strength'}</span>
+                ${item.platform?`<span class="tag-chip">${esc(item.platform)}</span>`:''}
+                ${item.kind==='strengthblock'?(item.exercises||[]).length+' exercises':fmtHrs(item.timeMin)}
+              </div>
+            </div>`).join("")}
+          ${!list.length?`<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`:''}
+        </div>
+      </div>
+    </div>
+    <div>
+      ${w ? renderWorkoutForm(editing, w, editingIsNew) : `<div class="card empty-state"><h3>Select a workout</h3><p>Choose one from the list, or create a new one.</p></div>`}
+    </div>
+  </div>`;
+}
+
+function renderWorkoutForm(id, w, isNew){
+  const isCycling = w.kind==="cycling";
+  const liveTime = isCycling ? w.timeMin : estimateStrengthMinutes(w.exercises||[], Lib.exercises);
+  return `
+  <div class="card">
+    <div class="card-header"><h2>${isNew?'New Workout':'Edit Workout'}</h2>${!isNew?`<button class="btn btn-ghost" data-delete-workout="${id}" style="color:var(--red); border-color:var(--red-pale);">Delete</button>`:''}</div>
+    <div class="field-grid">
+      <div class="field wide"><label>Name</label><input type="text" id="wf-name" value="${esc(w.name)}"></div>
+      <div class="field"><label>Type</label>
+        <select id="wf-kind">
+          <option value="cycling" ${isCycling?'selected':''}>Cycling</option>
+          <option value="strengthblock" ${!isCycling?'selected':''}>Strength / Mobility</option>
+        </select>
+      </div>
+      ${isCycling ? `
+        <div class="field"><label>Platform</label><input type="text" id="wf-platform" value="${esc(w.platform||'')}" placeholder="Outdoor / Rouvy (Indoor)"></div>
+        <div class="field"><label>Target Zone Text</label><input type="text" id="wf-zone" value="${esc(w.zoneText||'')}" placeholder="Zone 3 · 76–90% FTP"></div>
+        <div class="field"><label>Duration (min)</label><input type="number" id="wf-time" value="${w.timeMin||0}"></div>
+        <div class="field"><label>Est. Distance (mi)</label><input type="number" id="wf-miles" value="${w.estMiles||''}"></div>
+      ` : `
+        <div class="field"><label>Body Group</label>
+          <select id="wf-bodygroup">${BODY_GROUPS.map(g=>`<option value="${g}" ${w.bodyGroup===g?'selected':''}>${g}</option>`).join("")}</select>
+        </div>
+      `}
+      <div class="field wide"><label>Description</label><textarea id="wf-desc">${esc(w.desc||'')}</textarea></div>
+    </div>
+
+    ${!isCycling ? `
+    <div class="section-title">Exercises <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--grey-600); margin-left:8px;">— est. duration updates automatically: <b id="wf-live-time">${fmtHrs(liveTime)}</b></span></div>
+    <div id="wf-exercise-list">
+      ${(w.exercises||[]).map((ref,i)=>{
+        const ex = Lib.exercises[ref.exId];
+        const n = (w.exercises||[]).length;
+        return `<div class="exercise-row-editor" data-exrow="${i}">
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <button data-reorder-libex="${i}" data-dir="-1" ${i===0?'disabled':''} style="border:1px solid var(--grey-200); background:#fff; border-radius:4px; width:20px; height:18px; font-size:10px; cursor:pointer; color:var(--grey-600); ${i===0?'opacity:.3;':''}">▲</button>
+            <button data-reorder-libex="${i}" data-dir="1" ${i===n-1?'disabled':''} style="border:1px solid var(--grey-200); background:#fff; border-radius:4px; width:20px; height:18px; font-size:10px; cursor:pointer; color:var(--grey-600); ${i===n-1?'opacity:.3;':''}">▼</button>
+          </div>
+          <div style="flex:1;">
+            <div style="font-weight:700; font-size:13px;">${esc(ex?ex.name:ref.exId)}</div>
+            <div style="font-size:11px; color:var(--grey-600);">${esc(ex?ex.bodyGroup:'')}</div>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="text" data-exsets="${i}" value="${esc(ref.sets)}" style="width:44px; border:1px solid var(--grey-200); border-radius:4px; padding:4px 6px; font-size:12px;"> sets ×
+            <input type="text" data-exreps="${i}" value="${esc(ref.reps)}" style="width:80px; border:1px solid var(--grey-200); border-radius:4px; padding:4px 6px; font-size:12px;">
+            <button data-removeex="${i}" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:16px;">✕</button>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+    <p style="font-size:11px; color:var(--grey-600); margin-top:6px;">Use the ▲▼ arrows to permanently reorder how these exercises appear whenever this workout is scheduled.</p>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <select id="wf-add-exercise" style="flex:1; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:8px 10px; font-size:13px;">
+        <option value="">Add exercise from library…</option>
+        ${Object.entries(Lib.exercises).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([eid,e])=>`<option value="${eid}">${esc(e.name)} (${e.bodyGroup})</option>`).join("")}
+      </select>
+      <button class="btn btn-ghost" id="wf-add-exercise-btn">Add</button>
+    </div>
+    ` : ""}
+
+    <div class="save-row" style="margin-top:16px;">
+      <button class="btn btn-primary" data-save-workout="${id}" data-isnew="${isNew?'1':'0'}">Save to library</button>
+      <button class="btn btn-ghost" data-cancel-workout="1">Cancel</button>
+      <span class="save-tick" data-tick="workoutform">✓ Saved</span>
+    </div>
+  </div>`;
+}
+
+/* ---------------- EXERCISE EDITOR ---------------- */
+function renderExerciseEditor(){
+  const q = (State.editorFilter.q||"").toLowerCase();
+  const bg = State.editorFilter.bodyGroup||"all";
+  const bp = State.editorFilter.bodyPart||"all";
+  const list = Object.entries(Lib.exercises).filter(([id,e])=>{
+    if(bg!=="all" && e.bodyGroup!==bg) return false;
+    if(bp!=="all" && !(e.bodyParts||[]).includes(bp)) return false;
+    if(q && !e.name.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+
+  const editing = State.editingExerciseId;
+  const editingIsNew = editing==="__new__";
+  const ex = editingIsNew ? {name:"", desc:"", bodyGroup:"upper", bodyParts:[], sets:"2", reps:"10"} : (editing ? Lib.exercises[editing] : null);
+
+  return `
+  <div class="editor-layout">
+    <div>
+      <div class="card" style="padding:16px;">
+        <div class="editor-search">
+          <input type="text" placeholder="Search exercises..." id="ex-search" value="${esc(State.editorFilter.q||"")}">
+          <div>
+            <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--grey-600); font-weight:700; margin-bottom:5px;">Body Group</div>
+            <div class="filter-chips">
+              <button class="filter-chip ${bg==='all'?'active':''}" data-exgroup="all">All</button>
+              ${BODY_GROUPS.map(g=>`<button class="filter-chip ${bg===g?'active':''}" data-exgroup="${g}">${g}</button>`).join("")}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--grey-600); font-weight:700; margin:8px 0 5px;">Body Part</div>
+            <div class="filter-chips">
+              <button class="filter-chip ${bp==='all'?'active':''}" data-expart="all">All</button>
+              ${BODY_PARTS.map(g=>`<button class="filter-chip ${bp===g?'active':''}" data-expart="${g}">${g}</button>`).join("")}
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%; margin:10px 0;" data-new-exercise="1">+ New Exercise</button>
+        <div class="lib-list">
+          ${list.map(([id,item])=>`
+            <div class="lib-row ${editing===id?'active':''}" data-editexercise="${id}">
+              <div class="lr-name">${esc(item.name)}</div>
+              <div class="lr-meta"><span class="tag-chip">${item.bodyGroup}</span>${(item.bodyParts||[]).join(", ")}</div>
+            </div>`).join("")}
+          ${!list.length?`<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`:''}
+        </div>
+      </div>
+    </div>
+    <div>
+      ${ex ? renderExerciseForm(editing, ex, editingIsNew) : `<div class="card empty-state"><h3>Select an exercise</h3><p>Choose one from the list, or create a new one.</p></div>`}
+    </div>
+  </div>`;
+}
+
+function renderExerciseForm(id, ex, isNew){
+  return `
+  <div class="card">
+    <div class="card-header"><h2>${isNew?'New Exercise':'Edit Exercise'}</h2>${!isNew?`<button class="btn btn-ghost" data-delete-exercise="${id}" style="color:var(--red); border-color:var(--red-pale);">Delete</button>`:''}</div>
+    <div class="field-grid">
+      <div class="field wide"><label>Exercise Name</label><input type="text" id="ef-name" value="${esc(ex.name)}"></div>
+      <div class="field"><label>Body Group</label><select id="ef-bodygroup">${BODY_GROUPS.map(g=>`<option value="${g}" ${ex.bodyGroup===g?'selected':''}>${g}</option>`).join("")}</select></div>
+      <div class="field"><label>Body Part(s) — comma separated</label><input type="text" id="ef-bodyparts" value="${esc((ex.bodyParts||[]).join(', '))}" placeholder="chest, arms"></div>
+      <div class="field"><label>Target Sets</label><input type="text" id="ef-sets" value="${esc(ex.sets||'2')}"></div>
+      <div class="field"><label>Target Reps</label><input type="text" id="ef-reps" value="${esc(ex.reps||'10')}"></div>
+      <div class="field wide"><label>Description</label><textarea id="ef-desc">${esc(ex.desc||'')}</textarea></div>
+    </div>
+    <div class="save-row" style="margin-top:14px;">
+      <button class="btn btn-primary" data-save-exercise="${id}" data-isnew="${isNew?'1':'0'}">Save to library</button>
+      <button class="btn btn-ghost" data-cancel-exercise="1">Cancel</button>
+      <span class="save-tick" data-tick="exerciseform">✓ Saved</span>
+    </div>
+    <div class="info-callout">Once saved, this exercise becomes available to add into any Workout from the "Add exercise from library" list.</div>
+  </div>`;
+}
+
+/* ---------------- WIRING ---------------- */
+function wireEditorEvents(el){
+  el.querySelectorAll("[data-editortab]").forEach(b=>b.addEventListener("click",()=>{
+    State.editorTab=b.dataset.editortab; State.editorFilter={q:"",bodyGroup:"all",bodyPart:"all",kind:"all"};
+    State.editingExerciseId=null; State.editingWorkoutId=null; renderTabContent();
+  }));
+
+  /* workouts */
+  el.querySelectorAll("[data-wkkind]").forEach(b=>b.addEventListener("click",()=>{ State.editorFilter.kind=b.dataset.wkkind; renderTabContent(); }));
+  const wkSearch = el.querySelector("#wk-search");
+  if(wkSearch) wkSearch.addEventListener("input", ()=>{ State.editorFilter.q=wkSearch.value; renderTabContent(); setTimeout(()=>{const f=document.getElementById("wk-search"); if(f){f.focus(); f.selectionStart=f.selectionEnd=f.value.length;}},0); });
+  el.querySelectorAll("[data-new-workout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId="__new__"; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-editworkout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId=b.dataset.editworkout; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-cancel-workout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId=null; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-removeex]").forEach(b=>b.addEventListener("click",()=>{
+    const w = syncFormIntoDraft(); w.exercises.splice(parseInt(b.dataset.removeex),1); renderTabContent();
+  }));
+  const addExBtn = el.querySelector("#wf-add-exercise-btn");
+  if(addExBtn) addExBtn.addEventListener("click",()=>{
+    const sel = document.getElementById("wf-add-exercise");
+    if(!sel.value) return;
+    const w = syncFormIntoDraft();
+    const ex = Lib.exercises[sel.value];
+    w.exercises.push({exId:sel.value, sets:ex.sets||"2", reps:ex.reps||"10"});
+    renderTabContent();
+  });
+  const kindSel = el.querySelector("#wf-kind");
+  if(kindSel) kindSel.addEventListener("change", ()=>{
+    const w = syncFormIntoDraft();
+    w.kind = kindSel.value;
+    if(w.kind==="cycling"){
+      w.platform = w.platform || "Rouvy (Indoor)"; w.zoneText = w.zoneText || ""; w.timeMin = w.timeMin || 30;
+    } else {
+      w.exercises = w.exercises || []; w.bodyGroup = w.bodyGroup || "upper";
+    }
+    renderTabContent();
+  });
+  el.querySelectorAll("[data-reorder-libex]").forEach(btn=>btn.addEventListener("click",()=>{
+    const w = syncFormIntoDraft();
+    const i = parseInt(btn.dataset.reorderLibex), dir = parseInt(btn.dataset.dir);
+    const j = i+dir;
+    if(j<0 || j>=w.exercises.length) return;
+    [w.exercises[i], w.exercises[j]] = [w.exercises[j], w.exercises[i]];
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-save-workout]").forEach(b=>b.addEventListener("click", saveWorkoutFromForm));
+  el.querySelectorAll("[data-delete-workout]").forEach(b=>b.addEventListener("click", async ()=>{
+    if(confirm("Delete this workout from the library? Any scheduled days using it will show a missing-workout notice until reassigned.")){
+      await deleteWorkout(b.dataset.deleteWorkout); State.editingWorkoutId=null; renderTabContent();
+    }
+  }));
+
+  /* exercises */
+  el.querySelectorAll("[data-exgroup]").forEach(b=>b.addEventListener("click",()=>{ State.editorFilter.bodyGroup=b.dataset.exgroup; renderTabContent(); }));
+  el.querySelectorAll("[data-expart]").forEach(b=>b.addEventListener("click",()=>{ State.editorFilter.bodyPart=b.dataset.expart; renderTabContent(); }));
+  const exSearch = el.querySelector("#ex-search");
+  if(exSearch) exSearch.addEventListener("input", ()=>{ State.editorFilter.q=exSearch.value; renderTabContent(); setTimeout(()=>{const f=document.getElementById("ex-search"); if(f){f.focus(); f.selectionStart=f.selectionEnd=f.value.length;}},0); });
+  el.querySelectorAll("[data-new-exercise]").forEach(b=>b.addEventListener("click",()=>{ State.editingExerciseId="__new__"; renderTabContent(); }));
+  el.querySelectorAll("[data-editexercise]").forEach(b=>b.addEventListener("click",()=>{ State.editingExerciseId=b.dataset.editexercise; renderTabContent(); }));
+  el.querySelectorAll("[data-cancel-exercise]").forEach(b=>b.addEventListener("click",()=>{ State.editingExerciseId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-save-exercise]").forEach(b=>b.addEventListener("click", saveExerciseFromForm));
+  el.querySelectorAll("[data-delete-exercise]").forEach(b=>b.addEventListener("click", async ()=>{
+    if(confirm("Delete this exercise from the library? Workouts using it will show a placeholder until you replace it.")){
+      await deleteExercise(b.dataset.deleteExercise); State.editingExerciseId=null; renderTabContent();
+    }
+  }));
+}
+
+function getEditingWorkoutDraft(){
+  const id = State.editingWorkoutId;
+  if(State._workoutDraft && State._workoutDraftId===id) return State._workoutDraft;
+  const base = id==="__new__" ? {name:"",kind:"strengthblock",desc:"",bodyGroup:"upper",exercises:[]} : JSON.parse(JSON.stringify(Lib.workouts[id]));
+  base.exercises = base.exercises || [];
+  State._workoutDraft = base;
+  State._workoutDraftId = id;
+  return base;
+}
+function syncFormIntoDraft(){
+  const draft = getEditingWorkoutDraft();
+  const nameEl = document.getElementById("wf-name"), descEl = document.getElementById("wf-desc"), kindEl = document.getElementById("wf-kind");
+  if(nameEl) draft.name = nameEl.value;
+  if(descEl) draft.desc = descEl.value;
+  if(kindEl) draft.kind = kindEl.value;
+  const bgEl = document.getElementById("wf-bodygroup"); if(bgEl) draft.bodyGroup = bgEl.value;
+  const platEl = document.getElementById("wf-platform"); if(platEl) draft.platform = platEl.value;
+  const zoneEl = document.getElementById("wf-zone"); if(zoneEl) draft.zoneText = zoneEl.value;
+  const timeEl = document.getElementById("wf-time"); if(timeEl) draft.timeMin = parseInt(timeEl.value)||0;
+  const milesEl = document.getElementById("wf-miles"); if(milesEl) draft.estMiles = milesEl.value;
+  document.querySelectorAll("[data-exsets]").forEach(inp=>{ if(draft.exercises[parseInt(inp.dataset.exsets)]) draft.exercises[parseInt(inp.dataset.exsets)].sets = inp.value; });
+  document.querySelectorAll("[data-exreps]").forEach(inp=>{ if(draft.exercises[parseInt(inp.dataset.exreps)]) draft.exercises[parseInt(inp.dataset.exreps)].reps = inp.value; });
+  return draft;
+}
+
+async function saveWorkoutFromForm(){
+  const isNew = document.querySelector("[data-save-workout]").dataset.isnew==="1";
+  const idOld = State.editingWorkoutId;
+  const kind = document.getElementById("wf-kind").value;
+  const name = document.getElementById("wf-name").value.trim() || "Untitled Workout";
+  const desc = document.getElementById("wf-desc").value;
+  let data;
+  if(kind==="cycling"){
+    data = {
+      name, kind, desc,
+      platform: document.getElementById("wf-platform").value,
+      zoneText: document.getElementById("wf-zone").value,
+      timeMin: parseInt(document.getElementById("wf-time").value)||30,
+      estMiles: document.getElementById("wf-miles").value ? parseFloat(document.getElementById("wf-miles").value) : undefined
+    };
+  } else {
+    const draft = syncFormIntoDraft();
+    data = {name, kind, desc, bodyGroup:document.getElementById("wf-bodygroup").value, exercises:draft.exercises};
+  }
+  const id = isNew ? uid("wk") : idOld;
+  await saveWorkout(id, data);
+  State._workoutDraft = null;
+  State._workoutDraftId = null;
+  State.editingWorkoutId = id;
+  const tick = document.querySelector(`[data-tick="workoutform"]`);
+  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  renderTabContent();
+}
+
+async function saveExerciseFromForm(){
+  const isNew = document.querySelector("[data-save-exercise]").dataset.isnew==="1";
+  const idOld = State.editingExerciseId;
+  const name = document.getElementById("ef-name").value.trim() || "Untitled Exercise";
+  const data = {
+    name,
+    bodyGroup: document.getElementById("ef-bodygroup").value,
+    bodyParts: document.getElementById("ef-bodyparts").value.split(",").map(s=>s.trim()).filter(Boolean),
+    sets: document.getElementById("ef-sets").value,
+    reps: document.getElementById("ef-reps").value,
+    desc: document.getElementById("ef-desc").value
+  };
+  const id = isNew ? uid("ex") : idOld;
+  await saveExercise(id, data);
+  State.editingExerciseId = id;
+  const tick = document.querySelector(`[data-tick="exerciseform"]`);
+  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  renderTabContent();
+}
+
+</script>
+</body>
+</html>
