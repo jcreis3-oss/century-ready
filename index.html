@@ -1084,6 +1084,8 @@ function checkOutdoorWeatherAlert(){
 const DRIVE_FILE_NAME = "century-ready-data.json";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_PUSH_DEBOUNCE_MS = 4000;
+const DRIVE_PUSH_MAX_WAIT_MS = 8000;   // push at least this often even during a burst of edits
+const DRIVE_POLL_MS = 45000;            // check Drive for changes made on another device
 
 const Drive = {
   clientId: null,
@@ -1098,6 +1100,8 @@ const Drive = {
   lastSyncAt: null,
   lastError: null,
   pushTimer: null,
+  pollTimer: null,
+  dirtySince: null,
   dirtySincePush: false
 };
 
@@ -1107,9 +1111,57 @@ async function initDriveSync(){
   if(!Drive._listenerAttached){
     document.addEventListener("visibilitychange", ()=>{
       if(document.visibilityState==="hidden" && Drive.connected && Drive.dirtySincePush) pushToDrive();
+      if(document.visibilityState==="visible" && Drive.connected) pollTick();
+    });
+    window.addEventListener("pagehide", ()=>{
+      if(Drive.connected && Drive.dirtySincePush) pushToDrive();
     });
     Drive._listenerAttached = true;
   }
+  if(Drive.clientId && Drive.fileId){
+    // returning user: try a silent (no-popup) reconnect so both devices
+    // stay live without requiring a manual "Connect" click every time.
+    await attemptSilentReconnect();
+  }
+}
+
+async function attemptSilentReconnect(){
+  try{
+    await loadGISScript();
+    const gotToken = await new Promise((resolve)=>{
+      Drive.tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: Drive.clientId,
+        scope: DRIVE_SCOPE,
+        callback: (resp)=>{
+          if(resp.error){ resolve(false); return; }
+          Drive.accessToken = resp.access_token;
+          Drive.tokenExpiresAt = Date.now() + (resp.expires_in||3600)*1000 - 60000;
+          resolve(true);
+        }
+      });
+      Drive.tokenClient.requestAccessToken({prompt: ""}); // silent — no popup, may fail quietly
+    });
+    if(gotToken){
+      Drive.connected = true;
+      await fetchDriveUserInfo();
+      await pullFromDrive();
+      Drive.lastSyncAt = new Date().toISOString();
+      startDrivePolling();
+    }
+  } catch(e){
+    // silent reconnect failing is expected/normal (e.g. no active Google session) — just
+    // leave Drive.connected false so the UI shows a "Connect" button.
+  }
+}
+
+function startDrivePolling(){
+  if(Drive.pollTimer) clearInterval(Drive.pollTimer);
+  Drive.pollTimer = setInterval(pollTick, DRIVE_POLL_MS);
+}
+async function pollTick(){
+  if(!Drive.connected || document.visibilityState==="hidden") return;
+  if(Drive.dirtySincePush) await pushToDrive();
+  else await pullFromDrive();
 }
 
 function loadGISScript(){
@@ -1157,6 +1209,7 @@ async function connectDrive(){
     await fetchDriveUserInfo();
     await pullFromDrive();
     Drive.lastSyncAt = new Date().toISOString();
+    startDrivePolling();
   } catch(e){
     console.error("Drive connect failed", e);
     Drive.connected = false;
@@ -1261,10 +1314,12 @@ async function pushToDrive(){
     await fetch(`https://www.googleapis.com/upload/drive/v3/files/${Drive.fileId}?uploadType=media`, {
       method:"PATCH",
       headers:{Authorization:"Bearer "+Drive.accessToken, "Content-Type":"application/json"},
-      body: JSON.stringify(bundle)
+      body: JSON.stringify(bundle),
+      keepalive: true
     });
     Drive.lastSyncAt = new Date().toISOString();
     Drive.dirtySincePush = false;
+    Drive.dirtySince = null;
     Drive.lastError = null;
   } catch(e){
     console.error("Drive push failed", e);
@@ -1278,14 +1333,19 @@ async function pushToDrive(){
 function scheduleDrivePush(){
   if(!Drive.connected) return;
   Drive.dirtySincePush = true;
+  const now = Date.now();
+  if(!Drive.dirtySince) Drive.dirtySince = now;
   if(Drive.pushTimer) clearTimeout(Drive.pushTimer);
-  Drive.pushTimer = setTimeout(pushToDrive, DRIVE_PUSH_DEBOUNCE_MS);
+  const elapsed = now - Drive.dirtySince;
+  const wait = Math.min(DRIVE_PUSH_DEBOUNCE_MS, Math.max(200, DRIVE_PUSH_MAX_WAIT_MS - elapsed));
+  Drive.pushTimer = setTimeout(pushToDrive, wait);
 }
 
 function disconnectDrive(){
   Drive.connected = false;
   Drive.accessToken = null;
   Drive.userEmail = null;
+  if(Drive.pollTimer){ clearInterval(Drive.pollTimer); Drive.pollTimer = null; }
   if(typeof renderTabContent==="function") renderTabContent();
 }
 /* ============================================================
@@ -1513,9 +1573,25 @@ function renderHeader(){
       <div class="stat-pill"><div class="num">${d}</div><div class="lbl">Days to go</div></div>
       <div class="stat-pill"><div class="num">${dp?("Wk "+dp.weekNum+"/10"):"—"}</div><div class="lbl">${dp?esc(dp.phaseLabel):""}</div></div>
       <div class="stat-pill"><div class="num">${State.profile.ftp}W</div><div class="lbl">Current FTP</div></div>
+      <div id="clock-widget"></div>
       <div id="weather-widget"></div>
     </div>
   </div>`;
+}
+
+function renderClockWidget(){
+  const el = document.getElementById("clock-widget");
+  if(!el) return;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+  const timeStr = now.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+  el.innerHTML = `<div class="stat-pill" style="min-width:120px;">
+    <div class="num" style="font-size:16px;">${timeStr}</div>
+    <div class="lbl">${esc(dateStr)}</div>
+  </div>`;
+}
+if(!window._clockInterval){
+  window._clockInterval = setInterval(renderClockWidget, 15000);
 }
 
 function renderTabs(){
@@ -1538,6 +1614,7 @@ async function renderTabContent(){
   else if(State.tab==="editor") el.innerHTML = renderEditor();
   wireTabEvents();
   renderWeatherWidget();
+  renderClockWidget();
   renderModalRoot();
   if(State.tab==="schedule" && State.scheduleView==="calendar"){
     const detailEl = document.getElementById("cal-day-detail");
@@ -2161,7 +2238,7 @@ function renderDriveStatus(){
     renderDriveStatus();
   }));
   fresh.querySelectorAll("[data-drive-connect]").forEach(b=>b.addEventListener("click", connectDrive));
-  fresh.querySelectorAll("[data-drive-sync-now]").forEach(b=>b.addEventListener("click", async ()=>{ await pullFromDrive(); await pushToDrive(); renderDriveStatus(); }));
+  fresh.querySelectorAll("[data-drive-sync-now]").forEach(b=>b.addEventListener("click", async ()=>{ if(Drive.dirtySincePush) await pushToDrive(); await pullFromDrive(); renderDriveStatus(); }));
   fresh.querySelectorAll("[data-drive-disconnect]").forEach(b=>b.addEventListener("click", disconnectDrive));
 }
 
@@ -2416,7 +2493,7 @@ function wireTabEvents(){
     renderDriveStatus();
   }));
   el.querySelectorAll("[data-drive-connect]").forEach(b=>b.addEventListener("click", connectDrive));
-  el.querySelectorAll("[data-drive-sync-now]").forEach(b=>b.addEventListener("click", async ()=>{ await pullFromDrive(); await pushToDrive(); renderDriveStatus(); }));
+  el.querySelectorAll("[data-drive-sync-now]").forEach(b=>b.addEventListener("click", async ()=>{ if(Drive.dirtySincePush) await pushToDrive(); await pullFromDrive(); renderDriveStatus(); }));
   el.querySelectorAll("[data-drive-disconnect]").forEach(b=>b.addEventListener("click", disconnectDrive));
 
   wireEditorEvents(el);
