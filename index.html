@@ -251,7 +251,7 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 .field.wide{grid-column:1/-1;}
 /* logged/actual-entry fields render bold + display-font once they hold a value, echoing the Nutrition widget's numeral style */
 .field input.input-logged{ font-family:var(--font-display); font-weight:700; color:var(--navy); }
-.field input.input-logged:placeholder-shown{ font-family:inherit; font-weight:400; color:var(--ink-700); }
+.field input.input-logged::placeholder{ font-family:var(--font-body); font-weight:400; color:var(--ink-400); opacity:1; }
 
 .save-row{display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap;}
 .btn{
@@ -720,7 +720,7 @@ function resolveWorkout(workoutId, overrides){
   if(w.kind==="cycling"){
     return {
       kind:"cycling", id:workoutId, name:w.name, desc:w.desc, timeMin:w.timeMin, zoneText:w.zoneText,
-      platform:w.platform, estMiles:w.estMiles, isLongRide:!!w.isLongRide, isRace:!!w.isRace, source:w.source, url:w.url
+      platform:w.platform, estMiles:w.estMiles, isLongRide:!!w.isLongRide, isRace:!!w.isRace, source:w.source, url:w.url, targetTSS:w.targetTSS
     };
   }
   if(w.kind==="run"){
@@ -1590,6 +1590,7 @@ const State = {
   selectedDate: null,
   openWeek: null,
   _openItems: {},
+  _justSaved: {},
   editorTab: "workouts",
   editorFilter: {q:"", bodyGroup:"all", bodyPart:"all"},
   editingExerciseId: null,
@@ -1918,7 +1919,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         <div class="wi-titlewrap">
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
-            <div class="wi-title">${esc(w.name)} ${w.isRace?'🏆':''}</div>
+            <div class="wi-title">${esc(w.name)} ${w.isRace?'🏆':''} ${savedBadge(uidStr)}</div>
             <div class="wi-desc">${esc(w.desc)}</div>
           </div>
         </div>
@@ -1928,7 +1929,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         </div>
       </div>
       <div class="wi-body ${isOpen?'open':''}">
-        <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Rouvy library ↗</a>`:""}</div>
+        <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${w.targetTSS?` · TSS ~${w.targetTSS}`:""} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Open Rouvy Workout ↗</a>`:""}</div>
         <div class="field-grid">
           <div class="field"><label>Actual Duration (min)</label><input type="number" min="0" class="input-logged" data-f="duration" data-uid="${uidStr}" value="${savedW.duration??''}" placeholder="${w.timeMin}"></div>
           <div class="field"><label>Distance (mi)</label><input type="number" min="0" step="0.1" class="input-logged" data-f="distance" data-uid="${uidStr}" value="${savedW.distance??''}" placeholder="${w.estMiles||''}"></div>
@@ -1942,7 +1943,6 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         </div>
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
-          <span class="save-tick" data-tick="${uidStr}">✓ Saved</span>
           <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">${w.isRace?'':'Substitute workout'}</button>
           ${slotKey[0]==='a' ? `<button class="btn btn-ghost" data-remove-added="${uidStr}" style="color:var(--red);">Remove</button>` : ""}
         </div>
@@ -1959,7 +1959,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         <div class="wi-titlewrap">
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
-            <div class="wi-title">${esc(w.name)}</div>
+            <div class="wi-title">${esc(w.name)} ${savedBadge(uidStr)}</div>
             <div class="wi-desc">${esc(w.desc)}</div>
           </div>
         </div>
@@ -1981,7 +1981,6 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         </div>
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
-          <span class="save-tick" data-tick="${uidStr}">✓ Saved</span>
           <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">Substitute workout</button>
           ${slotKey[0]==='a' ? `<button class="btn btn-ghost" data-remove-added="${uidStr}" style="color:var(--red);">Remove</button>` : ""}
         </div>
@@ -2031,7 +2030,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         <div class="wi-titlewrap">
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
-            <div class="wi-title">${esc(w.title)}</div>
+            <div class="wi-title">${esc(w.title)} ${savedBadge(uidStr)}</div>
             <div class="wi-desc">${w.items.length} exercise${w.items.length===1?'':'s'} · ${esc(w.desc||"")}</div>
           </div>
         </div>
@@ -2047,7 +2046,6 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
 
-          <span class="save-tick" data-tick="${uidStr}">✓ Saved</span>
           <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">Substitute workout</button>
           ${slotKey[0]==='a' ? `<button class="btn btn-ghost" data-remove-added="${uidStr}" style="color:var(--red);">Remove</button>` : ""}
         </div>
@@ -2101,35 +2099,46 @@ async function saveWorkoutEntry(dayDate, slotKey, uidStr){
   log.workouts = log.workouts || {};
   log.workouts[slotKey] = collectWorkoutFields(uidStr);
   await saveLog(dayDate, log);
-  const tick = document.querySelector(`[data-tick="${uidStr}"]`);
-  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  State._openItems[uidStr] = false;
+  flashSaved(uidStr);
+  renderTabContent();
 }
 
 /* ============================================================
    NUTRITION WIDGET
    ============================================================ */
-function renderNutritionWidget(day, log){
+function flashSaved(key){
+  State._justSaved[key] = true;
+  setTimeout(()=>{ State._justSaved[key] = false; renderTabContent(); }, 2200);
+}
+function savedBadge(key){
+  return State._justSaved[key] ? `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--teal-dark); background:var(--teal-pale); padding:3px 9px; border-radius:12px; margin-left:8px;">✓ Saved</span>` : "";
+}
+
+function renderNutritionWidget(day, log, isOpen){
   const targets = nutritionTargets(day, State.profile);
   const n = log.nutrition || {};
   function box(label,key,target,unit,step){
     const val = n[key] ?? "";
     const pct = val ? Math.min(150, Math.round((parseFloat(val)/target)*100)) : 0;
     return `<div class="nutri-box"><div class="nlabel">${label}</div>
-      <input type="number" min="0" step="${step||1}" data-nutri="${key}" value="${val}" style="border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--navy);width:100%;padding:0;margin-top:4px;" placeholder="0">
+      <input type="number" min="0" step="${step||1}" data-nutri="${key}" value="${val}" ${isOpen?'':'disabled'} style="border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--navy);width:100%;padding:0;margin-top:4px;" placeholder="0">
       <div class="ntarget">of ${target}${unit} target</div><div class="bar-track"><div class="bar-fill ${pct>105?'over':''}" style="width:${Math.min(100,pct)}%"></div></div></div>`;
   }
-  return `
-  <div class="nutri-grid">${box("Food (kcal)","kcal",targets.kcal,"","10")}${box("Carbs (g)","carbs",targets.carbsG,"g","1")}${box("Protein (g)","protein",targets.proteinG,"g","1")}${box("Water (oz)","water",targets.waterOz,"oz","1")}</div>
+  const grid = `<div class="nutri-grid">${box("Food (kcal)","kcal",targets.kcal,"","10")}${box("Carbs (g)","carbs",targets.carbsG,"g","1")}${box("Protein (g)","protein",targets.proteinG,"g","1")}${box("Water (oz)","water",targets.waterOz,"oz","1")}</div>`;
+  if(!isOpen) return grid;
+  return grid + `
   <div class="info-callout"><b>Why these numbers:</b> Baseline calories come from your profile (Mifflin-St Jeor BMR × activity) plus an estimate for today's training load. Carbs scale up on long-ride/race days (~7.5 g/kg) and stay moderate on rest days (~3 g/kg). Protein targets 1.6 g/kg daily. Water = 0.5 oz/lb bodyweight + ~20 oz per hour trained.</div>
-  <div class="save-row"><button class="btn btn-primary" data-save-nutri="${day.date}">Save nutrition</button><span class="save-tick" data-tick="nutri_${day.date}">✓ Saved</span></div>`;
+  <div class="save-row"><button class="btn btn-primary" data-save-nutri="${day.date}">Save nutrition</button></div>`;
 }
 async function saveNutrition(date){
   const log = await getLog(date);
   log.nutrition = log.nutrition || {};
   document.querySelectorAll(`[data-nutri]`).forEach(inp=>{ log.nutrition[inp.dataset.nutri] = inp.value; });
   await saveLog(date, log);
-  const tick = document.querySelector(`[data-tick="nutri_${date}"]`);
-  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  State._openItems["nutri_"+date] = false;
+  flashSaved("nutri_"+date);
+  renderTabContent();
 }
 
 function renderAddWorkoutPanel(date){
@@ -2254,22 +2263,45 @@ async function renderDashboard(){
   </div>
 
   <div class="card">
-    <div class="card-header"><h2>Nutrition Consumed</h2><span class="meta">Targets update automatically with today's training load</span></div>
-    ${renderNutritionWidget(day, log)}
+    <div class="card-header" data-toggle-card="nutri_${date}" style="cursor:pointer;">
+      <h2>Nutrition Consumed ${savedBadge("nutri_"+date)}</h2>
+      <span class="meta" style="display:flex; align-items:center; gap:8px;">
+        ${State._openItems["nutri_"+date]?"":"Targets update automatically with today's training load"}
+        <svg class="chev ${State._openItems["nutri_"+date]?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+    ${renderNutritionWidget(day, log, !!State._openItems["nutri_"+date])}
   </div>
 
   <div class="card">
-    <div class="card-header"><h2>Daily Check-In</h2></div>
-    <div class="field-grid">
-      <div class="field"><label>Body Weight (lb)</label><input type="number" step="0.1" class="input-logged" id="dc-weight" value="${log.bodyweight??''}"></div>
-      <div class="field"><label>Resting HR (bpm)</label><input type="number" class="input-logged" id="dc-rhr" value="${log.restingHR??''}"></div>
-      <div class="field"><label>Sleep (hrs)</label><input type="number" step="0.1" class="input-logged" id="dc-sleep" value="${log.sleep??''}"></div>
-      <div class="field"><label>Overall Fatigue (1–10)</label><input type="number" min="1" max="10" class="input-logged" id="dc-fatigue" value="${log.fatigue??''}"></div>
-      <div class="field wide"><label>Notes</label><textarea id="dc-notes">${esc(log.notes||'')}</textarea></div>
+    <div class="card-header" data-toggle-card="checkin_${date}" style="cursor:pointer;">
+      <h2>Daily Check-In ${savedBadge("checkin_"+date)}</h2>
+      <svg class="chev ${State._openItems["checkin_"+date]?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <div class="save-row"><button class="btn btn-primary" data-save-checkin="${date}">Save check-in</button><span class="save-tick" data-tick="checkin_${date}">✓ Saved</span></div>
+    ${renderCheckinWidget(date, log, !!State._openItems["checkin_"+date])}
   </div>
   `;
+}
+
+function renderCheckinWidget(date, log, isOpen){
+  const dis = isOpen ? "" : "disabled";
+  const grid = `
+    <div class="field-grid">
+      <div class="field"><label>Body Weight (lb)</label><input type="number" step="0.1" class="input-logged" id="dc-weight" ${dis} value="${log.bodyweight??''}"></div>
+      <div class="field"><label>Resting HR (bpm)</label><input type="number" class="input-logged" id="dc-rhr" ${dis} value="${log.restingHR??''}"></div>
+      <div class="field"><label>Sleep (hrs)</label><input type="number" step="0.1" class="input-logged" id="dc-sleep" ${dis} value="${log.sleep??''}"></div>
+      <div class="field"><label>Overall Fatigue (1–10)</label><input type="number" min="1" max="10" class="input-logged" id="dc-fatigue" ${dis} value="${log.fatigue??''}"></div>
+      <div class="field"><label>Fat Mass (%)</label><input type="number" min="0" max="100" step="0.1" class="input-logged" id="dc-fatmass" ${dis} value="${log.fatMass??''}" placeholder="00.0"></div>
+      <div class="field"><label>Muscle Mass (%)</label><input type="number" min="0" max="100" step="0.1" class="input-logged" id="dc-musclemass" ${dis} value="${log.muscleMass??''}" placeholder="00.0"></div>
+      <div class="field"><label>BMI</label><input type="number" min="0" max="99" step="0.1" class="input-logged" id="dc-bmi" ${dis} value="${log.bmiReading??''}" placeholder="00.0"></div>
+      <div class="field"><label>Body Water (%)</label><input type="number" min="0" max="100" step="0.1" class="input-logged" id="dc-bodywater" ${dis} value="${log.bodyWater??''}" placeholder="00.0"></div>
+    </div>`;
+  if(!isOpen) return grid;
+  return grid + `
+    <div class="field-grid" style="margin-top:12px;">
+      <div class="field wide"><label>Notes</label><textarea id="dc-notes">${esc(log.notes||'')}</textarea></div>
+    </div>
+    <div class="save-row"><button class="btn btn-primary" data-save-checkin="${date}">Save check-in</button></div>`;
 }
 
 function renderWeatherAlertBanner(day, wxAlert){
@@ -2301,6 +2333,10 @@ async function saveCheckin(date){
   log.restingHR = document.getElementById("dc-rhr").value;
   log.sleep = document.getElementById("dc-sleep").value;
   log.fatigue = document.getElementById("dc-fatigue").value;
+  log.fatMass = document.getElementById("dc-fatmass").value;
+  log.muscleMass = document.getElementById("dc-musclemass").value;
+  log.bmiReading = document.getElementById("dc-bmi").value;
+  log.bodyWater = document.getElementById("dc-bodywater").value;
   log.notes = document.getElementById("dc-notes").value;
   await saveLog(date, log);
   if(log.bodyweight){
@@ -2311,8 +2347,8 @@ async function saveCheckin(date){
     State.profile.weightLb = parseFloat(log.bodyweight);
     await saveJSON("profile", State.profile);
   }
-  const tick = document.querySelector(`[data-tick="checkin_${date}"]`);
-  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  State._openItems["checkin_"+date] = false;
+  flashSaved("checkin_"+date);
   render();
 }
 
@@ -2742,6 +2778,11 @@ function wireTabEvents(){
     const item=document.querySelector(`.workout-item[data-uid="${u}"]`);
     item.querySelector(".wi-body").classList.toggle("open"); item.querySelector(".chev").classList.toggle("open");
   }));
+  el.querySelectorAll("[data-toggle-card]").forEach(h=>h.addEventListener("click",()=>{
+    const key = h.dataset.toggleCard;
+    State._openItems[key] = !State._openItems[key];
+    renderTabContent();
+  }));
   el.querySelectorAll("[data-selectday]").forEach(p=>p.addEventListener("click",()=>{ State.selectedDate=p.dataset.selectday; renderTabContent(); }));
   el.querySelectorAll("[data-toggleweek]").forEach(h=>h.addEventListener("click",()=>{ const n=parseInt(h.dataset.toggleweek); State.openWeek=State.openWeek===n?null:n; renderTabContent(); }));
   el.querySelectorAll("[data-save]").forEach(btn=>btn.addEventListener("click",async()=>{
@@ -2955,10 +2996,12 @@ function renderWorkoutForm(id, w, isNew){
         </div>
       </div>
       ${isCycling ? `
-        <div class="field"><label>Platform</label><input type="text" id="wf-platform" value="${esc(w.platform||'')}" placeholder="Outdoor / Rouvy (Indoor)"></div>
+        <div class="field"><label>Platform</label><input type="text" id="wf-platform" data-platform-watch="1" value="${esc(w.platform||'')}" placeholder="Outdoor / Rouvy (Indoor)"></div>
         <div class="field"><label>Target Zone Text</label><input type="text" id="wf-zone" value="${esc(w.zoneText||'')}" placeholder="Zone 3 · 76–90% FTP"></div>
         <div class="field"><label>Duration (min)</label><input type="number" id="wf-time" value="${w.timeMin||0}"></div>
         <div class="field"><label>Est. Distance (mi)</label><input type="number" id="wf-miles" value="${w.estMiles||''}"></div>
+        <div class="field" id="wf-tss-field" style="display:${/rouvy/i.test(w.platform||'')?'flex':'none'};"><label>Target TSS</label><input type="number" min="0" id="wf-tss" value="${w.targetTSS||''}" placeholder="e.g. 55"></div>
+        <div class="field wide" id="wf-rouvyurl-field" style="display:${/rouvy/i.test(w.platform||'')?'flex':'none'};"><label>Rouvy Workout URL</label><input type="url" id="wf-rouvyurl" value="${esc(w.url||'')}" placeholder="https://riders.rouvy.com/workouts/..."></div>
       ` : isRun ? `
         <div class="field"><label>Target Pace / Effort</label><input type="text" id="wf-zone" value="${esc(w.paceText||'')}" placeholder="Easy conversational pace · RPE 3–4"></div>
         <div class="field"><label>Duration (min)</label><input type="number" id="wf-time" value="${w.timeMin||0}"></div>
@@ -3116,6 +3159,13 @@ function wireEditorEvents(el){
     w.exercises.push({exId:sel.value, sets:ex.sets||"2", reps:ex.reps||"10"});
     renderTabContent();
   });
+  const platformInput = el.querySelector("[data-platform-watch]");
+  if(platformInput) platformInput.addEventListener("input", ()=>{
+    const isRouvy = /rouvy/i.test(platformInput.value);
+    const tssField = document.getElementById("wf-tss-field"), urlField = document.getElementById("wf-rouvyurl-field");
+    if(tssField) tssField.style.display = isRouvy ? "flex" : "none";
+    if(urlField) urlField.style.display = isRouvy ? "flex" : "none";
+  });
   el.querySelectorAll("[data-choice-for]").forEach(btn=>btn.addEventListener("click",()=>{
     const targetId = btn.dataset.choiceFor, val = btn.dataset.choiceValue;
     const hidden = document.getElementById(targetId);
@@ -3196,13 +3246,19 @@ async function saveWorkoutFromForm(){
   const desc = document.getElementById("wf-desc").value;
   let data;
   if(kind==="cycling"){
+    const platformVal = document.getElementById("wf-platform").value;
     data = {
       name, kind, desc,
-      platform: document.getElementById("wf-platform").value,
+      platform: platformVal,
       zoneText: document.getElementById("wf-zone").value,
       timeMin: parseInt(document.getElementById("wf-time").value)||30,
       estMiles: document.getElementById("wf-miles").value ? parseFloat(document.getElementById("wf-miles").value) : undefined
     };
+    if(/rouvy/i.test(platformVal)){
+      const tssEl = document.getElementById("wf-tss"), urlEl = document.getElementById("wf-rouvyurl");
+      if(tssEl && tssEl.value) data.targetTSS = parseInt(tssEl.value);
+      if(urlEl && urlEl.value) data.url = urlEl.value.trim();
+    }
   } else if(kind==="run"){
     data = {
       name, kind, desc, platform:"Outdoor",
@@ -3218,9 +3274,7 @@ async function saveWorkoutFromForm(){
   await saveWorkout(id, data);
   State._workoutDraft = null;
   State._workoutDraftId = null;
-  State.editingWorkoutId = id;
-  const tick = document.querySelector(`[data-tick="workoutform"]`);
-  if(tick){ tick.classList.add("show"); setTimeout(()=>tick.classList.remove("show"),1800); }
+  State.editingWorkoutId = null;
   renderTabContent();
 }
 
