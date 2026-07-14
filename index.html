@@ -2534,13 +2534,16 @@ async function renderDashboard(){
         <span class="wi-time">${totalMin>0?fmtHrs(totalMin)+" planned":""}</span>
       </div>
     </div>
+    ${!isToday ? `<div class="save-row" style="margin-top:10px;"><button class="btn btn-primary" data-jump-today="1">↩ Back to Today (${esc(fmtDate(todayISO()))})</button></div>` : ""}
     <div class="week-strip">
+      <button data-week-nav="-1" title="Previous week" style="flex-shrink:0; align-self:center; border:1.5px solid var(--grey-200); background:#fff; border-radius:8px; width:30px; height:30px; cursor:pointer; color:var(--ink-600); font-weight:700;">‹</button>
       ${weekDays.map(d=>{
         const dd = getDayPlan(d);
         return `<div class="day-pill ${d===date?'selected':''} ${d===todayISO()?'today':''}" data-selectday="${d}">
           <div class="dp-dow">${dd.dowLabel}</div><div class="dp-date">${dayNum(d)}</div><div class="dp-tag">${esc(dd.type==='race'?'RACE':dd.type)}</div>
         </div>`;
       }).join("")}
+      <button data-week-nav="1" title="Next week" style="flex-shrink:0; align-self:center; border:1.5px solid var(--grey-200); background:#fff; border-radius:8px; width:30px; height:30px; cursor:pointer; color:var(--ink-600); font-weight:700;">›</button>
     </div>
     <div class="save-row" style="margin-top:14px;">
       <button class="btn btn-ghost" data-open-skip="${date}">Skip day(s) from here</button>
@@ -3116,6 +3119,20 @@ function wireTabEvents(){
     renderTabContent();
   }));
   el.querySelectorAll("[data-selectday]").forEach(p=>p.addEventListener("click",()=>{ State.selectedDate=p.dataset.selectday; renderTabContent(); }));
+  el.querySelectorAll("[data-jump-today]").forEach(btn=>btn.addEventListener("click",()=>{
+    const dates = allCalendarDates();
+    const today = todayISO();
+    State.selectedDate = dates.includes(today) ? today : (today < dates[0] ? dates[0] : dates[dates.length-1]);
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-week-nav]").forEach(btn=>btn.addEventListener("click",()=>{
+    const dates = allCalendarDates();
+    const idx = dates.indexOf(State.selectedDate);
+    if(idx===-1) return;
+    const targetIdx = Math.max(0, Math.min(dates.length-1, idx + parseInt(btn.dataset.weekNav)*7));
+    State.selectedDate = dates[targetIdx];
+    renderTabContent();
+  }));
   el.querySelectorAll("[data-toggleweek]").forEach(h=>h.addEventListener("click",()=>{ const n=parseInt(h.dataset.toggleweek); State.openWeek=State.openWeek===n?null:n; renderTabContent(); }));
   el.querySelectorAll("[data-save]").forEach(btn=>btn.addEventListener("click",async()=>{
     const {date,slotKey}=parseUid(btn.dataset.save);
