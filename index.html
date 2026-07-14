@@ -210,8 +210,16 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 
 .workout-item{
   border:1px solid var(--grey-200); border-radius:var(--radius-md); margin-bottom:12px; overflow:hidden;
-  background:var(--grey-50); transition:border-color .15s ease, box-shadow .15s ease;
+  background:var(--grey-50); transition:border-color .15s ease, box-shadow .15s ease, background .2s ease;
 }
+.workout-item.completed{
+  background:var(--green-pale); border-color:var(--green);
+}
+.workout-item.completed .wi-head:hover{ background:rgba(22,199,132,0.12); }
+
+/* whole-day completion highlight, used in Dashboard, Schedule list, and Schedule calendar */
+.day-complete-bg{ background:var(--green-pale) !important; border-color:var(--green) !important; }
+.day-row.day-complete-bg{ border-radius:var(--radius-md); }
 .workout-item:hover{ box-shadow:var(--shadow-sm); }
 .workout-item .wi-head{
   display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; gap:10px;
@@ -253,6 +261,20 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 .field input.input-logged{ font-family:var(--font-display); font-weight:700; color:var(--navy); }
 .field input.input-logged::placeholder{ font-family:var(--font-body); font-weight:400; color:var(--ink-400); opacity:1; }
 .field select.input-logged{ font-family:var(--font-display); font-weight:700; color:var(--navy); }
+
+/* compact Hrs:Min:Sec picker — replaces the old full-width triple dropdown */
+.time-picker{
+  display:inline-flex; align-items:center; gap:1px; background:#fff; border:1.5px solid var(--grey-200);
+  border-radius:var(--radius-sm); padding:4px 8px; width:fit-content;
+}
+.time-picker select{
+  border:none !important; background:transparent !important; padding:0 !important; width:auto !important;
+  font-size:13px; font-family:var(--font-display); font-weight:700; color:var(--navy); appearance:menulist;
+  text-align:right;
+}
+.time-picker select:focus{ outline:none; box-shadow:none; }
+.time-picker .tp-unit{ font-size:10.5px; color:var(--ink-400); font-weight:600; margin-right:4px; }
+.time-picker .tp-sep{ color:var(--ink-200); font-weight:700; margin:0 2px; }
 
 .save-row{display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap;}
 .btn{
@@ -410,7 +432,7 @@ svg.sparkline{width:100%; height:110px;}
 .cal-cell.cal-outside{ background:var(--grey-50); color:var(--ink-400); border-color:var(--grey-100); cursor:default; }
 .cal-cell.cal-start{ border-color:transparent; background:var(--grad-primary); box-shadow:var(--shadow-glow); }
 .cal-cell.cal-start .cal-daynum, .cal-cell.cal-start .cal-daytitle{ color:#fff; }
-.cal-cell.cal-completed{ background:#F4F6F5; border:1.5px solid var(--green); }
+.cal-cell.cal-completed{ background:var(--green-pale); border:1.5px solid var(--green); }
 .cal-cell.cal-incomplete{ background:#F6F5F0; border:1.5px solid var(--yellow); }
 .cal-cell.cal-selected{ box-shadow:0 0 0 2px var(--navy) inset; }
 .cal-cell.cal-today:not(.cal-start){ border-color:var(--grad-warm-1); }
@@ -1998,6 +2020,12 @@ function durationTotalMinutes(savedW){
   return h*60 + m + s/60;
 }
 
+function completeCheckbox(uidStr, isCompleted){
+  return `<label style="display:flex; align-items:center; cursor:pointer; flex-shrink:0;" title="Mark this workout completed">
+    <input type="checkbox" data-complete="${uidStr}" ${isCompleted?'checked':''} style="width:19px; height:19px; accent-color:var(--green); cursor:pointer;">
+  </label>`;
+}
+
 function timeOptions(max, selected){
   let out = "";
   for(let i=0;i<=max;i++){
@@ -2009,14 +2037,14 @@ function timeOptions(max, selected){
 function durationDropdowns(uidStr, savedW){
   const h = savedW.durationH ?? "00", m = savedW.durationM ?? "00", s = savedW.durationS ?? "00";
   return `
-  <div class="field wide">
-    <label>Actual Duration (Hrs:Min:Sec)</label>
-    <div style="display:flex; align-items:center; gap:5px;">
-      <select class="input-logged" data-f="durationH" data-uid="${uidStr}">${timeOptions(10,h)}</select>
-      <span style="color:var(--ink-400); font-weight:700;">:</span>
-      <select class="input-logged" data-f="durationM" data-uid="${uidStr}">${timeOptions(59,m)}</select>
-      <span style="color:var(--ink-400); font-weight:700;">:</span>
-      <select class="input-logged" data-f="durationS" data-uid="${uidStr}">${timeOptions(59,s)}</select>
+  <div class="field">
+    <label>Actual Duration</label>
+    <div class="time-picker">
+      <select class="input-logged" data-f="durationH" data-uid="${uidStr}">${timeOptions(10,h)}</select><span class="tp-unit">h</span>
+      <span class="tp-sep">:</span>
+      <select class="input-logged" data-f="durationM" data-uid="${uidStr}">${timeOptions(59,m)}</select><span class="tp-unit">m</span>
+      <span class="tp-sep">:</span>
+      <select class="input-logged" data-f="durationS" data-uid="${uidStr}">${timeOptions(59,s)}</select><span class="tp-unit">s</span>
     </div>
   </div>`;
 }
@@ -2026,6 +2054,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
   const slotKey = w.slotKey;
   const uidStr = `${date}::${slotKey}`;
   const savedW = (log.workouts && log.workouts[slotKey]) || {};
+  const isCompleted = !!savedW.completed;
   const isOpen = State._openItems[uidStr];
   const subOpen = State._openItems["sub_"+uidStr];
   const total = dayPlan.workouts.length;
@@ -2038,9 +2067,10 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
   if(w.kind==="cycling"){
     const platBadge = w.platform==="Rouvy (Indoor)" ? "🚴 Rouvy" : (w.platform&&w.platform.startsWith("Rouvy") ? "🚴 "+w.platform : (w.platform==="Outdoor" ? "🌤 Outdoor" : ""));
     return `
-    <div class="workout-item" data-uid="${uidStr}">
+    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}">
       <div class="wi-head" data-toggle="${uidStr}">
         ${reorderBtns}
+        ${completeCheckbox(uidStr, isCompleted)}
         <div class="wi-titlewrap">
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
@@ -2078,9 +2108,10 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
 
   if(w.kind==="run"){
     return `
-    <div class="workout-item" data-uid="${uidStr}">
+    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}">
       <div class="wi-head" data-toggle="${uidStr}">
         ${reorderBtns}
+        ${completeCheckbox(uidStr, isCompleted)}
         <div class="wi-titlewrap">
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
@@ -2150,9 +2181,10 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
       </div>`;
     }).join("");
     return `
-    <div class="workout-item" data-uid="${uidStr}">
+    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}">
       <div class="wi-head" data-toggle="${uidStr}">
         ${reorderBtns}
+        ${completeCheckbox(uidStr, isCompleted)}
         <div class="wi-titlewrap">
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
@@ -2266,14 +2298,44 @@ function savedBadge(key){
   return State._justSaved[key] ? `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--teal-dark); background:var(--teal-pale); padding:3px 9px; border-radius:12px; margin-left:8px;">✓ Saved</span>` : "";
 }
 
-function renderNutritionWidget(day, log, isOpen){
+/* Fetch the last N days of logs once, then allow cheap synchronous extraction
+   of the 3 most recent distinct values for any nutrition/check-in field. */
+async function buildRecentValueLookup(beforeDate, lookbackDays){
+  lookbackDays = lookbackDays || 30;
+  const allDates = allCalendarDates().filter(d=>d<beforeDate).sort((a,b)=>b.localeCompare(a)).slice(0,lookbackDays);
+  const logs = [];
+  for(const d of allDates){ logs.push(await getLog(d)); }
+  return function extract(fieldPath, limit){
+    limit = limit || 3;
+    const seen = [];
+    for(const log of logs){
+      const val = fieldPath.startsWith("nutrition.")
+        ? (log.nutrition && log.nutrition[fieldPath.slice(10)])
+        : log[fieldPath];
+      if(val!==undefined && val!==null && val!=="" && !seen.includes(val)){
+        seen.push(val);
+        if(seen.length>=limit) break;
+      }
+    }
+    return seen;
+  };
+}
+function datalistFor(inputId, values){
+  if(!values || !values.length) return "";
+  return `<datalist id="${inputId}">${values.map(v=>`<option value="${esc(v)}"></option>`).join("")}</datalist>`;
+}
+
+function renderNutritionWidget(day, log, isOpen, recent){
   const targets = nutritionTargets(day, State.profile);
   const n = log.nutrition || {};
   function box(label,key,target,unit,step){
     const val = n[key] ?? "";
     const pct = val ? Math.min(150, Math.round((parseFloat(val)/target)*100)) : 0;
+    const dlId = `dl-nutri-${key}-${day.date}`;
+    const vals = recent ? recent("nutrition."+key) : [];
     return `<div class="nutri-box"><div class="nlabel">${label}</div>
-      <input type="number" min="0" step="${step||1}" data-nutri="${key}" value="${val}" ${isOpen?'':'disabled'} style="border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--navy);width:100%;padding:0;margin-top:4px;" placeholder="0">
+      <input type="number" min="0" step="${step||1}" list="${dlId}" data-nutri="${key}" value="${val}" ${isOpen?'':'disabled'} style="border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--navy);width:100%;padding:0;margin-top:4px;" placeholder="0">
+      ${datalistFor(dlId, vals)}
       <div class="ntarget">of ${target}${unit} target</div><div class="bar-track"><div class="bar-fill ${pct>105?'over':''}" style="width:${Math.min(100,pct)}%"></div></div></div>`;
   }
   const grid = `<div class="nutri-grid">${box("Food (kcal)","kcal",targets.kcal,"","10")}${box("Carbs (g)","carbs",targets.carbsG,"g","1")}${box("Protein (g)","protein",targets.proteinG,"g","1")}${box("Fat (g)","fat",targets.fatG,"g","1")}${box("Water (oz)","water",targets.waterOz,"oz","1")}</div>`;
@@ -2378,6 +2440,7 @@ async function renderDashboard(){
   const weekDays = allCalendarDates().filter(d=>getDayPlan(d).weekNum===day.weekNum);
 
   const wxAlert = checkTodayOutdoorSuitability(day, log);
+  const recent = await buildRecentValueLookup(date, 30);
 
   return `
   ${wxAlert ? renderWeatherAlertBanner(day, wxAlert) : ""}
@@ -2407,8 +2470,8 @@ async function renderDashboard(){
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header"><h2>Workouts</h2><span class="meta">Week ${day.weekNum} of 10 · ${esc(day.phaseLabel)}</span></div>
+  <div class="card ${isDayFullyCompleted(day, log)?'day-complete-bg':''}">
+    <div class="card-header"><h2>Workouts ${isDayFullyCompleted(day, log)?'<span style="font-size:12px;color:var(--teal-dark);font-weight:700;">✓ All completed</span>':''}</h2><span class="meta">Week ${day.weekNum} of 10 · ${esc(day.phaseLabel)}</span></div>
     ${day.workouts.length ? day.workouts.map((w,i)=>renderWorkoutItem(day,i,w,log)).join("") : `<p style="color:var(--grey-600); font-size:13.5px;">Nothing scheduled — full rest. Prioritize sleep and hydration.</p>`}
     ${renderAddWorkoutPanel(date)}
   </div>
@@ -2421,7 +2484,7 @@ async function renderDashboard(){
         <svg class="chev ${State._openItems["nutri_"+date]?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </span>
     </div>
-    ${renderNutritionWidget(day, log, !!State._openItems["nutri_"+date])}
+    ${renderNutritionWidget(day, log, !!State._openItems["nutri_"+date], recent)}
   </div>
 
   <div class="card">
@@ -2429,23 +2492,28 @@ async function renderDashboard(){
       <h2>Daily Check-In ${savedBadge("checkin_"+date)}</h2>
       <svg class="chev ${State._openItems["checkin_"+date]?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    ${renderCheckinWidget(date, log, !!State._openItems["checkin_"+date])}
+    ${renderCheckinWidget(date, log, !!State._openItems["checkin_"+date], recent)}
   </div>
   `;
 }
 
-function renderCheckinWidget(date, log, isOpen){
+function renderCheckinWidget(date, log, isOpen, recent){
   const dis = isOpen ? "" : "disabled";
+  function fld(label, id, field, extra, placeholder){
+    const dlId = `dl-ci-${field}-${date}`;
+    const vals = recent ? recent(field) : [];
+    return `<div class="field"><label>${label}</label><input type="number" ${extra||''} list="${dlId}" class="input-logged" id="${id}" ${dis} value="${log[field]??''}" ${placeholder?`placeholder="${placeholder}"`:''}>${datalistFor(dlId, vals)}</div>`;
+  }
   const grid = `
     <div class="field-grid">
-      <div class="field"><label>Body Weight (lb)</label><input type="number" step="0.1" class="input-logged" id="dc-weight" ${dis} value="${log.bodyweight??''}"></div>
-      <div class="field"><label>Resting HR (bpm)</label><input type="number" class="input-logged" id="dc-rhr" ${dis} value="${log.restingHR??''}"></div>
-      <div class="field"><label>Sleep (hrs)</label><input type="number" step="0.1" class="input-logged" id="dc-sleep" ${dis} value="${log.sleep??''}"></div>
-      <div class="field"><label>Overall Fatigue (1–10)</label><input type="number" min="1" max="10" class="input-logged" id="dc-fatigue" ${dis} value="${log.fatigue??''}"></div>
-      <div class="field"><label>Fat Mass (%)</label><input type="number" min="0" max="100" step="0.1" class="input-logged" id="dc-fatmass" ${dis} value="${log.fatMass??''}" placeholder="00.0"></div>
-      <div class="field"><label>Muscle Mass (%)</label><input type="number" min="0" max="100" step="0.1" class="input-logged" id="dc-musclemass" ${dis} value="${log.muscleMass??''}" placeholder="00.0"></div>
-      <div class="field"><label>BMI</label><input type="number" min="0" max="99" step="0.1" class="input-logged" id="dc-bmi" ${dis} value="${log.bmiReading??''}" placeholder="00.0"></div>
-      <div class="field"><label>Body Water (%)</label><input type="number" min="0" max="100" step="0.1" class="input-logged" id="dc-bodywater" ${dis} value="${log.bodyWater??''}" placeholder="00.0"></div>
+      ${fld("Body Weight (lb)","dc-weight","bodyweight",'step="0.1"')}
+      ${fld("Resting HR (bpm)","dc-rhr","restingHR",'')}
+      ${fld("Sleep (hrs)","dc-sleep","sleep",'step="0.1"')}
+      ${fld("Overall Fatigue (1–10)","dc-fatigue","fatigue",'min="1" max="10"')}
+      ${fld("Fat Mass (%)","dc-fatmass","fatMass",'min="0" max="100" step="0.1"',"00.0")}
+      ${fld("Muscle Mass (%)","dc-musclemass","muscleMass",'min="0" max="100" step="0.1"',"00.0")}
+      ${fld("BMI","dc-bmi","bmiReading",'min="0" max="99" step="0.1"',"00.0")}
+      ${fld("Body Water (%)","dc-bodywater","bodyWater",'min="0" max="100" step="0.1"',"00.0")}
     </div>`;
   if(!isOpen) return grid;
   return grid + `
@@ -2553,10 +2621,11 @@ async function renderDayRow(d){
   const dp = getDayPlan(d);
   const log = await getLog(d);
   const totalMin = totalDayMinutes(dp);
+  const allDone = isDayFullyCompleted(dp, log);
   return `
-  <div class="day-row">
+  <div class="day-row ${allDone?'day-complete-bg':''}">
     <div class="day-row-head">
-      <div><span class="drdate">${esc(fmtDate(d))}</span> &nbsp; <span class="drtitle">${esc(dp.title)}</span></div>
+      <div><span class="drdate">${esc(fmtDate(d))}</span> &nbsp; <span class="drtitle">${esc(dp.title)}</span> ${allDone?'<span style="font-size:11px;color:var(--teal-dark);font-weight:700;">✓ All completed</span>':''}</div>
       <div style="display:flex; gap:8px; align-items:center;">${typeBadge(dp.type)}<span class="wi-time">${totalMin>0?fmtHrs(totalMin):''}</span></div>
     </div>
     <div style="margin-top:10px;">
@@ -2581,6 +2650,11 @@ function workoutIsLogged(w, savedW){
   }
   return false;
 }
+function workoutIsCompleted(savedW){ return !!(savedW && savedW.completed); }
+function isDayFullyCompleted(day, log){
+  if(!day || !day.workouts.length) return false;
+  return day.workouts.every(w => workoutIsCompleted(log.workouts && log.workouts[w.slotKey]));
+}
 /* 'start' | 'completed' | 'incomplete' | null(no special coloring — rest day, today, or future) */
 async function dayCompletionStatus(date){
   if(date === Plan.start) return "start";
@@ -2588,8 +2662,7 @@ async function dayCompletionStatus(date){
   const dp = getDayPlan(date);
   if(!dp || !dp.workouts.length) return null;
   const log = await getLog(date);
-  const allLogged = dp.workouts.every(w => workoutIsLogged(w, log.workouts && log.workouts[w.slotKey]));
-  return allLogged ? "completed" : "incomplete";
+  return isDayFullyCompleted(dp, log) ? "completed" : "incomplete";
 }
 
 async function renderCalendarView(){
@@ -2940,6 +3013,16 @@ function wireTabEvents(){
   el.querySelectorAll("[data-save]").forEach(btn=>btn.addEventListener("click",async()=>{
     const {date,slotKey}=parseUid(btn.dataset.save);
     await saveWorkoutEntry(date, slotKey, btn.dataset.save);
+  }));
+  el.querySelectorAll("[data-complete]").forEach(cb=>cb.addEventListener("click",(e)=>e.stopPropagation()));
+  el.querySelectorAll("[data-complete]").forEach(cb=>cb.addEventListener("change", async ()=>{
+    const {date,slotKey}=parseUid(cb.dataset.complete);
+    const log = await getLog(date);
+    log.workouts = log.workouts || {};
+    log.workouts[slotKey] = log.workouts[slotKey] || {};
+    log.workouts[slotKey].completed = cb.checked;
+    await saveLog(date, log);
+    renderTabContent();
   }));
   el.querySelectorAll("[data-save-nutri]").forEach(btn=>btn.addEventListener("click",()=>saveNutrition(btn.dataset.saveNutri)));
   el.querySelectorAll("[data-save-checkin]").forEach(btn=>btn.addEventListener("click",()=>saveCheckin(btn.dataset.saveCheckin)));
