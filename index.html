@@ -252,6 +252,7 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 /* logged/actual-entry fields render bold + display-font once they hold a value, echoing the Nutrition widget's numeral style */
 .field input.input-logged{ font-family:var(--font-display); font-weight:700; color:var(--navy); }
 .field input.input-logged::placeholder{ font-family:var(--font-body); font-weight:400; color:var(--ink-400); opacity:1; }
+.field select.input-logged{ font-family:var(--font-display); font-weight:700; color:var(--navy); }
 
 .save-row{display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap;}
 .btn{
@@ -283,7 +284,8 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 .day-pill .dp-dot{width:6px; height:6px; border-radius:50%; margin:4px auto 0;}
 
 /* nutrition widget */
-.nutri-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:6px;}
+.nutri-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:6px;}
+@media(max-width:900px){.nutri-grid{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:700px){.nutri-grid{grid-template-columns:repeat(2,1fr);}}
 .nutri-box{background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-md); padding:14px; transition:transform .15s;}
 .nutri-box:hover{transform:translateY(-2px);}
@@ -504,6 +506,15 @@ function estimateStrengthMinutes(exerciseRefs, exLib){
     const ex = exLib[ref.exId];
     const sets = parseInt(ref.sets) || 1;
     totalSec += sets*(secPerSetFor(ex)+20) + 15; // +20s rest/set, +15s transition
+  });
+  return Math.max(5, Math.round(totalSec/60));
+}
+function estimateStrengthMinutesFromItems(items, exLib){
+  let totalSec = 0;
+  items.forEach(it=>{
+    const ex = exLib[it.exId];
+    const sets = parseInt(it.targetSets) || 1;
+    totalSec += sets*(secPerSetFor(ex)+20) + 15;
   });
   return Math.max(5, Math.round(totalSec/60));
 }
@@ -812,8 +823,13 @@ function getDayPlan(date){
   }
 
   const ov = Plan.dayOverrides[date] || {};
-  const slotDefs = refs.map((r,i)=>({slotKey:"t"+i, workoutId:r.workoutId, overrides:r.overrides}));
-  (ov.added||[]).forEach((a,i)=>slotDefs.push({slotKey:a.slotKey||("a"+i), workoutId:a.workoutId, overrides:a.overrides}));
+  const removedSet = new Set(ov.removed||[]);
+  const slotDefs = refs.map((r,i)=>({slotKey:"t"+i, workoutId:r.workoutId, overrides:r.overrides}))
+    .filter(sd=>!removedSet.has(sd.slotKey));
+  (ov.added||[]).forEach((a,i)=>{
+    const sk = a.slotKey||("a"+i);
+    if(!removedSet.has(sk)) slotDefs.push({slotKey:sk, workoutId:a.workoutId, overrides:a.overrides});
+  });
 
   let resolved = slotDefs.map(sd=>{
     let wid = sd.workoutId, wov = sd.overrides;
@@ -821,14 +837,26 @@ function getDayPlan(date){
     const w = resolveWorkout(wid, wov);
     if(!w) return null;
     w.slotKey = sd.slotKey;
-    if(w.kind==="strengthblock" && ov.exOrder && ov.exOrder[sd.slotKey]){
-      const orderArr = ov.exOrder[sd.slotKey];
-      const byOrig = w.items.map((it,i)=>({...it, origIndex:i}));
-      const reordered = orderArr.map(oi=>byOrig[oi]).filter(Boolean);
-      byOrig.forEach(it=>{ if(!orderArr.includes(it.origIndex)) reordered.push(it); });
-      w.items = reordered;
-    } else if(w.kind==="strengthblock"){
-      w.items = w.items.map((it,i)=>({...it, origIndex:i}));
+
+    if(w.kind==="strengthblock"){
+      const exAdd = (ov.exAdd && ov.exAdd[sd.slotKey]) || [];
+      let canonical = w.items.slice();
+      exAdd.forEach(ref=>{
+        const ex = Lib.exercises[ref.exId] || {name:"(missing exercise)", desc:"", bodyGroup:"", bodyParts:[]};
+        canonical.push({exId:ref.exId, name:ex.name, desc:ex.desc, bodyGroup:ex.bodyGroup, bodyParts:ex.bodyParts, targetSets:ref.sets, targetReps:ref.reps});
+      });
+      canonical = canonical.map((it,i)=>({...it, origIndex:i}));
+      const exRemove = (ov.exRemove && ov.exRemove[sd.slotKey]) || [];
+      let items = canonical.filter(it=>!exRemove.includes(it.origIndex));
+      if(ov.exOrder && ov.exOrder[sd.slotKey]){
+        const orderArr = ov.exOrder[sd.slotKey];
+        const byIdx = {}; items.forEach(it=>byIdx[it.origIndex]=it);
+        const reordered = orderArr.map(oi=>byIdx[oi]).filter(Boolean);
+        items.forEach(it=>{ if(!orderArr.includes(it.origIndex)) reordered.push(it); });
+        items = reordered;
+      }
+      w.items = items;
+      w.timeMin = estimateStrengthMinutesFromItems(items, Lib.exercises);
     }
     return w;
   }).filter(Boolean);
@@ -840,12 +868,44 @@ function getDayPlan(date){
     resolved = ordered;
   }
 
+  const derivedType = deriveDayType(resolved, type);
+
   return {
     date, dow: dowKey(date), dowLabel: dowShort(date), weekNum, phase, phaseLabel,
-    title, type, workouts: resolved, isSkipped,
-    isSubstituted: !!(ov.slots && Object.keys(ov.slots).length) || !!(ov.added && ov.added.length) || !!(ov.order && ov.order.length),
+    title, type: derivedType, workouts: resolved, isSkipped,
+    isSubstituted: !!(ov.slots && Object.keys(ov.slots).length) || !!(ov.added && ov.added.length) || !!(ov.order && ov.order.length) || !!(ov.removed && ov.removed.length) || !!(ov.exAdd && Object.keys(ov.exAdd).length) || !!(ov.exRemove && Object.keys(ov.exRemove).length),
     originalTemplateDate: template ? template.date : null
   };
+}
+
+/* Classify a resolved workout into a broad category for day-level labeling */
+function classifyWorkout(w){
+  if(w.isRace) return "race";
+  if(w.kind==="run") return "run";
+  if(w.kind==="cycling"){
+    if(w.platform==="Outdoor") return "outdoor";
+    const txt = ((w.name||"")+" "+(w.zoneText||"")).toLowerCase();
+    if(txt.includes("recovery") || txt.includes("zone 1")) return "recovery";
+    return "indoor";
+  }
+  if(w.kind==="strengthblock"){
+    if(w.bodyGroup==="recovery" || w.bodyGroup==="mobility") return "recovery";
+    return "strength";
+  }
+  return "strength";
+}
+/* Pick the day's overall category by whichever classification has the most scheduled minutes */
+function deriveDayType(resolvedWorkouts, fallbackType){
+  if(!resolvedWorkouts.length) return fallbackType==="race" ? "race" : (fallbackType==="rest" ? "rest" : "rest");
+  if(resolvedWorkouts.some(w=>w.isRace)) return "race";
+  const totals = {};
+  resolvedWorkouts.forEach(w=>{
+    const cat = classifyWorkout(w);
+    totals[cat] = (totals[cat]||0) + (w.timeMin||0);
+  });
+  let best = null, bestTime = -1;
+  Object.entries(totals).forEach(([cat,t])=>{ if(t>bestTime){ best=cat; bestTime=t; } });
+  return best || fallbackType;
 }
 
 function allCalendarDates(){ return Plan.templates.map(t=>t.date); }
@@ -864,6 +924,36 @@ function removeAddedWorkout(date, slotKey){
   if(!ov || !ov.added) return;
   ov.added = ov.added.filter(a=>a.slotKey!==slotKey);
   if(ov.order) ov.order = ov.order.filter(k=>k!==slotKey);
+  saveJSON("dayOverrides", Plan.dayOverrides);
+}
+/* Remove any workout (template-scheduled or user-added) from a single day's schedule. Non-permanent. */
+function removeWorkoutFromDay(date, slotKey){
+  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
+  const ov = Plan.dayOverrides[date];
+  ov.removed = ov.removed || [];
+  if(!ov.removed.includes(slotKey)) ov.removed.push(slotKey);
+  if(ov.order) ov.order = ov.order.filter(k=>k!==slotKey);
+  saveJSON("dayOverrides", Plan.dayOverrides);
+}
+/* Add an exercise from the library into one scheduled strength workout, for this day only. */
+function addExerciseToDayWorkout(date, slotKey, exId){
+  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
+  const ov = Plan.dayOverrides[date];
+  ov.exAdd = ov.exAdd || {};
+  ov.exAdd[slotKey] = ov.exAdd[slotKey] || [];
+  const ex = Lib.exercises[exId];
+  ov.exAdd[slotKey].push({exId, sets: ex?.sets||"2", reps: ex?.reps||"10"});
+  saveJSON("dayOverrides", Plan.dayOverrides);
+}
+/* Remove one exercise from one scheduled strength workout, for this day only. origIndex refers to
+   that exercise's position in the workout as currently resolved for this date. */
+function removeExerciseFromDayWorkout(date, slotKey, origIndex){
+  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
+  const ov = Plan.dayOverrides[date];
+  ov.exRemove = ov.exRemove || {};
+  ov.exRemove[slotKey] = ov.exRemove[slotKey] || [];
+  if(!ov.exRemove[slotKey].includes(origIndex)) ov.exRemove[slotKey].push(origIndex);
+  if(ov.exOrder && ov.exOrder[slotKey]) ov.exOrder[slotKey] = ov.exOrder[slotKey].filter(i=>i!==origIndex);
   saveJSON("dayOverrides", Plan.dayOverrides);
 }
 /* Non-permanent: reorder the workouts shown for a given day */
@@ -1186,7 +1276,7 @@ function checkTodayOutdoorSuitability(dayPlan, log){
   if(!dayPlan) return null;
   const outdoorWorkouts = dayPlan.workouts.filter(w=>(w.kind==="cycling" || w.kind==="run") && w.platform==="Outdoor");
   if(!outdoorWorkouts.length) return null;
-  const alreadyLogged = outdoorWorkouts.some(w=> log.workouts && log.workouts[w.slotKey] && log.workouts[w.slotKey].duration);
+  const alreadyLogged = outdoorWorkouts.some(w=> log.workouts && log.workouts[w.slotKey] && durationLogged(log.workouts[w.slotKey]));
   if(alreadyLogged) return null;
   if(dayPlan.date !== todayISO()) return null;
 
@@ -1669,9 +1759,10 @@ function nutritionTargets(day, p){
   }
   const carbsG = Math.round(carbFactor*wKg);
   const proteinG = Math.round(1.6*wKg);
+  const fatG = Math.round((kcal*0.25)/9);
   const trainMin = day ? day.workouts.reduce((s,w)=>s+(w.timeMin||0),0) : 0;
   const waterOz = Math.round(0.5*p.weightLb + (trainMin/60)*20);
-  return {kcal, carbsG, proteinG, waterOz, carbFactor, trainMin};
+  return {kcal, carbsG, proteinG, fatG, waterOz, carbFactor, trainMin};
 }
 
 const POWER_ZONES = [
@@ -1896,6 +1987,40 @@ function weatherFormModal(){
 /* ============================================================
    WORKOUT ITEM COMPONENT
    ============================================================ */
+function durationLogged(savedW){
+  if(!savedW) return false;
+  const h = parseInt(savedW.durationH)||0, m = parseInt(savedW.durationM)||0, s = parseInt(savedW.durationS)||0;
+  return (h+m+s) > 0;
+}
+function durationTotalMinutes(savedW){
+  if(!savedW) return 0;
+  const h = parseInt(savedW.durationH)||0, m = parseInt(savedW.durationM)||0, s = parseInt(savedW.durationS)||0;
+  return h*60 + m + s/60;
+}
+
+function timeOptions(max, selected){
+  let out = "";
+  for(let i=0;i<=max;i++){
+    const v = String(i).padStart(2,'0');
+    out += `<option value="${v}" ${String(selected)===v?'selected':''}>${v}</option>`;
+  }
+  return out;
+}
+function durationDropdowns(uidStr, savedW){
+  const h = savedW.durationH ?? "00", m = savedW.durationM ?? "00", s = savedW.durationS ?? "00";
+  return `
+  <div class="field wide">
+    <label>Actual Duration (Hrs:Min:Sec)</label>
+    <div style="display:flex; align-items:center; gap:5px;">
+      <select class="input-logged" data-f="durationH" data-uid="${uidStr}">${timeOptions(10,h)}</select>
+      <span style="color:var(--ink-400); font-weight:700;">:</span>
+      <select class="input-logged" data-f="durationM" data-uid="${uidStr}">${timeOptions(59,m)}</select>
+      <span style="color:var(--ink-400); font-weight:700;">:</span>
+      <select class="input-logged" data-f="durationS" data-uid="${uidStr}">${timeOptions(59,s)}</select>
+    </div>
+  </div>`;
+}
+
 function renderWorkoutItem(dayPlan, wIndex, w, log){
   const date = dayPlan.date;
   const slotKey = w.slotKey;
@@ -1931,7 +2056,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
       <div class="wi-body ${isOpen?'open':''}">
         <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${w.targetTSS?` · TSS ~${w.targetTSS}`:""} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Open Rouvy Workout ↗</a>`:""}</div>
         <div class="field-grid">
-          <div class="field"><label>Actual Duration (min)</label><input type="number" min="0" class="input-logged" data-f="duration" data-uid="${uidStr}" value="${savedW.duration??''}" placeholder="${w.timeMin}"></div>
+          ${durationDropdowns(uidStr, savedW)}
           <div class="field"><label>Distance (mi)</label><input type="number" min="0" step="0.1" class="input-logged" data-f="distance" data-uid="${uidStr}" value="${savedW.distance??''}" placeholder="${w.estMiles||''}"></div>
           <div class="field"><label>Avg Power (W)</label><input type="number" min="0" class="input-logged" data-f="avgPower" data-uid="${uidStr}" value="${savedW.avgPower??''}"></div>
           <div class="field"><label>Avg HR (bpm)</label><input type="number" min="0" class="input-logged" data-f="avgHR" data-uid="${uidStr}" value="${savedW.avgHR??''}"></div>
@@ -1971,7 +2096,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
       <div class="wi-body ${isOpen?'open':''}">
         <div class="wi-target"><b>Target:</b> ${esc(w.paceText||"")} · 🌤 Outdoor</div>
         <div class="field-grid">
-          <div class="field"><label>Actual Duration (min)</label><input type="number" min="0" class="input-logged" data-f="duration" data-uid="${uidStr}" value="${savedW.duration??''}" placeholder="${w.timeMin}"></div>
+          ${durationDropdowns(uidStr, savedW)}
           <div class="field"><label>Distance (mi)</label><input type="number" min="0" step="0.1" class="input-logged" data-f="distance" data-uid="${uidStr}" value="${savedW.distance??''}" placeholder="${w.estMiles||''}"></div>
           <div class="field"><label>Avg Pace (min/mi)</label><input type="text" class="input-logged" data-f="pace" data-uid="${uidStr}" value="${savedW.pace??''}" placeholder="e.g. 10:45"></div>
           <div class="field"><label>Avg HR (bpm)</label><input type="number" min="0" class="input-logged" data-f="avgHR" data-uid="${uidStr}" value="${savedW.avgHR??''}"></div>
@@ -2016,10 +2141,11 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
             ${ov?`<button data-reset-target="${uidStr}" data-exidx="${oi}" style="border:none;background:none;color:var(--teal-dark);font-size:10.5px;font-weight:700;cursor:pointer;">reset</button>`:""}
           </div>
         </div>
-        <div style="display:flex; gap:8px; flex-shrink:0;">
+        <div style="display:flex; gap:8px; flex-shrink:0; align-items:flex-start;">
           <div class="field" style="width:70px;"><label>Sets</label><input type="text" class="input-logged" data-f="${key}_sets" data-uid="${uidStr}" value="${esc(sv.sets||'')}" placeholder="${esc(dispSets)}"></div>
           <div class="field" style="width:90px;"><label>Reps done</label><input type="text" class="input-logged" data-f="${key}_reps" data-uid="${uidStr}" value="${esc(sv.reps||'')}" placeholder="${esc(dispReps)}"></div>
           <div class="field" style="width:80px;"><label>Weight</label><input type="text" class="input-logged" data-f="${key}_weight" data-uid="${uidStr}" value="${esc(sv.weight||'')}" placeholder="lb/band"></div>
+          <button data-remove-exercise="${uidStr}" data-origidx="${oi}" title="Remove this exercise from today's workout" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:16px;margin-top:16px;">✕</button>
         </div>
       </div>`;
     }).join("");
@@ -2040,8 +2166,9 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
         </div>
       </div>
       <div class="wi-body ${isOpen?'open':''}">
-        <p style="font-size:11px; color:var(--grey-600); margin-bottom:4px;">Use the ▲▼ arrows to reorder exercises for today only — permanent order changes are made in the Workout &amp; Exercise Editor.</p>
+        <p style="font-size:11px; color:var(--grey-600); margin-bottom:4px;">Use the ▲▼ arrows to reorder, or ✕ to drop an exercise, for today only. Workout time updates automatically. Permanent changes are made in the Workout &amp; Exercise Editor.</p>
         ${rows}
+        ${renderAddExercisePanel(uidStr, date, slotKey)}
         <div class="field wide" style="margin-top:12px;"><label>Session Notes</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
@@ -2056,28 +2183,52 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
   return "";
 }
 
+function renderAddExercisePanel(uidStr, date, slotKey){
+  const open = State._openItems["addex_"+uidStr];
+  if(!open) return `<button class="btn btn-ghost" data-toggle-addex="${uidStr}" style="margin-top:8px;">+ Add an exercise to today's workout</button>`;
+  const q = (State.editorFilter.addExQ||"").toLowerCase();
+  const results = Object.entries(Lib.exercises).filter(([id,e])=> !q || e.name.toLowerCase().includes(q)).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+  return `
+  <div style="background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:12px; margin-top:8px;">
+    <input type="text" placeholder="Search exercise library..." data-addex-search="${uidStr}" value="${esc(State.editorFilter.addExQ||"")}" style="width:100%; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px; margin-bottom:8px;">
+    <div style="max-height:200px; overflow-y:auto;">
+      ${results.length ? results.map(([id,e])=>`
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid var(--grey-100);">
+          <div><div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(e.name)}</div><div style="font-size:10.5px; color:var(--grey-600);">${esc(e.bodyGroup)}</div></div>
+          <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" data-pick-addex="${uidStr}" data-exid="${id}" data-date="${date}" data-slotkey="${slotKey}">Add</button>
+        </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
+    </div>
+    <div class="save-row" style="margin-top:8px;"><button class="btn btn-ghost" data-toggle-addex="${uidStr}">Close</button></div>
+  </div>`;
+}
+
 function renderSubPicker(uidStr, date, slotKey, kind, open){
   if(!open) return "";
   const q = (State.editorFilter.subQ||"").toLowerCase();
-  const results = Object.entries(Lib.workouts).filter(([id,w])=> w.kind===kind && (!q || w.name.toLowerCase().includes(q)));
+  const kindFilter = State.editorFilter.subKind||"all";
+  const results = Object.entries(Lib.workouts).filter(([id,w])=> (kindFilter==="all"||w.kind===kindFilter) && (!q || w.name.toLowerCase().includes(q)));
   return `
   <div style="background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:12px; margin-top:12px;">
-    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
-      <input type="text" placeholder="Search workout library..." data-subsearch="${uidStr}" value="${esc(State.editorFilter.subQ||"")}" style="flex:1; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px;">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+      <input type="text" placeholder="Search workout library..." data-subsearch="${uidStr}" value="${esc(State.editorFilter.subQ||"")}" style="flex:1; min-width:160px; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px;">
       <button class="btn btn-ghost" data-swap-day="${date}">Swap with another day</button>
+    </div>
+    <div class="filter-chips" style="margin-bottom:10px;">
+      ${["all","cycling","run","strengthblock"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-subkind="${k}">${k==='all'?'All':(k==='cycling'?'Cycling':(k==='run'?'Run':'Strength'))}</button>`).join("")}
     </div>
     <div style="max-height:220px; overflow-y:auto;">
       ${results.length ? results.map(([id,w])=>`
         <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 4px; border-bottom:1px solid var(--grey-100);">
           <div>
             <div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(w.name)}</div>
-            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):esc((w.exercises||[]).length+' exercises')} ${w.platform?(' · '+esc(w.platform)):''}</div>
+            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):(w.kind==='run'?esc(w.paceText||''):esc((w.exercises||[]).length+' exercises'))} ${w.platform?(' · '+esc(w.platform)):''}</div>
           </div>
           <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-sub="${uidStr}" data-workoutid="${id}">Use this</button>
         </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
     </div>
     <div class="save-row" style="margin-top:10px;">
       <button class="btn btn-ghost" data-revert-slot="${uidStr}">Revert to scheduled</button>
+      <button class="btn btn-ghost" data-remove-workout="${uidStr}" style="color:var(--red);">Delete this workout from today</button>
     </div>
   </div>`;
 }
@@ -2086,7 +2237,7 @@ function collectWorkoutFields(uidStr){
   const wrap = document.querySelector(`[data-uid="${uidStr}"].workout-item`);
   if(!wrap) return {};
   const obj = {};
-  wrap.querySelectorAll(`input[data-uid="${uidStr}"][data-f], textarea[data-uid="${uidStr}"][data-f]`).forEach(inp=>{
+  wrap.querySelectorAll(`input[data-uid="${uidStr}"][data-f], textarea[data-uid="${uidStr}"][data-f], select[data-uid="${uidStr}"][data-f]`).forEach(inp=>{
     const f = inp.dataset.f;
     if(f.includes("_")){ const [k,sub]=f.split("_"); obj[k]=obj[k]||{}; obj[k][sub]=inp.value; }
     else obj[f]=inp.value;
@@ -2125,10 +2276,10 @@ function renderNutritionWidget(day, log, isOpen){
       <input type="number" min="0" step="${step||1}" data-nutri="${key}" value="${val}" ${isOpen?'':'disabled'} style="border:none;background:transparent;font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--navy);width:100%;padding:0;margin-top:4px;" placeholder="0">
       <div class="ntarget">of ${target}${unit} target</div><div class="bar-track"><div class="bar-fill ${pct>105?'over':''}" style="width:${Math.min(100,pct)}%"></div></div></div>`;
   }
-  const grid = `<div class="nutri-grid">${box("Food (kcal)","kcal",targets.kcal,"","10")}${box("Carbs (g)","carbs",targets.carbsG,"g","1")}${box("Protein (g)","protein",targets.proteinG,"g","1")}${box("Water (oz)","water",targets.waterOz,"oz","1")}</div>`;
+  const grid = `<div class="nutri-grid">${box("Food (kcal)","kcal",targets.kcal,"","10")}${box("Carbs (g)","carbs",targets.carbsG,"g","1")}${box("Protein (g)","protein",targets.proteinG,"g","1")}${box("Fat (g)","fat",targets.fatG,"g","1")}${box("Water (oz)","water",targets.waterOz,"oz","1")}</div>`;
   if(!isOpen) return grid;
   return grid + `
-  <div class="info-callout"><b>Why these numbers:</b> Baseline calories come from your profile (Mifflin-St Jeor BMR × activity) plus an estimate for today's training load. Carbs scale up on long-ride/race days (~7.5 g/kg) and stay moderate on rest days (~3 g/kg). Protein targets 1.6 g/kg daily. Water = 0.5 oz/lb bodyweight + ~20 oz per hour trained.</div>
+  <div class="info-callout"><b>Why these numbers:</b> Baseline calories come from your profile (Mifflin-St Jeor BMR × activity) plus an estimate for today's training load. Carbs scale up on long-ride/race days (~7.5 g/kg) and stay moderate on rest days (~3 g/kg). Protein targets 1.6 g/kg daily. Fat targets ~25% of total calories. Water = 0.5 oz/lb bodyweight + ~20 oz per hour trained.</div>
   <div class="save-row"><button class="btn btn-primary" data-save-nutri="${day.date}">Save nutrition</button></div>`;
 }
 async function saveNutrition(date){
@@ -2424,7 +2575,7 @@ function navCalendarMonth(delta){
 
 function workoutIsLogged(w, savedW){
   if(!savedW) return false;
-  if(w.kind==="cycling" || w.kind==="run") return !!(savedW.duration);
+  if(w.kind==="cycling" || w.kind==="run") return durationLogged(savedW);
   if(w.kind==="strengthblock"){
     return w.items.some(it=>{ const k = savedW["s"+it.origIndex]; return k && (k.sets || k.reps); });
   }
@@ -2631,6 +2782,7 @@ function renderProfile(){
           <div class="cline"><span>Carbs (training day)</span><span>~5 g/kg</span></div>
           <div class="cline"><span>Carbs (long ride / race)</span><span>~7.5 g/kg</span></div>
           <div class="cline"><span>Protein (daily)</span><span>1.6 g/kg</span></div>
+          <div class="cline"><span>Fat (daily)</span><span>~25% of calories</span></div>
           <div class="cline"><span>Water</span><span>0.5 oz/lb + 20 oz/hr trained</span></div>
         </div>
         <div class="info-callout"><b>On the bike (rides ≥ 90 min):</b> target 300–400 kcal/hr, eating every 15–20 minutes; sip fluids/electrolytes continuously rather than gulping periodically.</div>
@@ -2800,6 +2952,9 @@ function wireTabEvents(){
     State.editorFilter.subQ = inp.value; renderTabContent();
     setTimeout(()=>{ const f=document.querySelector(`[data-subsearch]`); if(f){ f.focus(); f.selectionStart=f.selectionEnd=f.value.length; } },0);
   }));
+  el.querySelectorAll("[data-subkind]").forEach(btn=>btn.addEventListener("click",()=>{
+    State.editorFilter.subKind = btn.dataset.subkind; renderTabContent();
+  }));
   el.querySelectorAll("[data-pick-sub]").forEach(btn=>btn.addEventListener("click",()=>{
     const {date,slotKey}=parseUid(btn.dataset.pickSub);
     substituteWorkout(date, slotKey, btn.dataset.workoutid);
@@ -2813,6 +2968,30 @@ function wireTabEvents(){
   el.querySelectorAll("[data-remove-added]").forEach(btn=>btn.addEventListener("click",()=>{
     const {date,slotKey}=parseUid(btn.dataset.removeAdded);
     removeAddedWorkout(date, slotKey); renderTabContent();
+  }));
+  el.querySelectorAll("[data-remove-workout]").forEach(btn=>btn.addEventListener("click",()=>{
+    const {date,slotKey}=parseUid(btn.dataset.removeWorkout);
+    if(confirm("Remove this workout from today's schedule? This only affects today — the permanent plan is unchanged.")){
+      removeWorkoutFromDay(date, slotKey); renderTabContent();
+    }
+  }));
+  el.querySelectorAll("[data-remove-exercise]").forEach(btn=>btn.addEventListener("click",()=>{
+    const {date,slotKey}=parseUid(btn.dataset.removeExercise);
+    removeExerciseFromDayWorkout(date, slotKey, parseInt(btn.dataset.origidx));
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-toggle-addex]").forEach(btn=>btn.addEventListener("click",()=>{
+    const key = "addex_"+btn.dataset.toggleAddex;
+    State._openItems[key] = !State._openItems[key];
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-addex-search]").forEach(inp=>inp.addEventListener("input",()=>{
+    State.editorFilter.addExQ = inp.value; renderTabContent();
+    setTimeout(()=>{ const f=document.querySelector(`[data-addex-search]`); if(f){ f.focus(); f.selectionStart=f.selectionEnd=f.value.length; } },0);
+  }));
+  el.querySelectorAll("[data-pick-addex]").forEach(btn=>btn.addEventListener("click",()=>{
+    addExerciseToDayWorkout(btn.dataset.date, btn.dataset.slotkey, btn.dataset.exid);
+    renderTabContent();
   }));
   el.querySelectorAll("[data-reorder-workout]").forEach(btn=>btn.addEventListener("click",(e)=>{
     e.stopPropagation();
