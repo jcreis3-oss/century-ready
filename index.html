@@ -1555,6 +1555,52 @@ async function importAllData(payload){
   State.logs = {}; // clear in-memory log cache so re-reads pick up imported data
 }
 
+/* Parse a downloaded backup file and summarize what it contains, without writing anything. */
+async function parseBackupFile(file){
+  const text = await file.text();
+  const backup = JSON.parse(text);
+  if(!backup || typeof backup!=="object" || !backup.data) throw new Error("This doesn't look like a Century Ready backup file.");
+  const logDates = Object.keys(backup.data).filter(k=>k.startsWith("log:")).map(k=>k.replace("log:","")).sort();
+  const wlCount = backup.data.workoutLibrary ? Object.keys(backup.data.workoutLibrary).length : 0;
+  const elCount = backup.data.exerciseLibrary ? Object.keys(backup.data.exerciseLibrary).length : 0;
+  return {backup, logDates, wlCount, elCount, savedAt: backup.updatedAt};
+}
+
+/* Safe merge: only fills in data that's currently MISSING locally. Never overwrites
+   an existing logged day, or an existing custom workout/exercise with the same id. */
+async function importBackupMerge(backup){
+  let restoredLogs = 0, restoredWorkouts = 0, restoredExercises = 0;
+  for(const [k, v] of Object.entries(backup.data||{})){
+    if(k.startsWith("log:")){
+      const existing = await loadJSON(k);
+      const hasContent = existing && ((existing.workouts && Object.keys(existing.workouts).length) || existing.bodyweight || (existing.nutrition && Object.keys(existing.nutrition).length));
+      if(!hasContent){ await saveJSONRaw(k, v); restoredLogs++; }
+    } else if(k==="workoutLibrary"){
+      const existing = (await loadJSON(k)) || {};
+      let changed=false;
+      for(const [wid,wdata] of Object.entries(v||{})){ if(!existing[wid]){ existing[wid]=wdata; changed=true; restoredWorkouts++; } }
+      if(changed) await saveJSONRaw(k, existing);
+    } else if(k==="exerciseLibrary"){
+      const existing = (await loadJSON(k)) || {};
+      let changed=false;
+      for(const [eid,edata] of Object.entries(v||{})){ if(!existing[eid]){ existing[eid]=edata; changed=true; restoredExercises++; } }
+      if(changed) await saveJSONRaw(k, existing);
+    }
+    // profile, planStart, dailyQueue, dayOverrides, weightHistory intentionally left alone in merge mode
+  }
+  // rebuild weight history from whatever's now logged, so the Progress chart reflects restored entries
+  const allLogKeys = await listKeys("log:");
+  const weightHistory = [];
+  for(const lk of allLogKeys){
+    const log = await loadJSON(lk);
+    if(log && log.bodyweight) weightHistory.push({date: log.date || lk.replace("log:",""), weight: parseFloat(log.bodyweight)});
+  }
+  weightHistory.sort((a,b)=>a.date.localeCompare(b.date));
+  await saveJSONRaw("weightHistory", weightHistory);
+  State.logs = {};
+  return {restoredLogs, restoredWorkouts, restoredExercises};
+}
+
 async function pullFromDrive(){
   if(!Drive.connected || !Drive.fileId) return;
   const ok = await ensureFreshToken();
@@ -2824,6 +2870,11 @@ async function renderDataDiagnosticsCard(){
     </div>
     ${logDates.length ? `<p style="font-size:11.5px; color:var(--ink-600); margin-top:10px;">Logged days on this device: ${logDates.map(d=>esc(fmtDate(d))).join(", ")}</p>` : `<p style="font-size:12px; color:var(--red); margin-top:10px;">No logged days found in this device's storage.</p>`}
     <div class="info-callout">If dates you expect are missing here, they may still exist in an earlier version of your Google Drive file. In Drive, open <b>century-ready-data.json</b> → right-click (or the ⋮ menu) → <b>Manage versions</b> / <b>Version history</b> to check.</div>
+
+    <div class="section-title">Restore From a Downloaded Backup File</div>
+    <p style="font-size:12.5px; color:var(--ink-600); margin-bottom:10px;">If you downloaded an older <code>century-ready-data.json</code> from Google Drive's version history, load it here to see what's in it before doing anything with it.</p>
+    <input type="file" id="backup-file-input" accept="application/json,.json" style="font-size:13px;">
+    <div id="backup-preview"></div>
   </div>`;
 }
 
@@ -3206,6 +3257,52 @@ function wireTabEvents(){
   el.querySelectorAll("[data-drive-connect]").forEach(b=>b.addEventListener("click", connectDrive));
   el.querySelectorAll("[data-drive-sync-now]").forEach(b=>b.addEventListener("click", async ()=>{ if(Drive.dirtySincePush) await pushToDrive(); await pullFromDrive(); renderDriveStatus(); }));
   el.querySelectorAll("[data-drive-disconnect]").forEach(b=>b.addEventListener("click", disconnectDrive));
+
+  el.querySelectorAll("#backup-file-input").forEach(inp=>inp.addEventListener("change", async ()=>{
+    const file = inp.files[0];
+    if(!file) return;
+    const preview = document.getElementById("backup-preview");
+    preview.innerHTML = `<p style="font-size:12px;color:var(--ink-600);margin-top:8px;">Reading file…</p>`;
+    try{
+      const {backup, logDates, wlCount, elCount, savedAt} = await parseBackupFile(file);
+      State._pendingBackup = backup;
+      preview.innerHTML = `
+        <div class="calc-box" style="margin-top:10px;">
+          <div class="cline"><span>Backup saved at</span><span>${savedAt?new Date(savedAt).toLocaleString():'unknown'}</span></div>
+          <div class="cline"><span>Logged days in file</span><span>${logDates.length}</span></div>
+          <div class="cline"><span>Date range</span><span>${logDates.length?esc(fmtDate(logDates[0]))+' → '+esc(fmtDate(logDates[logDates.length-1])):'—'}</span></div>
+          <div class="cline"><span>Custom workouts in file</span><span>${wlCount}</span></div>
+          <div class="cline"><span>Custom exercises in file</span><span>${elCount}</span></div>
+        </div>
+        <div class="save-row">
+          <button class="btn btn-primary" data-import-merge="1">Fill In Missing Data Only</button>
+          <button class="btn btn-ghost" data-import-replace="1" style="color:var(--red);">Replace Everything With This File</button>
+        </div>
+        <p style="font-size:11px;color:var(--ink-600);margin-top:6px;">"Fill In Missing" only restores days/workouts/exercises that aren't already here — it will never overwrite anything you currently have. "Replace Everything" discards current data on this device and uses only what's in this file.</p>
+      `;
+      // these buttons were just created, so wire them directly rather than relying on the
+      // outer wireTabEvents pass (which already ran before this HTML existed)
+      preview.querySelector("[data-import-merge]").addEventListener("click", async ()=>{
+        if(!State._pendingBackup) return;
+        const res = await importBackupMerge(State._pendingBackup);
+        if(Drive.connected) await pushToDrive();
+        alert(`Restored ${res.restoredLogs} day(s), ${res.restoredWorkouts} workout(s), ${res.restoredExercises} exercise(s) that were missing. Nothing you already had was overwritten.`);
+        State._pendingBackup = null;
+        await init();
+      });
+      preview.querySelector("[data-import-replace]").addEventListener("click", async ()=>{
+        if(!State._pendingBackup) return;
+        if(confirm("This discards everything currently stored on this device and replaces it with the backup file. This can't be undone. Continue?")){
+          await importAllData(State._pendingBackup);
+          if(Drive.connected) await pushToDrive();
+          State._pendingBackup = null;
+          await init();
+        }
+      });
+    } catch(e){
+      preview.innerHTML = `<p style="font-size:12px;color:var(--red);margin-top:8px;">${esc(e.message)}</p>`;
+    }
+  }));
 
   wireEditorEvents(el);
 }
