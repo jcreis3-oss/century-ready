@@ -1434,6 +1434,16 @@ async function saveJSONRaw(key, obj){
   catch(e){ console.error("save failed", key, e); return false; }
 }
 
+async function hasSubstantialLocalData(){
+  const logKeys = await listKeys("log:");
+  if(logKeys.length > 0) return true;
+  const wl = await loadJSON("workoutLibrary");
+  if(wl && Object.keys(wl).length) return true;
+  const el = await loadJSON("exerciseLibrary");
+  if(el && Object.keys(el).length) return true;
+  return false;
+}
+
 async function connectDrive(){
   if(!Drive.clientId){ Drive.lastError = "Enter a Client ID first."; return; }
   Drive.lastError = null;
@@ -1455,7 +1465,21 @@ async function connectDrive(){
     Drive.connected = true;
     await findOrCreateDriveFile();
     await fetchDriveUserInfo();
-    await pullFromDrive();
+
+    // SAFETY: on this device's first-ever sync, never blindly pull — that could
+    // silently overwrite real local data with an emptier/older cloud snapshot.
+    // Push local data first if there's anything substantial here, so the two
+    // copies get merged by timestamp comparison from then on rather than one
+    // silently clobbering the other.
+    const localMeta = await loadJSON("driveSyncMeta");
+    if(!localMeta){
+      const hasData = await hasSubstantialLocalData();
+      if(hasData){ await pushToDrive(); }
+      else { await pullFromDrive(); }
+    } else {
+      await pullFromDrive();
+    }
+
     Drive.lastSyncAt = new Date().toISOString();
     startDrivePolling();
   } catch(e){
@@ -1925,7 +1949,7 @@ async function renderTabContent(){
   const el = document.getElementById("tabcontent");
   if(State.tab==="dashboard") el.innerHTML = await renderDashboard();
   else if(State.tab==="schedule") el.innerHTML = await renderSchedule();
-  else if(State.tab==="profile") el.innerHTML = renderProfile();
+  else if(State.tab==="profile") el.innerHTML = await renderProfile();
   else if(State.tab==="progress") el.innerHTML = await renderProgress();
   else if(State.tab==="editor") el.innerHTML = renderEditor();
   wireTabEvents();
@@ -2037,7 +2061,7 @@ function timeOptions(max, selected){
 function durationDropdowns(uidStr, savedW){
   const h = savedW.durationH ?? "00", m = savedW.durationM ?? "00", s = savedW.durationS ?? "00";
   return `
-  <div class="field">
+  <div class="field wide">
     <label>Actual Duration</label>
     <div class="time-picker">
       <select class="input-logged" data-f="durationH" data-uid="${uidStr}">${timeOptions(10,h)}</select><span class="tp-unit">h</span>
@@ -2781,7 +2805,29 @@ function renderDriveStatus(){
   fresh.querySelectorAll("[data-drive-disconnect]").forEach(b=>b.addEventListener("click", disconnectDrive));
 }
 
-function renderProfile(){
+async function renderDataDiagnosticsCard(){
+  const allKeys = await listKeys("");
+  const logKeys = allKeys.filter(k=>k.startsWith("log:")).sort();
+  const logDates = logKeys.map(k=>k.replace("log:",""));
+  const wl = (await loadJSON("workoutLibrary")) || {};
+  const el = (await loadJSON("exerciseLibrary")) || {};
+  const oldest = logDates[0], newest = logDates[logDates.length-1];
+  return `
+  <div class="card">
+    <div class="card-header"><h2>Data Diagnostics</h2><span class="meta">What's actually in storage on this device right now</span></div>
+    <div class="calc-box">
+      <div class="cline"><span>Program start date</span><span>${esc(Plan.start)}</span></div>
+      <div class="cline"><span>Days with a logged entry</span><span>${logDates.length}</span></div>
+      <div class="cline"><span>Earliest / latest logged day</span><span>${oldest?esc(fmtDate(oldest)):'—'} → ${newest?esc(fmtDate(newest)):'—'}</span></div>
+      <div class="cline"><span>Custom workouts saved</span><span>${Object.keys(wl).length}</span></div>
+      <div class="cline"><span>Custom exercises saved</span><span>${Object.keys(el).length}</span></div>
+    </div>
+    ${logDates.length ? `<p style="font-size:11.5px; color:var(--ink-600); margin-top:10px;">Logged days on this device: ${logDates.map(d=>esc(fmtDate(d))).join(", ")}</p>` : `<p style="font-size:12px; color:var(--red); margin-top:10px;">No logged days found in this device's storage.</p>`}
+    <div class="info-callout">If dates you expect are missing here, they may still exist in an earlier version of your Google Drive file. In Drive, open <b>century-ready-data.json</b> → right-click (or the ⋮ menu) → <b>Manage versions</b> / <b>Version history</b> to check.</div>
+  </div>`;
+}
+
+async function renderProfile(){
   const p = State.profile;
   const b = bmi(p.weightLb, p.heightIn);
   const pZones = powerZoneRows(p.ftp);
@@ -2791,6 +2837,7 @@ function renderProfile(){
 
   return `
   ${renderCloudSyncCard()}
+  ${await renderDataDiagnosticsCard()}
   <div class="profile-grid">
     <div class="card">
       <div class="card-header"><h2>Biometrics</h2><span class="meta">Update anytime — targets recalculate instantly</span></div>
