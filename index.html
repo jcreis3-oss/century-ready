@@ -1628,20 +1628,29 @@ async function pushToDrive(){
     const ok = await ensureFreshToken();
     if(!ok) throw new Error("session expired — click Connect again");
     const bundle = await exportAllData();
+    const body = JSON.stringify(bundle);
     await saveJSONRaw("driveSyncMeta", {lastLocalWrite: bundle.updatedAt});
-    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${Drive.fileId}?uploadType=media`, {
+    // keepalive lets a request survive a tab closing mid-save, but browsers cap
+    // keepalive request bodies at ~64KB — using it on a large payload makes the
+    // fetch throw immediately, before any network call. Only use it when safe.
+    const useKeepalive = body.length < 60000;
+    const resp = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${Drive.fileId}?uploadType=media`, {
       method:"PATCH",
       headers:{Authorization:"Bearer "+Drive.accessToken, "Content-Type":"application/json"},
-      body: JSON.stringify(bundle),
-      keepalive: true
+      body,
+      keepalive: useKeepalive
     });
+    if(!resp.ok){
+      const errText = await resp.text().catch(()=>String(resp.status));
+      throw new Error(`Drive returned ${resp.status}: ${errText.slice(0,200)}`);
+    }
     Drive.lastSyncAt = new Date().toISOString();
     Drive.dirtySincePush = false;
     Drive.dirtySince = null;
     Drive.lastError = null;
   } catch(e){
     console.error("Drive push failed", e);
-    Drive.lastError = "Sync failed — will retry on next change.";
+    Drive.lastError = "Sync failed: " + (e.message||"unknown error") + " — will retry on next change.";
   } finally {
     Drive.syncing = false;
     if(typeof renderDriveStatus==="function") renderDriveStatus();
