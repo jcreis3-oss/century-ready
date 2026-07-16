@@ -1350,7 +1350,9 @@ const Drive = {
   pushTimer: null,
   pollTimer: null,
   dirtySince: null,
-  dirtySincePush: false
+  dirtySincePush: false,
+  retryTimer: null,
+  consecutiveFailures: 0
 };
 
 async function initDriveSync(){
@@ -1409,7 +1411,14 @@ function startDrivePolling(){
 async function pollTick(){
   if(!Drive.connected || document.visibilityState==="hidden") return;
   if(Drive.dirtySincePush) await pushToDrive();
-  else await pullFromDrive();
+  else {
+    // idle tick: proactively refresh the token if it's close to expiring, so a
+    // save right after a long idle stretch doesn't hit a stale token.
+    if(Drive.accessToken && Drive.tokenExpiresAt - Date.now() < 5*60*1000){
+      await ensureFreshToken();
+    }
+    await pullFromDrive();
+  }
 }
 
 function loadGISScript(){
@@ -1492,7 +1501,15 @@ async function connectDrive(){
 
 async function ensureFreshToken(){
   if(Drive.accessToken && Date.now() < Drive.tokenExpiresAt) return true;
-  if(!Drive.tokenClient) return false;
+  try{ await loadGISScript(); } catch(e){ return false; }
+  if(!Drive.tokenClient){
+    if(!Drive.clientId) return false;
+    Drive.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: Drive.clientId,
+      scope: DRIVE_SCOPE,
+      callback: ()=>{}
+    });
+  }
   return new Promise((resolve)=>{
     Drive.tokenClient.callback = (resp)=>{
       if(resp.error){ resolve(false); return; }
@@ -1640,6 +1657,11 @@ async function pushToDrive(){
       body,
       keepalive: useKeepalive
     });
+    if(resp.status===401){
+      // token looked fresh locally but Google rejected it — force a real refresh next time
+      Drive.accessToken = null; Drive.tokenExpiresAt = 0;
+      throw new Error("Drive session expired (401)");
+    }
     if(!resp.ok){
       const errText = await resp.text().catch(()=>String(resp.status));
       throw new Error(`Drive returned ${resp.status}: ${errText.slice(0,200)}`);
@@ -1648,13 +1670,33 @@ async function pushToDrive(){
     Drive.dirtySincePush = false;
     Drive.dirtySince = null;
     Drive.lastError = null;
+    Drive.consecutiveFailures = 0;
   } catch(e){
     console.error("Drive push failed", e);
-    Drive.lastError = "Sync failed: " + (e.message||"unknown error") + " — will retry on next change.";
+    Drive.lastError = "Sync failed: " + (e.message||"unknown error") + " — retrying automatically.";
+    Drive.consecutiveFailures = (Drive.consecutiveFailures||0) + 1;
+    if(Drive.consecutiveFailures >= 2){
+      // the in-memory token/client may be wedged in a bad state (this is what a
+      // manual tab-duplicate + re-auth was working around) — rebuild it fresh
+      // rather than keep reusing a connection that keeps failing the same way.
+      Drive.tokenClient = null;
+      Drive.accessToken = null;
+      Drive.tokenExpiresAt = 0;
+    }
+    scheduleDriveRetry();
   } finally {
     Drive.syncing = false;
     if(typeof renderDriveStatus==="function") renderDriveStatus();
   }
+}
+
+function scheduleDriveRetry(){
+  if(Drive.retryTimer) clearTimeout(Drive.retryTimer);
+  const n = Math.min(Drive.consecutiveFailures||1, 5);
+  const delay = Math.min(60000, 4000 * Math.pow(2, n-1)); // 4s, 8s, 16s, 32s, 60s cap
+  Drive.retryTimer = setTimeout(()=>{
+    if(Drive.connected && Drive.dirtySincePush) pushToDrive();
+  }, delay);
 }
 
 function scheduleDrivePush(){
@@ -1672,7 +1714,9 @@ function disconnectDrive(){
   Drive.connected = false;
   Drive.accessToken = null;
   Drive.userEmail = null;
+  Drive.consecutiveFailures = 0;
   if(Drive.pollTimer){ clearInterval(Drive.pollTimer); Drive.pollTimer = null; }
+  if(Drive.retryTimer){ clearTimeout(Drive.retryTimer); Drive.retryTimer = null; }
   if(typeof renderTabContent==="function") renderTabContent();
 }
 /* ============================================================
