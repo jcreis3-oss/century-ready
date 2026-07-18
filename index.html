@@ -891,13 +891,26 @@ function getDayPlan(date){
   }
 
   const derivedType = deriveDayType(resolved, type);
+  const wasModified = !!(ov.slots && Object.keys(ov.slots).length) || !!(ov.added && ov.added.length) || !!(ov.order && ov.order.length) || !!(ov.removed && ov.removed.length) || !!(ov.exAdd && Object.keys(ov.exAdd).length) || !!(ov.exRemove && Object.keys(ov.exRemove).length);
+  title = deriveDayTitle(resolved, title, wasModified);
 
   return {
     date, dow: dowKey(date), dowLabel: dowShort(date), weekNum, phase, phaseLabel,
     title, type: derivedType, workouts: resolved, isSkipped,
-    isSubstituted: !!(ov.slots && Object.keys(ov.slots).length) || !!(ov.added && ov.added.length) || !!(ov.order && ov.order.length) || !!(ov.removed && ov.removed.length) || !!(ov.exAdd && Object.keys(ov.exAdd).length) || !!(ov.exRemove && Object.keys(ov.exRemove).length),
+    isSubstituted: wasModified,
     originalTemplateDate: template ? template.date : null
   };
+}
+
+/* Rebuild the day's headline title from what's actually scheduled, once it's
+   been edited — otherwise the heading (list row, calendar cell, dashboard
+   banner) would keep showing the original template's title forever. */
+function deriveDayTitle(resolvedWorkouts, templateTitle, wasModified){
+  if(!wasModified) return templateTitle;
+  if(resolvedWorkouts.some(w=>w.isRace)) return templateTitle;
+  if(!resolvedWorkouts.length) return "Rest Day";
+  if(resolvedWorkouts.length===1) return resolvedWorkouts[0].name || resolvedWorkouts[0].title;
+  return resolvedWorkouts.map(w=>w.name||w.title).join(" + ");
 }
 
 /* Classify a resolved workout into a broad category for day-level labeling */
@@ -2080,6 +2093,15 @@ async function renderTabContent(){
   }
 }
 
+document.addEventListener("keydown", (e)=>{
+  if(e.key!=="Tab") return;
+  const el = e.target;
+  if(el && el.hasAttribute && el.hasAttribute("data-target-fill")){
+    const fillVal = el.getAttribute("data-target-fill");
+    if(fillVal && !el.value){ el.value = fillVal; }
+  }
+});
+
 document.addEventListener("click", (e)=>{
   const tb = e.target.closest(".tabnav button");
   if(tb){ switchTab(tb.dataset.tab); return; }
@@ -2190,7 +2212,7 @@ function durationDropdowns(uidStr, savedW){
   </div>`;
 }
 
-function renderWorkoutItem(dayPlan, wIndex, w, log){
+function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
   const date = dayPlan.date;
   const slotKey = w.slotKey;
   const uidStr = `${date}::${slotKey}`;
@@ -2314,9 +2336,9 @@ function renderWorkoutItem(dayPlan, wIndex, w, log){
           </div>
         </div>
         <div style="display:flex; gap:8px; flex-shrink:0; align-items:flex-start;">
-          <div class="field" style="width:70px;"><label>Sets</label><input type="text" class="input-logged" data-f="${key}_sets" data-uid="${uidStr}" value="${esc(sv.sets||'')}" placeholder="${esc(dispSets)}"></div>
-          <div class="field" style="width:90px;"><label>Reps done</label><input type="text" class="input-logged" data-f="${key}_reps" data-uid="${uidStr}" value="${esc(sv.reps||'')}" placeholder="${esc(dispReps)}"></div>
-          <div class="field" style="width:80px;"><label>Weight</label><input type="text" class="input-logged" data-f="${key}_weight" data-uid="${uidStr}" value="${esc(sv.weight||'')}" placeholder="lb/band"></div>
+          <div class="field" style="width:70px;"><label>Sets</label><input type="text" class="input-logged" data-f="${key}_sets" data-uid="${uidStr}" data-target-fill="${esc(dispSets)}" list="dl-ex-${it.exId}-sets-${date}" value="${esc(sv.sets||'')}" placeholder="${esc(dispSets)}">${datalistFor("dl-ex-"+it.exId+"-sets-"+date, exRecent?exRecent(it.exId,"sets"):[])}</div>
+          <div class="field" style="width:90px;"><label>Reps done</label><input type="text" class="input-logged" data-f="${key}_reps" data-uid="${uidStr}" data-target-fill="${esc(dispReps)}" list="dl-ex-${it.exId}-reps-${date}" value="${esc(sv.reps||'')}" placeholder="${esc(dispReps)}">${datalistFor("dl-ex-"+it.exId+"-reps-"+date, exRecent?exRecent(it.exId,"reps"):[])}</div>
+          <div class="field" style="width:80px;"><label>Weight</label><input type="text" class="input-logged" data-f="${key}_weight" data-uid="${uidStr}" data-target-fill="" list="dl-ex-${it.exId}-weight-${date}" value="${esc(sv.weight||'')}" placeholder="lb/band">${datalistFor("dl-ex-"+it.exId+"-weight-"+date, exRecent?exRecent(it.exId,"weight"):[])}</div>
           <button data-remove-exercise="${uidStr}" data-origidx="${oi}" title="Remove this exercise from today's workout" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:16px;margin-top:16px;">✕</button>
         </div>
       </div>`;
@@ -2441,6 +2463,38 @@ function savedBadge(key){
 
 /* Fetch the last N days of logs once, then allow cheap synchronous extraction
    of the 3 most recent distinct values for any nutrition/check-in field. */
+/* Same idea as buildRecentValueLookup, but for per-exercise Sets/Reps/Weight
+   actuals — matched by exercise identity ("same exercise anywhere"), not by
+   which workout or day it happened to be scheduled in. */
+async function buildRecentExerciseValueLookup(beforeDate, lookbackDays){
+  lookbackDays = lookbackDays || 30;
+  const dates = allCalendarDates().filter(d=>d<beforeDate).sort((a,b)=>b.localeCompare(a)).slice(0,lookbackDays);
+  const byExercise = {};
+  for(const d of dates){
+    const dp = getDayPlan(d);
+    if(!dp || !dp.workouts.some(w=>w.kind==="strengthblock")) continue;
+    const log = await getLog(d);
+    if(!log.workouts) continue;
+    for(const w of dp.workouts){
+      if(w.kind!=="strengthblock") continue;
+      const savedW = log.workouts[w.slotKey];
+      if(!savedW) continue;
+      for(const it of w.items){
+        const sv = savedW["s"+it.origIndex];
+        if(!sv) continue;
+        if(!byExercise[it.exId]) byExercise[it.exId] = {sets:[],reps:[],weight:[]};
+        ["sets","reps","weight"].forEach(f=>{
+          const val = sv[f];
+          if(val && byExercise[it.exId][f].length<3 && !byExercise[it.exId][f].includes(val)){
+            byExercise[it.exId][f].push(val);
+          }
+        });
+      }
+    }
+  }
+  return function(exId, field){ return (byExercise[exId] && byExercise[exId][field]) || []; };
+}
+
 async function buildRecentValueLookup(beforeDate, lookbackDays){
   lookbackDays = lookbackDays || 30;
   const allDates = allCalendarDates().filter(d=>d<beforeDate).sort((a,b)=>b.localeCompare(a)).slice(0,lookbackDays);
@@ -2582,6 +2636,7 @@ async function renderDashboard(){
 
   const wxAlert = checkTodayOutdoorSuitability(day, log);
   const recent = await buildRecentValueLookup(date, 30);
+  const exRecent = await buildRecentExerciseValueLookup(date, 30);
 
   return `
   ${wxAlert ? renderWeatherAlertBanner(day, wxAlert) : ""}
@@ -2616,7 +2671,7 @@ async function renderDashboard(){
 
   <div class="card ${isDayFullyCompleted(day, log)?'day-complete-bg':''}">
     <div class="card-header"><h2>Workouts ${isDayFullyCompleted(day, log)?'<span style="font-size:12px;color:var(--teal-dark);font-weight:700;">✓ All completed</span>':''}</h2><span class="meta">Week ${day.weekNum} of 10 · ${esc(day.phaseLabel)}</span></div>
-    ${day.workouts.length ? day.workouts.map((w,i)=>renderWorkoutItem(day,i,w,log)).join("") : `<p style="color:var(--grey-600); font-size:13.5px;">Nothing scheduled — full rest. Prioritize sleep and hydration.</p>`}
+    ${day.workouts.length ? day.workouts.map((w,i)=>renderWorkoutItem(day,i,w,log,exRecent)).join("") : `<p style="color:var(--grey-600); font-size:13.5px;">Nothing scheduled — full rest. Prioritize sleep and hydration.</p>`}
     ${renderAddWorkoutPanel(date)}
   </div>
 
@@ -2642,17 +2697,25 @@ async function renderDashboard(){
 }
 
 function renderCheckinWidget(date, log, isOpen, recent){
-  const dis = isOpen ? "" : "disabled";
   function fld(label, id, field, extra, placeholder){
     const dlId = `dl-ci-${field}-${date}`;
     const vals = recent ? recent(field) : [];
-    return `<div class="field"><label>${label}</label><input type="number" ${extra||''} list="${dlId}" class="input-logged" id="${id}" ${dis} value="${log[field]??''}" ${placeholder?`placeholder="${placeholder}"`:''}>${datalistFor(dlId, vals)}</div>`;
+    return `<div class="field"><label>${label}</label><input type="number" ${extra||''} list="${dlId}" class="input-logged" id="${id}" ${isOpen?'':'disabled'} value="${log[field]??''}" ${placeholder?`placeholder="${placeholder}"`:''}>${datalistFor(dlId, vals)}</div>`;
   }
+  const sleepH = log.sleepH ?? "00", sleepM = log.sleepM ?? "00";
+  const sleepField = `<div class="field">
+    <label>Sleep (Hrs:Min)</label>
+    <div class="time-picker">
+      <select class="input-logged" id="dc-sleep-h" ${isOpen?'':'disabled'}>${timeOptions(12,sleepH)}</select><span class="tp-unit">h</span>
+      <span class="tp-sep">:</span>
+      <select class="input-logged" id="dc-sleep-m" ${isOpen?'':'disabled'}>${timeOptions(59,sleepM)}</select><span class="tp-unit">m</span>
+    </div>
+  </div>`;
   const grid = `
     <div class="field-grid">
       ${fld("Body Weight (lb)","dc-weight","bodyweight",'step="0.1"')}
       ${fld("Resting HR (bpm)","dc-rhr","restingHR",'')}
-      ${fld("Sleep (hrs)","dc-sleep","sleep",'step="0.1"')}
+      ${sleepField}
       ${fld("Overall Fatigue (1–10)","dc-fatigue","fatigue",'min="1" max="10"')}
       ${fld("Fat Mass (%)","dc-fatmass","fatMass",'min="0" max="100" step="0.1"',"00.0")}
       ${fld("Muscle Mass (%)","dc-musclemass","muscleMass",'min="0" max="100" step="0.1"',"00.0")}
@@ -2694,7 +2757,8 @@ async function saveCheckin(date){
   const log = await getLog(date);
   log.bodyweight = document.getElementById("dc-weight").value;
   log.restingHR = document.getElementById("dc-rhr").value;
-  log.sleep = document.getElementById("dc-sleep").value;
+  log.sleepH = document.getElementById("dc-sleep-h").value;
+  log.sleepM = document.getElementById("dc-sleep-m").value;
   log.fatigue = document.getElementById("dc-fatigue").value;
   log.fatMass = document.getElementById("dc-fatmass").value;
   log.muscleMass = document.getElementById("dc-musclemass").value;
@@ -2766,6 +2830,7 @@ async function renderDayRow(d){
   const log = await getLog(d);
   const totalMin = totalDayMinutes(dp);
   const allDone = isDayFullyCompleted(dp, log);
+  const exRecent = await buildRecentExerciseValueLookup(d, 30);
   return `
   <div class="day-row ${allDone?'day-complete-bg':''}">
     <div class="day-row-head">
@@ -2773,7 +2838,7 @@ async function renderDayRow(d){
       <div style="display:flex; gap:8px; align-items:center;">${typeBadge(dp.type)}<span class="wi-time">${totalMin>0?fmtHrs(totalMin):''}</span></div>
     </div>
     <div style="margin-top:10px;">
-      ${dp.workouts.length ? dp.workouts.map((w,i)=>renderWorkoutItem(dp,i,w,log)).join("") : `<p style="color:var(--grey-600); font-size:12.5px;">Full rest day.</p>`}
+      ${dp.workouts.length ? dp.workouts.map((w,i)=>renderWorkoutItem(dp,i,w,log,exRecent)).join("") : `<p style="color:var(--grey-600); font-size:12.5px;">Full rest day.</p>`}
       ${renderAddWorkoutPanel(d)}
     </div>
   </div>`;
@@ -3075,23 +3140,38 @@ async function renderProgress(){
   const complianceRows = logs.filter(l=>(l.workouts&&Object.keys(l.workouts).length)||l.bodyweight||(l.nutrition&&Object.keys(l.nutrition).length)).sort((a,b)=>b.date.localeCompare(a.date));
   const loggedDateSet = new Set(complianceRows.map(l=>l.date));
 
+  const logsByDate = {}; logs.forEach(l=>{ logsByDate[l.date] = l; });
+
   let sparkline = "";
   if(withWeight.length>=2){
     const w = withWeight.slice(-14);
     const minW=Math.min(...w.map(x=>x.weight)), maxW=Math.max(...w.map(x=>x.weight));
     const range=Math.max(1,maxW-minW);
     const pts = w.map((x,i)=>{const px=(i/(w.length-1))*580+10; const py=90-((x.weight-minW)/range)*70; return `${px},${py}`;}).join(" ");
-    sparkline = `<svg class="sparkline" viewBox="0 0 600 100" preserveAspectRatio="none">
+    sparkline = `<svg class="sparkline" viewBox="0 0 600 100" preserveAspectRatio="none" style="overflow:visible;">
       <polyline points="${pts}" fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      ${w.map((x,i)=>{const px=(i/(w.length-1))*580+10; const py=90-((x.weight-minW)/range)*70; return `<circle cx="${px}" cy="${py}" r="3" fill="var(--navy)"/>`;}).join("")}
-    </svg><div style="display:flex; justify-content:space-between; font-size:11px; color:var(--grey-600);"><span>${esc(fmtDate(w[0].date))} · ${w[0].weight} lb</span><span>${esc(fmtDate(w[w.length-1].date))} · ${w[w.length-1].weight} lb</span></div>`;
+      ${w.map((x,i)=>{
+        const px=(i/(w.length-1))*580+10; const py=90-((x.weight-minW)/range)*70;
+        const dayLog = logsByDate[x.date] || {};
+        const n = dayLog.nutrition || {};
+        const nutriBits = ["kcal","carbs","protein","fat","water"].filter(k=>n[k]).map(k=>{
+          const label = {kcal:"Food",carbs:"Carbs",protein:"Protein",fat:"Fat",water:"Water"}[k];
+          const unit = {kcal:" kcal",carbs:"g",protein:"g",fat:"g",water:"oz"}[k];
+          return `${label} ${n[k]}${unit}`;
+        }).join(", ");
+        const tip = `${fmtDateLong(x.date)} • ${x.weight} lb${nutriBits?(' • '+nutriBits):' • No nutrition logged'}`;
+        return `<circle class="wt-dot" data-tip="${esc(tip)}" cx="${px}" cy="${py}" r="5" fill="var(--navy)" stroke="#fff" stroke-width="1.5" style="cursor:pointer;"/>`;
+      }).join("")}
+    </svg>
+    <div id="wt-tooltip" style="display:none; position:fixed; z-index:2000; background:var(--navy); color:#fff; font-size:12px; font-weight:600; padding:7px 11px; border-radius:8px; pointer-events:none; box-shadow:var(--shadow-md); max-width:260px;"></div>
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--grey-600);"><span>${esc(fmtDate(w[0].date))} · ${w[0].weight} lb</span><span>${esc(fmtDate(w[w.length-1].date))} · ${w[w.length-1].weight} lb</span></div>`;
   } else {
     sparkline = `<p style="color:var(--grey-600); font-size:13px;">Log body weight on the Daily Check-In (Today tab) a few times to see a trend line here.</p>`;
   }
 
   const view = State.progressView||"list";
   const logView = complianceRows.length ? `<table class="progress-table"><thead><tr><th>Date</th><th>Workout Entries</th><th>Weight</th><th>Sleep</th><th>Nutrition Logged</th><th>Notes</th></tr></thead><tbody>
-      ${complianceRows.map(l=>`<tr data-goto-day="${l.date}"><td>${esc(fmtDate(l.date))}</td><td>${l.workouts?Object.keys(l.workouts).length:0}</td><td>${l.bodyweight?l.bodyweight+' lb':'—'}</td><td>${l.sleep?l.sleep+' hr':'—'}</td><td>${l.nutrition&&Object.keys(l.nutrition).length?(l.nutrition.kcal||'—')+' kcal':'—'}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(l.notes||'')}</td></tr>`).join("")}
+      ${complianceRows.map(l=>`<tr data-goto-day="${l.date}"><td>${esc(fmtDate(l.date))}</td><td>${l.workouts?Object.keys(l.workouts).length:0}</td><td>${l.bodyweight?l.bodyweight+' lb':'—'}</td><td>${(l.sleepH||l.sleepM)?esc(l.sleepH||'00')+':'+esc(l.sleepM||'00'):'—'}</td><td>${l.nutrition&&Object.keys(l.nutrition).length?(l.nutrition.kcal||'—')+' kcal':'—'}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(l.notes||'')}</td></tr>`).join("")}
     </tbody></table>` : `<div class="empty-state"><h3>No entries yet</h3><p>Log a workout or check-in on the Today tab and it will show up here.</p></div>`;
 
   const calView = await renderProgressCalendar(loggedDateSet);
@@ -3328,6 +3408,24 @@ function wireTabEvents(){
     renderTabContent();
   }));
   el.querySelectorAll("[data-goto-day]").forEach(el2=>el2.addEventListener("click",()=>{ goToScheduleDay(el2.dataset.gotoDay); }));
+  el.querySelectorAll(".wt-dot").forEach(dot=>{
+    const tooltip = document.getElementById("wt-tooltip");
+    dot.addEventListener("mouseenter", (e)=>{
+      if(!tooltip) return;
+      tooltip.textContent = dot.dataset.tip;
+      tooltip.style.display = "block";
+      const r = dot.getBoundingClientRect();
+      tooltip.style.left = Math.min(window.innerWidth-270, Math.max(8, r.left - 60)) + "px";
+      tooltip.style.top = (r.top - 42) + "px";
+    });
+    dot.addEventListener("mousemove", (e)=>{
+      if(!tooltip) return;
+      const r = dot.getBoundingClientRect();
+      tooltip.style.left = Math.min(window.innerWidth-270, Math.max(8, r.left - 60)) + "px";
+      tooltip.style.top = (r.top - 42) + "px";
+    });
+    dot.addEventListener("mouseleave", ()=>{ if(tooltip) tooltip.style.display = "none"; });
+  });
 
   el.querySelectorAll("[data-set-start]").forEach(b=>b.addEventListener("click", async ()=>{
     const v = document.getElementById("start-date-input").value;
