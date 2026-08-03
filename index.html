@@ -446,6 +446,7 @@ svg.sparkline{width:100%; height:110px;}
 <body>
 <div id="root"></div>
 <script>
+
 /* ============================================================
    CENTURY READY — DATA LAYER v2
    Event: Civil War Century, Thurmont MD — Sat Sept 19, 2026
@@ -2088,7 +2089,7 @@ async function renderTabContent(){
     const detailEl = document.getElementById("cal-day-detail");
     if(detailEl){
       detailEl.innerHTML = `<div class="card"><h2 style="font-size:15px; margin-bottom:10px;">${esc(fmtDateLong(State.calendarSelectedDate))}</h2>${await renderDayRow(State.calendarSelectedDate)}</div>`;
-      wireTabEvents();
+      wireTabEvents(detailEl);
     }
   }
 }
@@ -3246,8 +3247,8 @@ async function renderProgressCalendar(loggedDateSet){
 /* ============================================================
    EVENT WIRING
    ============================================================ */
-function wireTabEvents(){
-  const el = document.getElementById("tabcontent");
+function wireTabEvents(scopeEl){
+  const el = scopeEl || document.getElementById("tabcontent");
   if(!el) return;
 
   el.querySelectorAll("[data-toggle]").forEach(h=>h.addEventListener("click",(e)=>{
@@ -3891,6 +3892,8 @@ async function saveExerciseFromForm(){
   renderTabContent();
 }
 
+
 </script>
 </body>
 </html>
+
