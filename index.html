@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Century Ready — Civil War Century Training</title>
+<title>Event Training Program</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -131,6 +131,19 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 }
 .app-header .sub{color:#B9C6E8; font-size:13.5px; margin-top:6px; max-width:560px; position:relative;}
 
+.event-header-list{ display:flex; flex-direction:column; gap:10px; margin-top:16px; position:relative; z-index:1; }
+.event-header-row{
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border-radius:var(--radius-md); padding:12px 16px;
+}
+.ehr-main .ehr-name{ font-family:var(--font-display); font-weight:700; font-size:15px; color:#fff; }
+.ehr-main .ehr-sub{ font-size:12px; color:#B9C6E8; margin-top:2px; }
+.ehr-stats{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+.ehr-stat{ text-align:center; }
+.ehr-stat .num{ font-family:var(--font-display); font-size:17px; font-weight:800; color:#fff; line-height:1; }
+.ehr-stat .lbl{ font-size:9.5px; text-transform:uppercase; letter-spacing:.07em; color:#AEC0EA; margin-top:3px; font-weight:600; }
 .header-stats{ display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; align-items:stretch; position:relative; z-index:1; }
 .stat-pill{
   background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16);
@@ -446,6 +459,7 @@ svg.sparkline{width:100%; height:110px;}
 <body>
 <div id="root"></div>
 <script>
+
 
 /* ============================================================
    CENTURY READY — DATA LAYER v2
@@ -775,77 +789,198 @@ function resolveWorkout(workoutId, overrides){
 }
 
 /* ---------------- CALENDAR / DAILY QUEUE ---------------- */
-const Plan = {
-  start: null,          // ISO date, persisted
-  end: null,            // ISO date, fixed = PLAN_HARD_END
-  templates: [],         // original sequence (array of {date,...,refs})
-  templateByDate: {},
-  dailyQueue: [],        // persisted: array (same length as templates) of template-index or null(=skipped/rest)
-  dayOverrides: {}       // persisted: date -> {slots:{0:{workoutId,overrides}, 1:{...}}}
-};
+/* ============================================================
+   EVENTS — multi-event data model
+   Each Event has its own scheduling state (PlanByEvent[id]), kept
+   under namespaced storage keys ("event:<id>:planStart" etc.) so
+   multiple Events' plans can coexist and overlap. The original
+   Civil War Century plan is preserved exactly as it was — on first
+   run it is migrated (not deleted from its old keys) into an Event
+   record flagged isLegacyCWC, which keeps using the original
+   buildTemplateSequence generator untouched.
+   ============================================================ */
+const EVENT_COLORS = ["#5B5FEF","#00B894","#FF6B4A","#3159C9","#E0894F","#6B4FE0","#C1554A","#00A3A3","#B0559E","#4C8C4A"];
 
-async function setPlanStart(newDate){
-  await saveJSON("planStart", newDate);
-  Plan.start = newDate;
-  Plan.templates = buildTemplateSequence(Plan.start, Plan.end);
-  Plan.templateByDate = {};
-  Plan.templates.forEach((t,i)=>{ Plan.templateByDate[t.date] = i; });
-  Plan.dailyQueue = Plan.templates.map((_,i)=>i);
-  await saveJSON("dailyQueue", Plan.dailyQueue);
-  Plan.dayOverrides = {};
-  await saveJSON("dayOverrides", Plan.dayOverrides);
+const Events = { list: [] };
+
+function nextEventColor(){ return EVENT_COLORS[Events.list.length % EVENT_COLORS.length]; }
+function eventById(id){ return Events.list.find(e=>e.id===id); }
+function isEventCompleted(ev){ return !!ev && ev.date < todayISO(); }
+
+async function loadEvents(){
+  let list = await loadJSON("events");
+  if(!list){
+    const legacyStart = await loadJSON("planStart");
+    const cwcEvent = {
+      id: "cwc2026",
+      name: "CWC 2026 Event",
+      description: "Civil War Century — the original training plan.",
+      date: EVENT.date,
+      type: "cycling", typeOther: "",
+      location: EVENT.location, locationMapUrl: "",
+      website: EVENT.url,
+      distance: 100, distanceUnit: "mi",
+      trainingStart: legacyStart || todayISO(),
+      trainingEndMode: "event", trainingEndDate: null,
+      color: EVENT_COLORS[0],
+      hidden: false,
+      createdAt: new Date().toISOString(),
+      isLegacyCWC: true
+    };
+    list = [cwcEvent];
+    await saveJSON("events", list);
+    // Copy (never delete) the legacy keys into the namespaced location so the
+    // rest of the engine can operate uniformly on all events, old and new.
+    if(legacyStart) await saveJSON("event:cwc2026:planStart", legacyStart);
+    const legacyQueue = await loadJSON("dailyQueue");
+    if(legacyQueue) await saveJSON("event:cwc2026:dailyQueue", legacyQueue);
+    const legacyOverrides = await loadJSON("dayOverrides");
+    if(legacyOverrides) await saveJSON("event:cwc2026:dayOverrides", legacyOverrides);
+  }
+  Events.list = list;
+}
+async function saveEvents(){ await saveJSON("events", Events.list.filter(e=>!e.isAdhoc)); }
+
+function eventNameTaken(name, excludeId){
+  const yearNow = new Date().getFullYear();
+  return Events.list.some(e=>e.id!==excludeId && e.name.trim().toLowerCase()===name.trim().toLowerCase() && new Date(e.createdAt).getFullYear()===yearNow);
+}
+
+async function createEvent(data){
+  const id = uid("ev");
+  const ev = Object.assign({
+    id, hidden:false, createdAt:new Date().toISOString(), color: nextEventColor(), isLegacyCWC:false
+  }, data);
+  Events.list.push(ev);
+  await saveEvents();
+  await initEventPlan(ev);
+  return ev;
+}
+async function updateEvent(id, data){
+  const ev = eventById(id);
+  if(!ev) return;
+  Object.assign(ev, data);
+  await saveEvents();
+  await initEventPlan(ev); // re-derive in case date/training window changed
+}
+async function setEventHidden(id, hidden){
+  const ev = eventById(id);
+  if(!ev) return;
+  ev.hidden = hidden;
+  await saveEvents();
+}
+async function deleteEvent(id){
+  Events.list = Events.list.filter(e=>e.id!==id);
+  await saveEvents();
+  delete PlanByEvent[id];
+  // underlying event:<id>:* data keys are left in place (never destructive)
+}
+
+/* ---------------- PER-EVENT PLAN STATE ---------------- */
+const PlanByEvent = {};
+
+function isDateInEventPlan(eventId, date){
+  const P = PlanByEvent[eventId];
+  return !!(P && P.templateByDate[date] !== undefined);
+}
+function eventTrainingEnd(ev){
+  if(ev.isLegacyCWC) return PLAN_HARD_END;
+  if(ev.trainingEndMode==="other" && ev.trainingEndDate) return ev.trainingEndDate;
+  return dateAdd(ev.date, 1);
+}
+
+async function initEventPlan(ev){
+  const key = ev.id;
+  let start = await loadJSON("event:"+key+":planStart");
+  if(!start){ start = ev.trainingStart || todayISO(); await saveJSON("event:"+key+":planStart", start); }
+  const end = eventTrainingEnd(ev);
+
+  let templates, hasRealPlan;
+  if(ev.isLegacyCWC){
+    templates = buildTemplateSequence(start, end); // untouched original generator
+    hasRealPlan = true;
+  } else {
+    const stored = (await loadJSON("event:"+key+":templates")) || [];
+    const importedStart = await loadJSON("event:"+key+":templatesStart");
+    hasRealPlan = stored.length > 0;
+    if(stored.length && importedStart && importedStart !== start){
+      const delta = daysBetween(importedStart, start);
+      templates = stored.map(t=>Object.assign({}, t, {date: dateAdd(t.date, delta)}));
+    } else if(stored.length){
+      templates = stored;
+    } else {
+      // No Training Plan imported yet — scaffold a blank day-by-day range so
+      // the Event still shows up, can be merged with others, and can accept
+      // ad-hoc workout additions right away.
+      templates = [];
+      let d = start;
+      while(d <= end){
+        templates.push({date:d, dow:dowKey(d), dowLabel:dowShort(d), weekNum:null, phase:null, phaseLabel:null, title: d===ev.date?(ev.name+" 🏆"):"", type: d===ev.date?"race":"rest", refs: []});
+        d = dateAdd(d,1);
+      }
+    }
+  }
+
+  const templateByDate = {};
+  templates.forEach((t,i)=>{ templateByDate[t.date]=i; });
+
+  const dqKey = "event:"+key+":dailyQueue";
+  let dailyQueue = await loadJSON(dqKey);
+  if(!dailyQueue || dailyQueue.length !== templates.length){
+    dailyQueue = templates.map((_,i)=>i);
+    await saveJSON(dqKey, dailyQueue);
+  }
+  const dayOverrides = (await loadJSON("event:"+key+":dayOverrides")) || {};
+
+  PlanByEvent[key] = {start, end, templates, templateByDate, dailyQueue, dayOverrides, hasRealPlan};
+}
+
+async function initAllEventPlans(){
+  await loadEvents();
+  for(const ev of Events.list){ await initEventPlan(ev); }
+}
+
+/* Set an Event's training-plan start date. For the legacy CWC event this
+   regenerates the exact original way (buildTemplateSequence). For other
+   events (imported plans) it shifts every stored template date by the
+   same delta, preserving the plan's day-to-day structure. */
+async function setEventPlanStart(eventId, newDate){
+  const ev = eventById(eventId);
+  if(!ev) return;
+  await saveJSON("event:"+eventId+":planStart", newDate);
+  if(!ev.isLegacyCWC){
+    const P = PlanByEvent[eventId];
+    if(P && P.start) await saveJSON("event:"+eventId+":templatesStart", P.start);
+  }
+  await initEventPlan(ev);
   const dates = allCalendarDates();
   State.selectedDate = dates.includes(todayISO()) ? todayISO() : dates[0];
   State.calendarSelectedDate = State.selectedDate;
-  const dp = getDayPlan(State.selectedDate);
-  State.openWeek = dp ? dp.weekNum : 1;
   render();
 }
 
-async function initPlan(){
-  let start = await loadJSON("planStart");
-  if(!start){
-    start = todayISO();
-    if(start > PLAN_HARD_END) start = PLAN_HARD_END; // safety: event already passed
-    await saveJSON("planStart", start);
-  }
-  Plan.start = start;
-  Plan.end = PLAN_HARD_END;
-  Plan.templates = buildTemplateSequence(Plan.start, Plan.end);
-  Plan.templateByDate = {};
-  Plan.templates.forEach((t,i)=>{ Plan.templateByDate[t.date] = i; });
 
-  const savedQueue = await loadJSON("dailyQueue");
-  if(savedQueue && savedQueue.length === Plan.templates.length){
-    Plan.dailyQueue = savedQueue;
-  } else {
-    Plan.dailyQueue = Plan.templates.map((_,i)=>i); // identity
-    await saveJSON("dailyQueue", Plan.dailyQueue);
-  }
-  Plan.dayOverrides = (await loadJSON("dayOverrides")) || {};
-}
-
-function dateIndex(date){ return Plan.templateByDate[date]; }
-
-/* Resolve the full plan for a given calendar date: template content (possibly
-   shifted by skip/swap) + substitutions + user-added workouts + display order. */
-function getDayPlan(date){
-  const idx = dateIndex(date);
+/* ---------------- RESOLVE ONE EVENT'S DAY ---------------- */
+function getEventDayPlan(eventId, date){
+  const P = PlanByEvent[eventId];
+  const ev = eventById(eventId);
+  if(!P || !ev) return null;
+  const idx = P.templateByDate[date];
   if(idx===undefined) return null;
-  const tIdx = Plan.dailyQueue[idx];
-  const template = tIdx===null || tIdx===undefined ? null : Plan.templates[tIdx];
+  const tIdx = P.dailyQueue[idx];
+  const template = tIdx===null || tIdx===undefined ? null : P.templates[tIdx];
 
   let title, type, refs, phase, phaseLabel, weekNum, isSkipped=false;
   if(template===null){
     title = "Rest Day (Skipped)"; type = "rest"; refs = []; isSkipped = true;
-    const own = Plan.templates[idx];
+    const own = P.templates[idx];
     phase = own.phase; phaseLabel = own.phaseLabel; weekNum = own.weekNum;
   } else {
     title = template.title; type = template.type; refs = template.refs.slice();
     phase = template.phase; phaseLabel = template.phaseLabel; weekNum = template.weekNum;
   }
 
-  const ov = Plan.dayOverrides[date] || {};
+  const ov = P.dayOverrides[date] || {};
   const removedSet = new Set(ov.removed||[]);
   const slotDefs = refs.map((r,i)=>({slotKey:"t"+i, workoutId:r.workoutId, overrides:r.overrides}))
     .filter(sd=>!removedSet.has(sd.slotKey));
@@ -859,7 +994,8 @@ function getDayPlan(date){
     if(ov.slots && ov.slots[sd.slotKey]){ wid = ov.slots[sd.slotKey].workoutId; wov = ov.slots[sd.slotKey].overrides; }
     const w = resolveWorkout(wid, wov);
     if(!w) return null;
-    w.slotKey = sd.slotKey;
+    w.slotKey = eventId+"|"+sd.slotKey;
+    w.eventId = eventId; w.eventName = ev.name; w.eventColor = ev.color;
 
     if(w.kind==="strengthblock"){
       const exAdd = (ov.exAdd && ov.exAdd[sd.slotKey]) || [];
@@ -885,9 +1021,9 @@ function getDayPlan(date){
   }).filter(Boolean);
 
   if(ov.order && ov.order.length){
-    const byKey = {}; resolved.forEach(w=>byKey[w.slotKey]=w);
+    const byKey = {}; resolved.forEach(w=>byKey[w.slotKey.split("|")[1]]=w);
     const ordered = ov.order.map(k=>byKey[k]).filter(Boolean);
-    resolved.forEach(w=>{ if(!ov.order.includes(w.slotKey)) ordered.push(w); });
+    resolved.forEach(w=>{ if(!ov.order.includes(w.slotKey.split("|")[1])) ordered.push(w); });
     resolved = ordered;
   }
 
@@ -899,13 +1035,14 @@ function getDayPlan(date){
     date, dow: dowKey(date), dowLabel: dowShort(date), weekNum, phase, phaseLabel,
     title, type: derivedType, workouts: resolved, isSkipped,
     isSubstituted: wasModified,
-    originalTemplateDate: template ? template.date : null
+    originalTemplateDate: template ? template.date : null,
+    eventId, eventName: ev.name, eventColor: ev.color
   };
 }
 
 /* Rebuild the day's headline title from what's actually scheduled, once it's
-   been edited — otherwise the heading (list row, calendar cell, dashboard
-   banner) would keep showing the original template's title forever. */
+   been edited — otherwise the heading would keep showing the original
+   template's title forever. */
 function deriveDayTitle(resolvedWorkouts, templateTitle, wasModified){
   if(!wasModified) return templateTitle;
   if(resolvedWorkouts.some(w=>w.isRace)) return templateTitle;
@@ -944,69 +1081,122 @@ function deriveDayType(resolvedWorkouts, fallbackType){
   return best || fallbackType;
 }
 
-function allCalendarDates(){ return Plan.templates.map(t=>t.date); }
+/* ---------------- MERGE ACROSS ACTIVE EVENTS FOR ONE DATE ---------------- */
+function activeEventsForDate(date){
+  return Events.list.filter(e=>!e.hidden && isDateInEventPlan(e.id, date));
+}
+function activeEventsNow(){
+  return Events.list.filter(e=>!e.hidden && !isEventCompleted(e));
+}
 
-function addWorkoutToDay(date, workoutId){
-  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
-  const ov = Plan.dayOverrides[date];
+function getDayPlan(date){
+  const active = activeEventsForDate(date);
+  if(!active.length){
+    const adhocDay = getEventDayPlan("adhoc", date);
+    const workouts = adhocDay ? adhocDay.workouts : [];
+    return {
+      date, dow: dowKey(date), dowLabel: dowShort(date), weekNum:null, phase:null, phaseLabel:null,
+      title: workouts.length ? "Workouts" : "No Event Scheduled",
+      type: workouts.length ? deriveDayType(workouts,"rest") : "rest",
+      workouts, isSkipped:false, isSubstituted: adhocDay ? adhocDay.isSubstituted : false,
+      originalTemplateDate:null, events:[]
+    };
+  }
+  const perEvent = active.map(e=>getEventDayPlan(e.id,date)).filter(Boolean);
+  const workouts = [].concat(...perEvent.map(p=>p.workouts));
+  const title = perEvent.length===1 ? perEvent[0].title : perEvent.map(p=>p.title).join(" + ");
+  const type = deriveDayType(workouts, perEvent[0].type);
+  return {
+    date, dow: dowKey(date), dowLabel: dowShort(date),
+    weekNum: perEvent[0].weekNum, phase: perEvent[0].phase, phaseLabel: perEvent[0].phaseLabel,
+    title, type, workouts,
+    isSkipped: perEvent.some(p=>p.isSkipped), isSubstituted: perEvent.some(p=>p.isSubstituted),
+    originalTemplateDate: perEvent[0].originalTemplateDate,
+    events: perEvent.map(p=>({id:p.eventId, name:p.eventName, color:p.eventColor, weekNum:p.weekNum, phaseLabel:p.phaseLabel}))
+  };
+}
+
+function allCalendarDates(){
+  const active = Events.list.filter(e=>!e.hidden);
+  if(!active.length){
+    const dates = [];
+    for(let i=-60;i<=60;i++) dates.push(dateAdd(todayISO(), i));
+    return dates;
+  }
+  const set = new Set();
+  active.forEach(e=>{ const P = PlanByEvent[e.id]; if(P) P.templates.forEach(t=>set.add(t.date)); });
+  return [...set].sort();
+}
+
+/* ---------------- MUTATORS (all take the composite "eventId|slotKey" already
+   embedded in whatever slotKey the UI is holding, except where a new slotKey
+   is being created, which needs an explicit eventId) ---------------- */
+function addWorkoutToDay(eventId, date, workoutId){
+  const P = PlanByEvent[eventId];
+  if(!P.dayOverrides[date]) P.dayOverrides[date] = {};
+  const ov = P.dayOverrides[date];
   ov.added = ov.added || [];
-  const slotKey = "a"+ov.added.length+"_"+Math.random().toString(36).slice(2,6);
-  ov.added.push({slotKey, workoutId});
-  saveJSON("dayOverrides", Plan.dayOverrides);
-  return slotKey;
+  const realSlotKey = "a"+ov.added.length+"_"+Math.random().toString(36).slice(2,6);
+  ov.added.push({slotKey:realSlotKey, workoutId});
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
+  return eventId+"|"+realSlotKey;
 }
 function removeAddedWorkout(date, slotKey){
-  const ov = Plan.dayOverrides[date];
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const P = PlanByEvent[eventId]; const ov = P.dayOverrides[date];
   if(!ov || !ov.added) return;
-  ov.added = ov.added.filter(a=>a.slotKey!==slotKey);
-  if(ov.order) ov.order = ov.order.filter(k=>k!==slotKey);
-  saveJSON("dayOverrides", Plan.dayOverrides);
+  ov.added = ov.added.filter(a=>a.slotKey!==realSlotKey);
+  if(ov.order) ov.order = ov.order.filter(k=>k!==realSlotKey);
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
 }
-/* Remove any workout (template-scheduled or user-added) from a single day's schedule. Non-permanent. */
 function removeWorkoutFromDay(date, slotKey){
-  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
-  const ov = Plan.dayOverrides[date];
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const P = PlanByEvent[eventId];
+  if(!P.dayOverrides[date]) P.dayOverrides[date] = {};
+  const ov = P.dayOverrides[date];
   ov.removed = ov.removed || [];
-  if(!ov.removed.includes(slotKey)) ov.removed.push(slotKey);
-  if(ov.order) ov.order = ov.order.filter(k=>k!==slotKey);
-  saveJSON("dayOverrides", Plan.dayOverrides);
+  if(!ov.removed.includes(realSlotKey)) ov.removed.push(realSlotKey);
+  if(ov.order) ov.order = ov.order.filter(k=>k!==realSlotKey);
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
 }
-/* Add an exercise from the library into one scheduled strength workout, for this day only. */
 function addExerciseToDayWorkout(date, slotKey, exId){
-  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
-  const ov = Plan.dayOverrides[date];
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const P = PlanByEvent[eventId];
+  if(!P.dayOverrides[date]) P.dayOverrides[date] = {};
+  const ov = P.dayOverrides[date];
   ov.exAdd = ov.exAdd || {};
-  ov.exAdd[slotKey] = ov.exAdd[slotKey] || [];
+  ov.exAdd[realSlotKey] = ov.exAdd[realSlotKey] || [];
   const ex = Lib.exercises[exId];
-  ov.exAdd[slotKey].push({exId, sets: ex?.sets||"2", reps: ex?.reps||"10"});
-  saveJSON("dayOverrides", Plan.dayOverrides);
+  ov.exAdd[realSlotKey].push({exId, sets: ex?.sets||"2", reps: ex?.reps||"10"});
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
 }
-/* Remove one exercise from one scheduled strength workout, for this day only. origIndex refers to
-   that exercise's position in the workout as currently resolved for this date. */
 function removeExerciseFromDayWorkout(date, slotKey, origIndex){
-  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
-  const ov = Plan.dayOverrides[date];
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const P = PlanByEvent[eventId];
+  if(!P.dayOverrides[date]) P.dayOverrides[date] = {};
+  const ov = P.dayOverrides[date];
   ov.exRemove = ov.exRemove || {};
-  ov.exRemove[slotKey] = ov.exRemove[slotKey] || [];
-  if(!ov.exRemove[slotKey].includes(origIndex)) ov.exRemove[slotKey].push(origIndex);
-  if(ov.exOrder && ov.exOrder[slotKey]) ov.exOrder[slotKey] = ov.exOrder[slotKey].filter(i=>i!==origIndex);
-  saveJSON("dayOverrides", Plan.dayOverrides);
+  ov.exRemove[realSlotKey] = ov.exRemove[realSlotKey] || [];
+  if(!ov.exRemove[realSlotKey].includes(origIndex)) ov.exRemove[realSlotKey].push(origIndex);
+  if(ov.exOrder && ov.exOrder[realSlotKey]) ov.exOrder[realSlotKey] = ov.exOrder[realSlotKey].filter(i=>i!==origIndex);
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
 }
-/* Non-permanent: reorder the workouts shown for a given day */
 function reorderDayWorkouts(date, slotKey, direction){
-  const day = getDayPlan(date);
-  const keys = day.workouts.map(w=>w.slotKey);
-  const i = keys.indexOf(slotKey);
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const day = getEventDayPlan(eventId, date);
+  const keys = day.workouts.map(w=>w.slotKey.split("|")[1]);
+  const i = keys.indexOf(realSlotKey);
   const j = i + direction;
   if(i<0 || j<0 || j>=keys.length) return;
   [keys[i], keys[j]] = [keys[j], keys[i]];
-  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
-  Plan.dayOverrides[date].order = keys;
-  saveJSON("dayOverrides", Plan.dayOverrides);
+  const P = PlanByEvent[eventId];
+  if(!P.dayOverrides[date]) P.dayOverrides[date] = {};
+  P.dayOverrides[date].order = keys;
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
 }
-/* Non-permanent: reorder exercises within one scheduled strength workout */
 function reorderExercisesInSlot(date, slotKey, exOrigIndex, direction){
-  const day = getDayPlan(date);
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const day = getEventDayPlan(eventId, date);
   const w = day.workouts.find(x=>x.slotKey===slotKey);
   if(!w || w.kind!=="strengthblock") return;
   const order = w.items.map(it=>it.origIndex);
@@ -1014,19 +1204,45 @@ function reorderExercisesInSlot(date, slotKey, exOrigIndex, direction){
   const j = i + direction;
   if(i<0 || j<0 || j>=order.length) return;
   [order[i], order[j]] = [order[j], order[i]];
-  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {};
-  Plan.dayOverrides[date].exOrder = Plan.dayOverrides[date].exOrder || {};
-  Plan.dayOverrides[date].exOrder[slotKey] = order;
-  saveJSON("dayOverrides", Plan.dayOverrides);
+  const P = PlanByEvent[eventId];
+  if(!P.dayOverrides[date]) P.dayOverrides[date] = {};
+  P.dayOverrides[date].exOrder = P.dayOverrides[date].exOrder || {};
+  P.dayOverrides[date].exOrder[realSlotKey] = order;
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
 }
 
-/* ---------------- SKIP DAYS ----------------
-   Pushes the content that WAS scheduled for [fromDate .. fromDate+count-1]
-   later, compressing the lowest-priority days between here and race day
-   so the race date itself never moves. */
-function removalPriority(tIdx){
-  if(tIdx===null || tIdx===undefined) return -1; // already-blank slots go first
-  const t = Plan.templates[tIdx];
+function substituteWorkout(date, slotKey, newWorkoutId){
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const P = PlanByEvent[eventId];
+  if(!P.dayOverrides[date]) P.dayOverrides[date] = {slots:{}};
+  if(!P.dayOverrides[date].slots) P.dayOverrides[date].slots = {};
+  P.dayOverrides[date].slots[realSlotKey] = {workoutId:newWorkoutId};
+  saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
+}
+function revertSlot(date, slotKey){
+  const [eventId, realSlotKey] = slotKey.split("|");
+  const P = PlanByEvent[eventId];
+  if(P.dayOverrides[date] && P.dayOverrides[date].slots){
+    delete P.dayOverrides[date].slots[realSlotKey];
+    saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides);
+  }
+}
+
+/* per-day temporary (non-permanent) target overrides for an exercise's sets/reps,
+   stored inside the day's log so they don't touch the library. slotKey already
+   carries its eventId prefix, so the stored key stays globally unique. */
+async function setTempExerciseTarget(date, slotKey, exIndex, sets, reps){
+  const log = await getLog(date);
+  log.targetOverrides = log.targetOverrides || {};
+  const key = slotKey+"_"+exIndex;
+  log.targetOverrides[key] = {sets, reps};
+  await saveLog(date, log);
+}
+
+/* ---------------- SKIP / SWAP / RESET (day-level, scoped to one Event) ---------------- */
+function removalPriority(eventId, tIdx){
+  if(tIdx===null || tIdx===undefined) return -1;
+  const t = PlanByEvent[eventId].templates[tIdx];
   if(t.type==="race") return 999;
   const hasLong = t.refs.some(r=>r.workoutId==="cy_long_ride" || r.workoutId==="cy_race_day");
   if(hasLong) return 50;
@@ -1038,72 +1254,46 @@ function removalPriority(tIdx){
   return 5;
 }
 
-function skipDays(fromDate, count){
-  const raceIdx = dateIndex(EVENT.date);
-  const idx = dateIndex(fromDate);
+function skipDays(eventId, fromDate, count){
+  const P = PlanByEvent[eventId];
+  const ev = eventById(eventId);
+  const raceIdx = P.templateByDate[ev.date];
+  const idx = P.templateByDate[fromDate];
   if(idx===undefined || raceIdx===undefined) return {ok:false, msg:"Date out of range."};
-  if(idx >= raceIdx) return {ok:false, msg:"You can't skip on or after race day."};
+  if(idx >= raceIdx) return {ok:false, msg:"You can't skip on or after event day."};
   count = Math.min(count, raceIdx - idx);
   if(count<=0) return {ok:false, msg:"Nothing to skip."};
 
-  const windowSlice = Plan.dailyQueue.slice(idx, raceIdx);
+  const windowSlice = P.dailyQueue.slice(idx, raceIdx);
   let combined = new Array(count).fill(null).concat(windowSlice);
-
-  // need to drop `count` entries to get back to windowSlice.length; prefer lowest-priority,
-  // never touch the first `count` (those are the intentional skip markers)
   const removable = combined.map((val,i)=>({val,i})).slice(count);
-  removable.sort((a,b)=> removalPriority(a.val) - removalPriority(b.val));
+  removable.sort((a,b)=> removalPriority(eventId,a.val) - removalPriority(eventId,b.val));
   const toRemove = new Set(removable.slice(0, count).map(r=>r.i));
   combined = combined.filter((val,i)=> !toRemove.has(i));
 
-  for(let i=0;i<windowSlice.length;i++){
-    Plan.dailyQueue[idx+i] = combined[i];
-  }
-  saveJSON("dailyQueue", Plan.dailyQueue);
-  return {ok:true, msg:`Skipped ${count} day${count>1?'s':''}. Your remaining sessions shifted later; a few of the lowest-priority days were compressed out so race day stays on ${fmtDate(EVENT.date)}.`};
+  for(let i=0;i<windowSlice.length;i++){ P.dailyQueue[idx+i] = combined[i]; }
+  saveJSON("event:"+eventId+":dailyQueue", P.dailyQueue);
+  return {ok:true, msg:`Skipped ${count} day${count>1?'s':''}. Your remaining sessions shifted later; a few of the lowest-priority days were compressed out so event day stays on ${fmtDate(ev.date)}.`};
 }
 
-function swapDays(dateA, dateB){
-  const a = dateIndex(dateA), b = dateIndex(dateB);
+function swapDays(eventId, dateA, dateB){
+  const P = PlanByEvent[eventId];
+  const ev = eventById(eventId);
+  const a = P.templateByDate[dateA], b = P.templateByDate[dateB];
   if(a===undefined || b===undefined) return {ok:false, msg:"Date out of range."};
-  if(dateA===EVENT.date || dateB===EVENT.date) return {ok:false, msg:"Race day can't be swapped."};
-  const tmp = Plan.dailyQueue[a];
-  Plan.dailyQueue[a] = Plan.dailyQueue[b];
-  Plan.dailyQueue[b] = tmp;
-  saveJSON("dailyQueue", Plan.dailyQueue);
+  if(dateA===ev.date || dateB===ev.date) return {ok:false, msg:"Event day can't be swapped."};
+  const tmp = P.dailyQueue[a]; P.dailyQueue[a] = P.dailyQueue[b]; P.dailyQueue[b] = tmp;
+  saveJSON("event:"+eventId+":dailyQueue", P.dailyQueue);
   return {ok:true, msg:`Swapped ${fmtDate(dateA)} and ${fmtDate(dateB)}.`};
 }
 
-function resetDay(date){
-  const idx = dateIndex(date);
+function resetDay(eventId, date){
+  const P = PlanByEvent[eventId];
+  const idx = P.templateByDate[date];
   if(idx===undefined) return;
-  Plan.dailyQueue[idx] = idx;
-  saveJSON("dailyQueue", Plan.dailyQueue);
-  if(Plan.dayOverrides[date]){ delete Plan.dayOverrides[date]; saveJSON("dayOverrides", Plan.dayOverrides); }
-}
-
-/* ---------------- SUBSTITUTE A SINGLE WORKOUT SLOT ---------------- */
-function substituteWorkout(date, slotIndex, newWorkoutId){
-  if(!Plan.dayOverrides[date]) Plan.dayOverrides[date] = {slots:{}};
-  if(!Plan.dayOverrides[date].slots) Plan.dayOverrides[date].slots = {};
-  Plan.dayOverrides[date].slots[slotIndex] = {workoutId:newWorkoutId};
-  saveJSON("dayOverrides", Plan.dayOverrides);
-}
-function revertSlot(date, slotIndex){
-  if(Plan.dayOverrides[date] && Plan.dayOverrides[date].slots){
-    delete Plan.dayOverrides[date].slots[slotIndex];
-    saveJSON("dayOverrides", Plan.dayOverrides);
-  }
-}
-
-/* per-day temporary (non-permanent) target overrides for an exercise's sets/reps,
-   stored inside the day's log so they don't touch the library */
-async function setTempExerciseTarget(date, slotIndex, exIndex, sets, reps){
-  const log = await getLog(date);
-  log.targetOverrides = log.targetOverrides || {};
-  const key = slotIndex+"_"+exIndex;
-  log.targetOverrides[key] = {sets, reps};
-  await saveLog(date, log);
+  P.dailyQueue[idx] = idx;
+  saveJSON("event:"+eventId+":dailyQueue", P.dailyQueue);
+  if(P.dayOverrides[date]){ delete P.dayOverrides[date]; saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides); }
 }
 /* ============================================================
    CENTURY READY — WEATHER
@@ -1590,7 +1780,7 @@ async function importAllData(payload){
 async function parseBackupFile(file){
   const text = await file.text();
   const backup = JSON.parse(text);
-  if(!backup || typeof backup!=="object" || !backup.data) throw new Error("This doesn't look like a Century Ready backup file.");
+  if(!backup || typeof backup!=="object" || !backup.data) throw new Error("This doesn't look like a Training Program backup file.");
   const logDates = Object.keys(backup.data).filter(k=>k.startsWith("log:")).map(k=>k.replace("log:","")).sort();
   const wlCount = backup.data.workoutLibrary ? Object.keys(backup.data.workoutLibrary).length : 0;
   const elCount = backup.data.exerciseLibrary ? Object.keys(backup.data.exerciseLibrary).length : 0;
@@ -1949,8 +2139,20 @@ function phaseBadge(phase, label){
   const map = {prep:"badge-recoveryweek", foundation:"badge-foundation", build:"badge-build", recovery:"badge-recoveryweek", peak:"badge-peak", taper:"badge-taper"};
   return `<span class="badge ${map[phase]||"badge-rest"}">${esc(label)}</span>`;
 }
-function totalDayMinutes(day){ return day.workouts.reduce((s,w)=>s+(w.timeMin||0),0); }
+function totalDayMinutes(day, log){
+  return day.workouts.reduce((s,w)=>{
+    if(log && log.workouts){
+      const savedW = log.workouts[w.slotKey];
+      if(savedW) return s + displayWorkoutMinutes(w, savedW).min;
+    }
+    return s + (w.timeMin||0);
+  }, 0);
+}
 function daysUntilEvent(){ return daysBetween(todayISO(), EVENT.date); }
+function daysUntilNearestEvent(){
+  const upcoming = Events.list.filter(e=>!e.hidden && !isEventCompleted(e)).sort((a,b)=>a.date.localeCompare(b.date));
+  return upcoming.length ? daysBetween(todayISO(), upcoming[0].date) : null;
+}
 function parseUid(u){ return {date:u.slice(0,10), slotKey:u.slice(12)}; }
 
 /* ============================================================
@@ -1958,11 +2160,31 @@ function parseUid(u){ return {date:u.slice(0,10), slotKey:u.slice(12)}; }
    ============================================================ */
 const root = document.getElementById("root");
 
+async function initAdhocPseudoEvent(){
+  // Always-available fallback plan (never shown in the Events UI) so the
+  // "Add a workout to this day" flow still works when no real Event covers
+  // a given date — lets the User keep logging Workouts ad hoc.
+  const templates = [];
+  for(let i=-120;i<=120;i++){
+    const d = dateAdd(todayISO(), i);
+    templates.push({date:d, dow:dowKey(d), dowLabel:dowShort(d), weekNum:null, phase:null, phaseLabel:null, title:"", type:"rest", refs:[]});
+  }
+  const templateByDate = {}; templates.forEach((t,i)=>templateByDate[t.date]=i);
+  const dailyQueue = templates.map((_,i)=>i);
+  const dayOverrides = (await loadJSON("event:adhoc:dayOverrides")) || {};
+  PlanByEvent.adhoc = {start:templates[0].date, end:templates[templates.length-1].date, templates, templateByDate, dailyQueue, dayOverrides};
+  if(!eventById("adhoc")){
+    Events.list.push({id:"adhoc", name:"", hidden:true, isAdhoc:true, date:null, color:"#9aa7b2", createdAt:new Date().toISOString()});
+  }
+}
+/* saves for the adhoc pseudo-event use its own namespaced key like any other event */
+
 async function init(){
   State.profile = (await loadJSON("profile")) || {...DEFAULT_PROFILE};
   State.weightHistory = (await loadJSON("weightHistory")) || [];
   await loadLibraries();
-  await initPlan();
+  await initAllEventPlans();
+  await initAdhocPseudoEvent();
   await initWeather();
   await initDriveSync();
 
@@ -1973,7 +2195,7 @@ async function init(){
   }
   State.selectedDate = today;
   const dp = getDayPlan(today);
-  State.openWeek = dp ? dp.weekNum : 1;
+  State.openWeek = dp && dp.weekNum ? dp.weekNum : 1;
   render();
 }
 
@@ -1983,7 +2205,7 @@ function render(){
     ${renderTabs()}
     <div id="tabcontent"></div>
     <div id="modal-root"></div>
-    <div class="footer-note">Century Ready · Built for the ${esc(EVENT.name)}, ${esc(fmtDateLong(EVENT.date))} · Data stays on this device</div>
+    <div class="footer-note">Train smart, arrive ready · Data stays on this device</div>
   `;
   renderTabContent();
 }
@@ -1992,8 +2214,8 @@ function renderModalRoot(){
   const m = document.getElementById("modal-root");
   if(!m) return;
   if(State._openModal==="weather") m.innerHTML = weatherFormModal();
-  else if(State._openModal==="skip") m.innerHTML = skipSwapModal(State._modalDate);
-  else if(State._openModal==="swap") m.innerHTML = swapModal(State._modalDate);
+  else if(State._openModal==="skip") m.innerHTML = skipSwapModal(State._modalEventId, State._modalDate);
+  else if(State._openModal==="swap") m.innerHTML = swapModal(State._modalEventId, State._modalDate);
   else { m.innerHTML = ""; return; }
   wireModalEvents(m);
 }
@@ -2005,26 +2227,47 @@ function wireModalEvents(m){
     if(v){ State._openModal=null; renderModalRoot(); await setWeatherLocation(v); renderWeatherWidget(); }
   }));
   m.querySelectorAll("[data-confirm-skip]").forEach(b=>b.addEventListener("click",()=>{
-    const date=b.dataset.confirmSkip; const n=parseInt(document.getElementById("skip-count-select").value);
-    const res=skipDays(date,n); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
+    const [eventId,date]=b.dataset.confirmSkip.split("::"); const n=parseInt(document.getElementById("skip-count-select").value);
+    const res=skipDays(eventId,date,n); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
   }));
   m.querySelectorAll("[data-confirm-swap]").forEach(b=>b.addEventListener("click",()=>{
-    const dateA=b.dataset.confirmSwap; const dateB=document.getElementById("swap-target-select").value;
-    const res=swapDays(dateA,dateB); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
+    const [eventId,dateA]=b.dataset.confirmSwap.split("::"); const dateB=document.getElementById("swap-target-select").value;
+    const res=swapDays(eventId,dateA,dateB); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
   }));
 }
 
 function renderHeader(){
-  const d = daysUntilEvent();
   const dp = getDayPlan(State.selectedDate);
+  const shown = Events.list.filter(e=>!e.hidden && !e.isAdhoc).sort((a,b)=>a.date.localeCompare(b.date));
+  const activeShown = shown.filter(e=>!isEventCompleted(e));
+  const completedShown = shown.filter(e=>isEventCompleted(e));
+
+  function eventRow(e){
+    const P = PlanByEvent[e.id];
+    const d = daysBetween(todayISO(), e.date);
+    const wk = P && isDateInEventPlan(e.id, State.selectedDate) ? getEventDayPlan(e.id, State.selectedDate) : null;
+    const totalWeeks = e.isLegacyCWC ? 10 : (P ? Math.max(1, Math.ceil(daysBetween(P.start,P.end)/7)) : 1);
+    return `
+    <div class="event-header-row" style="border-left:4px solid ${esc(e.color)};">
+      <div class="ehr-main">
+        <div class="ehr-name">${esc(e.name)}</div>
+        <div class="ehr-sub">${esc(e.location||"")}${e.location?" · ":""}${esc(fmtDateLong(e.date))}</div>
+      </div>
+      <div class="ehr-stats">
+        ${isEventCompleted(e)
+          ? `<span class="badge" style="background:rgba(255,255,255,0.18); color:#fff;">✓ Completed</span>`
+          : `<div class="ehr-stat"><div class="num">${d}</div><div class="lbl">Days to go</div></div>
+             <div class="ehr-stat"><div class="num">Wk ${wk&&wk.weekNum!=null?wk.weekNum:'—'}/${totalWeeks}</div><div class="lbl">${wk&&wk.phaseLabel?esc(wk.phaseLabel):''}</div></div>`}
+      </div>
+    </div>`;
+  }
+
   return `
   <div class="app-header">
-    <div class="eyebrow">Training Plan · Started ${esc(fmtDate(Plan.start))}</div>
-    <h1>Century Ready</h1>
-    <p class="sub">${esc(EVENT.name)} — ${esc(EVENT.location)} · ${esc(fmtDateLong(EVENT.date))}</p>
+    <div class="eyebrow">Event Training Program</div>
+    <h1>Event Training Program</h1>
+    ${shown.length ? `<div class="event-header-list">${activeShown.map(eventRow).join("")}${completedShown.map(eventRow).join("")}</div>` : `<p class="sub">No Events yet — create one in the Events tab, or just start logging today's training below.</p>`}
     <div class="header-stats" id="header-stats-row">
-      <div class="stat-pill hero"><div class="num">${d}</div><div class="lbl">Days to go</div></div>
-      <div class="stat-pill"><div class="num">${dp?("Wk "+dp.weekNum+"/10"):"—"}</div><div class="lbl">${dp?esc(dp.phaseLabel):""}</div></div>
       <div class="stat-pill"><div class="num">${State.profile.ftp}W</div><div class="lbl">Current FTP</div></div>
       <div id="clock-widget"></div>
       <div id="weather-widget"></div>
@@ -2063,7 +2306,7 @@ if(!window._clockInterval){
 }
 
 function renderTabs(){
-  const tabs = [["dashboard","Today"],["schedule","10-Week Schedule"],["profile","Profile & Zones"],["progress","Progress Log"],["editor","Workout & Exercise Editor"]];
+  const tabs = [["dashboard","Today"],["schedule","Weekly Schedule"],["events","Events"],["profile","Profile & Zones"],["progress","Progress Log"],["editor","Workout & Exercise Editor"]];
   return `<div class="tabnav">${tabs.map(([id,label])=>`<button data-tab="${id}" class="${State.tab===id?'active':''}">${label}</button>`).join("")}</div>`;
 }
 
@@ -2077,6 +2320,7 @@ async function renderTabContent(){
   const el = document.getElementById("tabcontent");
   if(State.tab==="dashboard") el.innerHTML = await renderDashboard();
   else if(State.tab==="schedule") el.innerHTML = await renderSchedule();
+  else if(State.tab==="events") el.innerHTML = renderEvents();
   else if(State.tab==="profile") el.innerHTML = await renderProfile();
   else if(State.tab==="progress") el.innerHTML = await renderProgress();
   else if(State.tab==="editor") el.innerHTML = renderEditor();
@@ -2198,6 +2442,21 @@ function timeOptions(max, selected){
   }
   return out;
 }
+/* Once a Workout is completed and saved, its displayed length switches to the
+   actual cumulative time — the logged Hrs:Min:Sec for rides/runs, or a manual
+   override the User can enter for any Workout type (e.g. a strength session
+   timed differently than estimated). Falls back to the planned/target time. */
+function displayWorkoutMinutes(w, savedW){
+  if(savedW && savedW.actualLenOverride){ const v = parseFloat(savedW.actualLenOverride); if(!isNaN(v) && v>0) return {min:v, isActual:true, isOverride:true}; }
+  if(savedW && savedW.completed && (w.kind==="cycling"||w.kind==="run") && durationLogged(savedW)){
+    return {min: durationTotalMinutes(savedW), isActual:true, isOverride:false};
+  }
+  return {min: w.timeMin||0, isActual:false, isOverride:false};
+}
+function actualLenOverrideField(uidStr, savedW){
+  return `<div class="field"><label>Actual Workout Length Override (min, optional)</label><input type="number" min="0" class="input-logged" data-f="actualLenOverride" data-uid="${uidStr}" value="${esc(savedW.actualLenOverride||'')}" placeholder="uses calculated time"></div>`;
+}
+
 function durationDropdowns(uidStr, savedW){
   const h = savedW.durationH ?? "00", m = savedW.durationM ?? "00", s = savedW.durationS ?? "00";
   return `
@@ -2231,7 +2490,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
   if(w.kind==="cycling"){
     const platBadge = w.platform==="Rouvy (Indoor)" ? "🚴 Rouvy" : (w.platform&&w.platform.startsWith("Rouvy") ? "🚴 "+w.platform : (w.platform==="Outdoor" ? "🌤 Outdoor" : ""));
     return `
-    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}">
+    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}" style="border-left:4px solid ${esc(w.eventColor||'transparent')};">
       <div class="wi-head" data-toggle="${uidStr}">
         ${reorderBtns}
         ${completeCheckbox(uidStr, isCompleted)}
@@ -2243,7 +2502,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           </div>
         </div>
         <div class="wi-right">
-          <span class="wi-time">${fmtHrs(w.timeMin)}${w.estMiles?` · ~${w.estMiles}mi`:""}</span>
+          <span class="wi-time">${(()=>{ const dv=displayWorkoutMinutes(w,savedW); return fmtHrs(dv.min)+(dv.isActual?' <span style="color:var(--teal-dark);font-weight:700;">(actual)</span>':''); })()}${w.estMiles?` · ~${w.estMiles}mi`:""}</span>
           <svg class="chev ${isOpen?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
@@ -2251,6 +2510,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
         <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${w.targetTSS?` · TSS ~${w.targetTSS}`:""} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Open Rouvy Workout ↗</a>`:""}</div>
         <div class="field-grid">
           ${durationDropdowns(uidStr, savedW)}
+          ${actualLenOverrideField(uidStr, savedW)}
           <div class="field"><label>Distance (mi)</label><input type="number" min="0" step="0.1" class="input-logged" data-f="distance" data-uid="${uidStr}" value="${savedW.distance??''}" placeholder="${w.estMiles||''}"></div>
           <div class="field"><label>Avg Power (W)</label><input type="number" min="0" class="input-logged" data-f="avgPower" data-uid="${uidStr}" value="${savedW.avgPower??''}"></div>
           <div class="field"><label>Avg HR (bpm)</label><input type="number" min="0" class="input-logged" data-f="avgHR" data-uid="${uidStr}" value="${savedW.avgHR??''}"></div>
@@ -2272,7 +2532,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
 
   if(w.kind==="run"){
     return `
-    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}">
+    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}" style="border-left:4px solid ${esc(w.eventColor||'transparent')};">
       <div class="wi-head" data-toggle="${uidStr}">
         ${reorderBtns}
         ${completeCheckbox(uidStr, isCompleted)}
@@ -2284,7 +2544,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           </div>
         </div>
         <div class="wi-right">
-          <span class="wi-time">${fmtHrs(w.timeMin)}${w.estMiles?` · ~${w.estMiles}mi`:""}</span>
+          <span class="wi-time">${(()=>{ const dv=displayWorkoutMinutes(w,savedW); return fmtHrs(dv.min)+(dv.isActual?' <span style="color:var(--teal-dark);font-weight:700;">(actual)</span>':''); })()}${w.estMiles?` · ~${w.estMiles}mi`:""}</span>
           <svg class="chev ${isOpen?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
@@ -2292,6 +2552,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
         <div class="wi-target"><b>Target:</b> ${esc(w.paceText||"")} · 🌤 Outdoor</div>
         <div class="field-grid">
           ${durationDropdowns(uidStr, savedW)}
+          ${actualLenOverrideField(uidStr, savedW)}
           <div class="field"><label>Distance (mi)</label><input type="number" min="0" step="0.1" class="input-logged" data-f="distance" data-uid="${uidStr}" value="${savedW.distance??''}" placeholder="${w.estMiles||''}"></div>
           <div class="field"><label>Avg Pace (min/mi)</label><input type="text" class="input-logged" data-f="pace" data-uid="${uidStr}" value="${savedW.pace??''}" placeholder="e.g. 10:45"></div>
           <div class="field"><label>Avg HR (bpm)</label><input type="number" min="0" class="input-logged" data-f="avgHR" data-uid="${uidStr}" value="${savedW.avgHR??''}"></div>
@@ -2345,7 +2606,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
       </div>`;
     }).join("");
     return `
-    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}">
+    <div class="workout-item ${isCompleted?'completed':''}" data-uid="${uidStr}" style="border-left:4px solid ${esc(w.eventColor||'transparent')};">
       <div class="wi-head" data-toggle="${uidStr}">
         ${reorderBtns}
         ${completeCheckbox(uidStr, isCompleted)}
@@ -2357,7 +2618,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           </div>
         </div>
         <div class="wi-right">
-          <span class="wi-time">${fmtHrs(w.timeMin)}</span>
+          <span class="wi-time">${(()=>{ const dv=displayWorkoutMinutes(w,savedW); return fmtHrs(dv.min)+(dv.isActual?' <span style="color:var(--teal-dark);font-weight:700;">(actual)</span>':''); })()}</span>
           <svg class="chev ${isOpen?'open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
@@ -2365,6 +2626,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
         <p style="font-size:11px; color:var(--grey-600); margin-bottom:4px;">Use the ▲▼ arrows to reorder, or ✕ to drop an exercise, for today only. Workout time updates automatically. Permanent changes are made in the Workout &amp; Exercise Editor.</p>
         ${rows}
         ${renderAddExercisePanel(uidStr, date, slotKey)}
+        <div class="field wide">${actualLenOverrideField(uidStr, savedW)}</div>
         <div class="field wide" style="margin-top:12px;"><label>Session Notes</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
@@ -2407,7 +2669,7 @@ function renderSubPicker(uidStr, date, slotKey, kind, open){
   <div style="background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:12px; margin-top:12px;">
     <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
       <input type="text" placeholder="Search workout library..." data-subsearch="${uidStr}" value="${esc(State.editorFilter.subQ||"")}" style="flex:1; min-width:160px; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px;">
-      <button class="btn btn-ghost" data-swap-day="${date}">Swap with another day</button>
+      <button class="btn btn-ghost" data-swap-day="${slotKey.split('|')[0]}::${date}">Swap with another day</button>
     </div>
     <div class="filter-chips" style="margin-bottom:10px;">
       ${["all","cycling","run","strengthblock"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-subkind="${k}">${k==='all'?'All':(k==='cycling'?'Cycling':(k==='run'?'Run':'Strength'))}</button>`).join("")}
@@ -2444,7 +2706,7 @@ function collectWorkoutFields(uidStr){
 async function saveWorkoutEntry(dayDate, slotKey, uidStr){
   const log = await getLog(dayDate);
   log.workouts = log.workouts || {};
-  log.workouts[slotKey] = collectWorkoutFields(uidStr);
+  log.workouts[slotKey] = Object.assign({}, log.workouts[slotKey]||{}, collectWorkoutFields(uidStr));
   await saveLog(dayDate, log);
   State._openItems[uidStr] = false;
   flashSaved(uidStr);
@@ -2553,6 +2815,9 @@ async function saveNutrition(date){
 function renderAddWorkoutPanel(date){
   const open = State._openItems["addwk_"+date];
   if(!open) return `<button class="btn btn-ghost" data-toggle-addworkout="${date}" style="margin-top:10px;">+ Add a workout to this day</button>`;
+  const active = activeEventsForDate(date);
+  const targets = active.length ? active : [{id:"adhoc", name:"this day"}];
+  const selectedEventId = (State.editorFilter.addWkEvent && targets.some(e=>e.id===State.editorFilter.addWkEvent)) ? State.editorFilter.addWkEvent : targets[0].id;
   const q = (State.editorFilter.addWkQ||"").toLowerCase();
   const kindFilter = State.editorFilter.addWkKind||"all";
   const results = Object.entries(Lib.workouts).filter(([id,w])=>{
@@ -2562,6 +2827,9 @@ function renderAddWorkoutPanel(date){
   });
   return `
   <div style="background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:12px; margin-top:10px;">
+    ${targets.length>1 ? `<div class="field" style="margin-bottom:10px;"><label>Add to</label>
+      <select data-addwk-event="1">${targets.map(e=>`<option value="${e.id}" ${e.id===selectedEventId?'selected':''}>${esc(e.name)}</option>`).join("")}</select>
+    </div>` : ""}
     <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
       <input type="text" placeholder="Search workout library..." data-addwk-search="1" value="${esc(State.editorFilter.addWkQ||"")}" style="flex:1; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px;">
       <div class="filter-chips">
@@ -2575,7 +2843,7 @@ function renderAddWorkoutPanel(date){
             <div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(w.name)}</div>
             <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):esc((w.exercises||[]).length+' exercises')} ${w.platform?(' · '+esc(w.platform)):''}</div>
           </div>
-          <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-add="1" data-date="${date}" data-workoutid="${id}">Add</button>
+          <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-add="1" data-date="${date}" data-workoutid="${id}" data-eventid="${selectedEventId}">Add</button>
         </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
     </div>
     <div class="save-row" style="margin-top:8px;"><button class="btn btn-ghost" data-toggle-addworkout="${date}">Close</button></div>
@@ -2585,12 +2853,13 @@ function renderAddWorkoutPanel(date){
 /* ============================================================
    SKIP / SWAP CONTROLS
    ============================================================ */
-function skipSwapModal(date){
+function skipSwapModal(eventId, date){
+  const ev = eventById(eventId);
   return `
   <div class="modal-backdrop" id="skipswap-modal">
     <div class="modal-box">
-      <h3 style="margin-bottom:4px;">Adjust schedule from ${esc(fmtDate(date))}</h3>
-      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:14px;">Skip today (life happens) — your remaining sessions shift later, and race day stays fixed.</p>
+      <h3 style="margin-bottom:4px;">Adjust ${esc(ev?ev.name:'')} schedule from ${esc(fmtDate(date))}</h3>
+      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:14px;">Skip today (life happens) — your remaining sessions shift later, and event day stays fixed.</p>
       <div class="field"><label>Skip how many days, starting ${esc(fmtDate(date))}?</label>
         <select id="skip-count-select">
           ${[1,2,3,4,5,6,7].map(n=>`<option value="${n}">${n} day${n>1?'s':''}</option>`).join("")}
@@ -2598,17 +2867,18 @@ function skipSwapModal(date){
       </div>
       <div class="save-row" style="justify-content:flex-end;">
         <button class="btn btn-ghost" data-close-modal="1">Cancel</button>
-        <button class="btn btn-primary" data-confirm-skip="${date}">Skip & Shift Plan</button>
+        <button class="btn btn-primary" data-confirm-skip="${eventId}::${date}">Skip & Shift Plan</button>
       </div>
     </div>
   </div>`;
 }
-function swapModal(dateA){
-  const dates = allCalendarDates().filter(d=>d!==dateA && d!==EVENT.date);
+function swapModal(eventId, dateA){
+  const ev = eventById(eventId);
+  const dates = (PlanByEvent[eventId]?PlanByEvent[eventId].templates.map(t=>t.date):[]).filter(d=>d!==dateA && d!==(ev?ev.date:null));
   return `
   <div class="modal-backdrop" id="swap-modal">
     <div class="modal-box">
-      <h3 style="margin-bottom:4px;">Swap ${esc(fmtDate(dateA))} with another day</h3>
+      <h3 style="margin-bottom:4px;">Swap ${esc(fmtDate(dateA))} with another ${esc(ev?ev.name:'')} day</h3>
       <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:14px;">e.g. move Friday's workout to today, and today's workout to Friday.</p>
       <div class="field"><label>Swap with</label>
         <select id="swap-target-select">
@@ -2617,7 +2887,7 @@ function swapModal(dateA){
       </div>
       <div class="save-row" style="justify-content:flex-end;">
         <button class="btn btn-ghost" data-close-modal="1">Cancel</button>
-        <button class="btn btn-primary" data-confirm-swap="${dateA}">Swap Days</button>
+        <button class="btn btn-primary" data-confirm-swap="${eventId}::${dateA}">Swap Days</button>
       </div>
     </div>
   </div>`;
@@ -2631,7 +2901,7 @@ async function renderDashboard(){
   const day = getDayPlan(date);
   if(!day) return `<div class="empty-state"><h3>No plan data for this date</h3><p>Pick a day within the training window.</p></div>`;
   const log = await getLog(date);
-  const totalMin = totalDayMinutes(day);
+  const totalMin = totalDayMinutes(day, log);
   const isToday = date===todayISO();
   const weekDays = allCalendarDates().filter(d=>getDayPlan(d).weekNum===day.weekNum);
 
@@ -2648,7 +2918,8 @@ async function renderDashboard(){
         <h2>${esc(day.title)}${day.isSubstituted?' <span style="font-size:12px;color:var(--orange);font-weight:700;">(modified)</span>':''}</h2>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        ${typeBadge(day.type)} ${phaseBadge(day.phase, day.phaseLabel)}
+        ${typeBadge(day.type)}
+        ${(day.events||[]).map(e=>`<span class="badge" style="background:${esc(e.color)}22; color:${esc(e.color)}; border:1px solid ${esc(e.color)}55;">${esc(e.name)}${e.phaseLabel?' · '+esc(e.phaseLabel):''}</span>`).join("")}
         <span class="wi-time">${totalMin>0?fmtHrs(totalMin)+" planned":""}</span>
       </div>
     </div>
@@ -2663,15 +2934,17 @@ async function renderDashboard(){
       }).join("")}
       <button data-week-nav="1" title="Next week" style="flex-shrink:0; align-self:center; border:1.5px solid var(--grey-200); background:#fff; border-radius:8px; width:30px; height:30px; cursor:pointer; color:var(--ink-600); font-weight:700;">›</button>
     </div>
+    ${(day.events||[]).filter(e=>e.id!=="adhoc").map(e=>`
     <div class="save-row" style="margin-top:14px;">
-      <button class="btn btn-ghost" data-open-skip="${date}">Skip day(s) from here</button>
-      <button class="btn btn-ghost" data-open-swap="${date}">Swap with another day</button>
-      ${day.isSkipped || day.isSubstituted || day.originalTemplateDate!==date ? `<button class="btn btn-ghost" data-reset-day="${date}">Reset to original plan</button>` : ""}
-    </div>
+      <span style="font-size:11px; color:var(--ink-600); font-weight:700; align-self:center;">${esc(e.name)}:</span>
+      <button class="btn btn-ghost" data-open-skip="${e.id}::${date}">Skip day(s) from here</button>
+      <button class="btn btn-ghost" data-open-swap="${e.id}::${date}">Swap with another day</button>
+      <button class="btn btn-ghost" data-reset-day="${e.id}::${date}">Reset to original plan</button>
+    </div>`).join("")}
   </div>
 
   <div class="card ${isDayFullyCompleted(day, log)?'day-complete-bg':''}">
-    <div class="card-header"><h2>Workouts ${isDayFullyCompleted(day, log)?'<span style="font-size:12px;color:var(--teal-dark);font-weight:700;">✓ All completed</span>':''}</h2><span class="meta">Week ${day.weekNum} of 10 · ${esc(day.phaseLabel)}</span></div>
+    <div class="card-header"><h2>Workouts ${isDayFullyCompleted(day, log)?'<span style="font-size:12px;color:var(--teal-dark);font-weight:700;">✓ All completed</span>':''}</h2><span class="meta">${(day.events||[]).length ? (day.events||[]).map(e=>esc(e.name)).join(" · ") : "No active Event"}</span></div>
     ${day.workouts.length ? day.workouts.map((w,i)=>renderWorkoutItem(day,i,w,log,exRecent)).join("") : `<p style="color:var(--grey-600); font-size:13.5px;">Nothing scheduled — full rest. Prioritize sleep and hydration.</p>`}
     ${renderAddWorkoutPanel(date)}
   </div>
@@ -2722,6 +2995,7 @@ function renderCheckinWidget(date, log, isOpen, recent){
       ${fld("Muscle Mass (%)","dc-musclemass","muscleMass",'min="0" max="100" step="0.1"',"00.0")}
       ${fld("BMI","dc-bmi","bmiReading",'min="0" max="99" step="0.1"',"00.0")}
       ${fld("Body Water (%)","dc-bodywater","bodyWater",'min="0" max="100" step="0.1"',"00.0")}
+      ${fld("Bone Mass (%)","dc-bonemass","boneMass",'min="0" max="100" step="0.1"',"00.0")}
     </div>`;
   if(!isOpen) return grid;
   return grid + `
@@ -2765,6 +3039,7 @@ async function saveCheckin(date){
   log.muscleMass = document.getElementById("dc-musclemass").value;
   log.bmiReading = document.getElementById("dc-bmi").value;
   log.bodyWater = document.getElementById("dc-bodywater").value;
+  log.boneMass = document.getElementById("dc-bonemass").value;
   log.notes = document.getElementById("dc-notes").value;
   await saveLog(date, log);
   if(log.bodyweight){
@@ -2788,8 +3063,8 @@ async function renderSchedule(){
   let html = `<div class="card" style="padding:18px 22px;">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div>
-        <h2 style="font-size:16px;">10-Week Plan Overview</h2>
-        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">Started ${esc(fmtDate(Plan.start))} → Century Day ${esc(fmtDate(EVENT.date))}.</p>
+        <h2 style="font-size:16px;">Weekly Plan Overview</h2>
+        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">${(()=>{ const evs=Events.list.filter(e=>!e.isAdhoc && !e.hidden); return evs.length ? evs.map(e=>esc(e.name)+' ('+esc(fmtDate(PlanByEvent[e.id]?PlanByEvent[e.id].start:e.trainingStart))+' → '+esc(fmtDate(e.date))+')').join(' · ') : 'No active Events — create one on the Events tab.'; })()}</p>
       </div>
       <div class="pill-toggle">
         <button class="${view==='list'?'active':''}" data-view-toggle="list">List</button>
@@ -2829,7 +3104,7 @@ async function renderSchedule(){
 async function renderDayRow(d){
   const dp = getDayPlan(d);
   const log = await getLog(d);
-  const totalMin = totalDayMinutes(dp);
+  const totalMin = totalDayMinutes(dp, log);
   const allDone = isDayFullyCompleted(dp, log);
   const exRecent = await buildRecentExerciseValueLookup(d, 30);
   return `
@@ -2847,7 +3122,7 @@ async function renderDayRow(d){
 
 /* ---------------- CALENDAR VIEW ---------------- */
 function navCalendarMonth(delta){
-  const [y,m] = (State.calendarMonth||Plan.start.slice(0,7)).split("-").map(Number);
+  const [y,m] = (State.calendarMonth||todayISO().slice(0,7)).split("-").map(Number);
   const nd = new Date(y, m-1+delta, 1);
   State.calendarMonth = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
 }
@@ -2867,7 +3142,7 @@ function isDayFullyCompleted(day, log){
 }
 /* 'start' | 'completed' | 'incomplete' | null(no special coloring — rest day, today, or future) */
 async function dayCompletionStatus(date){
-  if(date === Plan.start) return "start";
+  if(Events.list.some(e=>!e.isAdhoc && !e.hidden && PlanByEvent[e.id] && PlanByEvent[e.id].start===date)) return "start";
   if(date >= todayISO()) return null;
   const dp = getDayPlan(date);
   if(!dp || !dp.workouts.length) return null;
@@ -2918,9 +3193,11 @@ async function renderCalendarView(){
         if(isToday) cls.push("cal-today");
         if(isSelected) cls.push("cal-selected");
         const dp = getDayPlan(iso);
+        const evDots = (dp.events||[]).map(e=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${esc(e.color)};margin-right:2px;" title="${esc(e.name)}"></span>`).join("");
         const dots = dp.workouts.slice(0,4).map(w=>`<span style="display:inline-block;width:14px;height:14px;border-radius:5px;background:${status==='start'?'rgba(255,255,255,0.3)':'var(--grey-100)'};margin:1px;">${iconForWorkout(w).replace('<svg ','<svg style="width:10px;height:10px;" ')}</span>`).join("");
         return `<div class="${cls.join(' ')}" data-cal-day="${iso}">
           <div class="cal-daynum">${dayNum(iso)}${status==='start'?' 🚩':''}</div>
+          ${evDots?`<div style="margin:2px 0;">${evDots}</div>`:''}
           <div class="cal-daytitle">${esc(dp.title.length>16?dp.title.slice(0,15)+'…':dp.title)}</div>
           <div style="margin-top:3px; display:flex; flex-wrap:wrap;">${dots}</div>
         </div>`;
@@ -2931,6 +3208,7 @@ async function renderCalendarView(){
       <div class="lg-item"><span class="lg-swatch" style="background:#F4F6F5; border:1.5px solid var(--green);"></span>Completed</div>
       <div class="lg-item"><span class="lg-swatch" style="background:#F6F5F0; border:1.5px solid var(--yellow);"></span>Not fully logged</div>
       <div class="lg-item"><span class="lg-swatch" style="background:#fff; border:1.5px solid var(--grad-warm-1);"></span>Today</div>
+      ${Events.list.filter(e=>!e.isAdhoc && !e.hidden).map(e=>`<div class="lg-item"><span class="lg-swatch" style="background:${esc(e.color)};"></span>${esc(e.name)}</div>`).join("")}
     </div>
   </div>`;
 
@@ -3003,7 +3281,7 @@ async function renderDataDiagnosticsCard(){
   <div class="card">
     <div class="card-header"><h2>Data Diagnostics</h2><span class="meta">What's actually in storage on this device right now</span></div>
     <div class="calc-box">
-      <div class="cline"><span>Program start date</span><span>${esc(Plan.start)}</span></div>
+      <div class="cline"><span>Active Events</span><span>${Events.list.filter(e=>!e.isAdhoc && !e.hidden).length}</span></div>
       <div class="cline"><span>Days with a logged entry</span><span>${logDates.length}</span></div>
       <div class="cline"><span>Earliest / latest logged day</span><span>${oldest?esc(fmtDate(oldest)):'—'} → ${newest?esc(fmtDate(newest)):'—'}</span></div>
       <div class="cline"><span>Custom workouts saved</span><span>${Object.keys(wl).length}</span></div>
@@ -3017,6 +3295,181 @@ async function renderDataDiagnosticsCard(){
     <input type="file" id="backup-file-input" accept="application/json,.json" style="font-size:13px;">
     <div id="backup-preview"></div>
   </div>`;
+}
+
+/* ============================================================
+   EVENTS TAB — create/edit/list Events, and the Claude-prompt
+   workflow for building a new Event's Training Plan.
+   ============================================================ */
+function renderEvents(){
+  if(State._eventFormOpen) return renderEventForm(State._editingEventId ? eventById(State._editingEventId) : null);
+  if(State._eventPlanForId) return renderCreatePlanPanel(eventById(State._eventPlanForId));
+  return renderEventsList();
+}
+
+function renderEventsList(){
+  const shown = Events.list.filter(e=>!e.isAdhoc);
+  const active = shown.filter(e=>!e.hidden);
+  const hidden = shown.filter(e=>e.hidden);
+  function card(e){
+    const completed = isEventCompleted(e);
+    const P = PlanByEvent[e.id];
+    const hasImportedPlan = e.isLegacyCWC || (P && P.hasRealPlan);
+    return `
+    <div class="card" style="border-left:4px solid ${esc(e.color)};">
+      <div class="card-header">
+        <h2>${esc(e.name)} ${completed?'<span class="badge badge-rest">Completed</span>':''} ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
+        <span class="meta">${esc(fmtDateLong(e.date))}</span>
+      </div>
+      ${e.description?`<p style="font-size:13px; color:var(--ink-600); margin-bottom:8px;">${esc(e.description)}</p>`:''}
+      <div class="calc-box">
+        <div class="cline"><span>Type</span><span>${esc(e.type==='other'?(e.typeOther||'Other'):(e.type==='cycling'?'Cycling':'Running'))}</span></div>
+        ${e.location?`<div class="cline"><span>Location</span><span>${esc(e.location)}</span></div>`:''}
+        ${e.distance?`<div class="cline"><span>Distance</span><span>${esc(e.distance)} ${esc(e.distanceUnit||'mi')}</span></div>`:''}
+        <div class="cline"><span>Training window</span><span>${esc(fmtDate(e.trainingStart))} → ${esc(fmtDate(eventTrainingEnd(e)))}</span></div>
+        ${!hasImportedPlan?`<div class="cline"><span>Training Plan</span><span style="color:var(--orange);">Not created yet</span></div>`:''}
+      </div>
+      <div class="save-row" style="margin-top:12px;">
+        ${e.website?`<a href="${esc(e.website)}" target="_blank" rel="noopener" class="btn btn-ghost">Event Website ↗</a>`:''}
+        ${e.locationMapUrl?`<a href="${esc(e.locationMapUrl)}" target="_blank" rel="noopener" class="btn btn-ghost">Map ↗</a>`:''}
+        ${!hasImportedPlan?`<button class="btn btn-primary" data-create-plan="${e.id}">Create a Training Plan</button>`:''}
+        <button class="btn btn-ghost" data-edit-event="${e.id}">Edit</button>
+        <button class="btn btn-ghost" data-hide-event="${e.id}">${e.hidden?'Unhide':'Hide'}</button>
+        <button class="btn btn-ghost" data-delete-event="${e.id}" style="color:var(--red);">Delete</button>
+      </div>
+    </div>`;
+  }
+  return `
+  <div class="card-header" style="margin-bottom:4px;"><h2 style="font-size:18px;">Your Events</h2></div>
+  <p style="font-size:13px; color:var(--ink-600); margin-bottom:16px;">Create an Event for anything you're training for. Each gets its own color-coded Training Plan, and plans can overlap.</p>
+  <button class="btn btn-primary" data-new-event="1" style="margin-bottom:18px;">+ New Event</button>
+  ${active.length ? active.map(card).join("") : `<div class="empty-state"><h3>No Events yet</h3><p>Create one above to get a Training Plan going, or just keep logging today's training without one.</p></div>`}
+  ${hidden.length ? `<div class="section-title">Hidden Events</div>${hidden.map(card).join("")}` : ""}
+  `;
+}
+
+function renderEventForm(ev){
+  const e = ev || {name:"",description:"",date:"",type:"cycling",typeOther:"",location:"",locationMapUrl:"",website:"",distance:"",distanceUnit:"mi",trainingStart:todayISO(),trainingEndMode:"event",trainingEndDate:"",color:nextEventColor()};
+  const isNew = !ev;
+  return `
+  <div class="card">
+    <div class="card-header"><h2>${isNew?'New Event':'Edit Event'}</h2></div>
+    <div class="field-grid">
+      <div class="field wide"><label>Name of Event</label><input type="text" id="ev-name" value="${esc(e.name)}"></div>
+      <div class="field wide"><label>Description</label><textarea id="ev-desc">${esc(e.description||"")}</textarea></div>
+      <div class="field"><label>Date of Event</label><input type="date" id="ev-date" value="${esc(e.date||"")}"></div>
+      <div class="field"><label>Event Type</label>
+        <select id="ev-type">
+          <option value="cycling" ${e.type==='cycling'?'selected':''}>Cycling</option>
+          <option value="running" ${e.type==='running'?'selected':''}>Running</option>
+          <option value="other" ${e.type==='other'?'selected':''}>Other</option>
+        </select>
+      </div>
+      <div class="field wide" id="ev-typeother-field" style="display:${e.type==='other'?'flex':'none'};"><label>Describe the Event Type</label><input type="text" id="ev-typeother" value="${esc(e.typeOther||"")}"></div>
+      <div class="field"><label>Event Location</label><input type="text" id="ev-location" value="${esc(e.location||"")}"></div>
+      <div class="field"><label>Google Maps Link</label><input type="url" id="ev-mapurl" value="${esc(e.locationMapUrl||"")}"></div>
+      <div class="field wide"><label>Event Website</label><input type="url" id="ev-website" value="${esc(e.website||"")}"></div>
+      <div class="field"><label>Event Distance</label><input type="number" step="0.1" id="ev-distance" value="${esc(e.distance||"")}"></div>
+      <div class="field"><label>Units</label>
+        <select id="ev-distanceunit">
+          <option value="mi" ${e.distanceUnit==='mi'?'selected':''}>Miles</option>
+          <option value="km" ${e.distanceUnit==='km'?'selected':''}>Kilometers</option>
+        </select>
+      </div>
+      <div class="field"><label>Training Plan Start Date</label><input type="date" id="ev-start" value="${esc(e.trainingStart||"")}"></div>
+      <div class="field wide"><label>Training Plan Length</label>
+        <input type="hidden" id="ev-endmode" value="${esc(e.trainingEndMode||'event')}">
+        <div class="btn-group">
+          <button type="button" class="choice-btn ${e.trainingEndMode!=='other'?'active':''}" data-choice-for="ev-endmode" data-choice-value="event">Runs to Event Date</button>
+          <button type="button" class="choice-btn ${e.trainingEndMode==='other'?'active':''}" data-choice-for="ev-endmode" data-choice-value="other">Other End Date</button>
+        </div>
+      </div>
+      <div class="field" id="ev-enddate-field" style="display:${e.trainingEndMode==='other'?'flex':'none'};"><label>Training Plan End Date</label><input type="date" id="ev-enddate" value="${esc(e.trainingEndDate||"")}"></div>
+      <div class="field wide"><label>Color</label>
+        <input type="hidden" id="ev-color" value="${esc(e.color)}">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          ${EVENT_COLORS.map(c=>`<button type="button" data-choice-for="ev-color" data-choice-value="${c}" style="width:28px; height:28px; border-radius:50%; background:${c}; border:3px solid ${c===e.color?'var(--navy)':'transparent'}; cursor:pointer;"></button>`).join("")}
+        </div>
+      </div>
+    </div>
+    <div class="save-row" style="margin-top:16px;">
+      <button class="btn btn-primary" data-save-event="1" data-isnew="${isNew?1:0}" data-eventid="${e.id||''}">Save Event</button>
+      <button class="btn btn-ghost" data-cancel-event="1">Cancel</button>
+    </div>
+  </div>`;
+}
+
+/* ---------------- Claude-prompt Training-Plan workflow ---------------- */
+function renderCreatePlanPanel(ev){
+  if(!ev) return renderEventsList();
+  const extra = State._planExtraInfo || "";
+  return `
+  <div class="card">
+    <div class="card-header"><h2>Create a Training Plan for ${esc(ev.name)}</h2></div>
+    <p style="font-size:13px; color:var(--ink-600); margin-bottom:12px;">This builds a prompt you'll paste into a Claude chat. Claude will work through a draft Training Plan with you there; once you're happy with it, ask Claude to save it as a file, then come back here and upload that file to load it into the app.</p>
+    <div class="field wide"><label>Anything else Claude should know? (fitness level, weekly hours available, days you can't train, injuries to work around, equipment, etc.)</label>
+      <textarea id="plan-extra-info" rows="4">${esc(extra)}</textarea>
+    </div>
+    <div class="save-row" style="margin-top:10px;">
+      <button class="btn btn-primary" data-gen-prompt="${ev.id}">Generate Prompt</button>
+      <button class="btn btn-ghost" data-cancel-plan="1">Back</button>
+    </div>
+    ${State._generatedPrompt ? `
+      <div class="section-title">Copy this into a Claude chat</div>
+      <textarea readonly rows="16" style="width:100%; font-family:var(--font-mono); font-size:11.5px; padding:12px; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm);">${esc(State._generatedPrompt)}</textarea>
+      <div class="save-row" style="margin-top:10px;"><button class="btn btn-ghost" data-copy-prompt="1">Copy to Clipboard</button></div>
+      <div class="section-title">Upload the Training Plan file Claude gives you</div>
+      <input type="file" id="plan-file-input" accept="application/json,.json">
+      <div id="plan-import-preview"></div>
+    ` : ""}
+  </div>`;
+}
+
+function buildPlanPrompt(ev, extra){
+  return `I'm training for an event and want you to build me a day-by-day Training Plan, then hand it back as a downloadable JSON file in a specific format so I can import it into my training app.
+
+EVENT DETAILS
+- Name: ${ev.name}
+- Type: ${ev.type==='other'?(ev.typeOther||'Other'):ev.type}
+- Date: ${ev.date}
+- Distance: ${ev.distance||'(not specified)'} ${ev.distanceUnit||''}
+- Location: ${ev.location||'(not specified)'}
+- Training Plan window: ${ev.trainingStart} through ${eventTrainingEnd(ev)}
+
+ADDITIONAL INFO FROM ME
+${extra ? extra : '(none provided)'}
+
+WHAT I NEED FROM YOU
+Work with me conversationally to design a sensible, periodized Training Plan across that date range — ask me anything you need to know first (current fitness, weekly time available, rest-day preferences, injuries, etc.) before drafting it. Iterate with me until I say it's final.
+
+Once I confirm the plan is final, create a downloadable JSON file (not just text in the chat) with EXACTLY this structure — this is the only format my app can import:
+
+{
+  "eventId": "${ev.id}",
+  "templatesStart": "${ev.trainingStart}",
+  "templates": [
+    {
+      "date": "YYYY-MM-DD",
+      "dow": "mon",
+      "dowLabel": "MON",
+      "weekNum": 1,
+      "phase": "base",
+      "phaseLabel": "Base",
+      "title": "Short title for the day",
+      "type": "outdoor",
+      "refs": [
+        { "workoutId": "cy_outdoor_endurance", "overrides": { "timeMin": 60, "estMiles": 12 } }
+      ]
+    }
+  ]
+}
+
+Rules for that JSON:
+- One object in "templates" per calendar day in the training window, in date order, every date present (rest days included, with "refs": []).
+- "type" must be one of: outdoor, indoor, run, strength, recovery, rest, race. Use "race" only for the Event's own date.
+- Each entry in "refs" should reference a workoutId already in my app's library where a sensible match exists (e.g. cy_outdoor_endurance, cy_long_ride, cy_indoor_recovery, run_easy, sb_upper_foundation, sb_lower_foundation, sb_full_foundation, sb_flex_flow) with an "overrides" object for timeMin/estMiles as needed — or invent a new descriptive workoutId (e.g. "cy_tempo_build") with a plain-language title in "title" if nothing in that list fits; either way keep "refs" workoutId values lowercase with underscores.
+- "dow"/"dowLabel"/"weekNum"/"phase"/"phaseLabel" can be reasonable descriptive values you choose — they're for display only.
+- Output ONLY that JSON structure in the downloadable file, nothing else in it.`;
 }
 
 async function renderProfile(){
@@ -3070,12 +3523,22 @@ async function renderProfile(){
       <div class="info-callout">Re-test FTP and threshold HR every 4–6 weeks with a 30-min time-trial effort. Update here after each test so workout targets and zones stay accurate.</div>
       <div class="save-row"><button class="btn btn-primary" data-save-profile="1">Save profile</button><span class="save-tick" data-tick="profile">✓ Saved</span></div>
 
-      <div class="section-title">Program Start Date</div>
-      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:10px;">Currently started ${esc(fmtDate(Plan.start))}. Changing this regenerates your whole schedule from the new date (10-week build ending on race day) and clears any skip/swap/substitution changes.</p>
-      <div class="field-grid">
-        <div class="field"><label>New Start Date</label><input type="date" id="start-date-input" value="${Plan.start}" min="2020-01-01" max="${EVENT.date}"></div>
-      </div>
-      <div class="save-row"><button class="btn btn-ghost" data-set-start="1">Set Start Date</button></div>
+      <div class="section-title">Training Plan Start Date</div>
+      ${(()=>{ const selectable = Events.list.filter(e=>!e.isAdhoc);
+        if(!selectable.length) return `<p style="font-size:12.5px; color:var(--grey-600);">Create an Event on the Events tab to set a Training Plan start date.</p>`;
+        const selId = State._startDateEventId && selectable.some(e=>e.id===State._startDateEventId) ? State._startDateEventId : selectable[0].id;
+        const selEv = eventById(selId);
+        const curStart = PlanByEvent[selId] ? PlanByEvent[selId].start : selEv.trainingStart;
+        return `
+        <div class="field"><label>Event</label>
+          <select id="start-date-event-select">${selectable.map(e=>`<option value="${e.id}" ${e.id===selId?'selected':''}>${esc(e.name)}</option>`).join("")}</select>
+        </div>
+        <p style="font-size:12.5px; color:var(--grey-600); margin:8px 0 10px;">Currently started ${esc(fmtDate(curStart))}. Changing this shifts that Event's whole schedule and clears any skip/swap/substitution changes for it.</p>
+        <div class="field-grid">
+          <div class="field"><label>New Start Date</label><input type="date" id="start-date-input" value="${esc(curStart)}" min="2020-01-01" max="${esc(selEv.date)}"></div>
+        </div>
+        <div class="save-row"><button class="btn btn-ghost" data-set-start="${selId}">Set Start Date</button></div>`;
+      })()}
     </div>
     <div>
       <div class="card"><div class="card-header"><h2>Power Zones</h2><span class="meta">Coggan Classic, from FTP</span></div>
@@ -3183,8 +3646,8 @@ async function renderProgress(){
     <div class="card"><div class="card-header"><h2>Plan Snapshot</h2></div>
       <div class="calc-box">
         <div class="cline"><span>Days logged</span><span>${complianceRows.length}</span></div>
-        <div class="cline"><span>Days into plan</span><span>${Math.max(0,daysBetween(Plan.start, todayISO())+1)} of ${allCalendarDates().length}</span></div>
-        <div class="cline"><span>Days to race</span><span>${daysUntilEvent()}</span></div>
+        <div class="cline"><span>Total days tracked</span><span>${allCalendarDates().length}</span></div>
+        <div class="cline"><span>Days to next Event</span><span>${daysUntilNearestEvent()!==null?daysUntilNearestEvent():'—'}</span></div>
       </div>
     </div>
   </div>
@@ -3196,7 +3659,7 @@ async function renderProgress(){
         <button class="${view==='calendar'?'active':''}" data-progress-view="calendar">Calendar</button>
       </div>
     </div>
-    <p style="font-size:12px; color:var(--ink-600); margin-bottom:10px;">Click any day to jump to it in the 10-Week Schedule.</p>
+    <p style="font-size:12px; color:var(--ink-600); margin-bottom:10px;">Click any day to jump to it in the Weekly Schedule.</p>
     ${view==='list' ? logView : calView}
   </div>`;
 }
@@ -3228,7 +3691,7 @@ async function renderProgressCalendar(loggedDateSet){
       const inPlan = allDates.includes(iso);
       if(!inPlan) return `<div class="cal-cell cal-outside">${dayNum(iso)}</div>`;
       const logged = loggedDateSet.has(iso);
-      const isStart = iso===Plan.start;
+      const isStart = Events.list.some(e=>!e.isAdhoc && !e.hidden && PlanByEvent[e.id] && PlanByEvent[e.id].start===iso);
       const cls = ["cal-cell"];
       if(isStart) cls.push("cal-start"); else if(logged) cls.push("cal-completed");
       if(iso===todayISO()) cls.push("cal-today");
@@ -3250,6 +3713,97 @@ async function renderProgressCalendar(loggedDateSet){
 function wireTabEvents(scopeEl){
   const el = scopeEl || document.getElementById("tabcontent");
   if(!el) return;
+
+  /* ---- Events tab ---- */
+  el.querySelectorAll("[data-new-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=true; State._editingEventId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-edit-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=true; State._editingEventId=b.dataset.editEvent; renderTabContent(); }));
+  el.querySelectorAll("[data-cancel-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=false; State._editingEventId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-hide-event]").forEach(b=>b.addEventListener("click", async ()=>{ const ev=eventById(b.dataset.hideEvent); await setEventHidden(ev.id, !ev.hidden); render(); }));
+  el.querySelectorAll("[data-delete-event]").forEach(b=>b.addEventListener("click", async ()=>{
+    const ev = eventById(b.dataset.deleteEvent);
+    if(confirm(`Delete "${ev.name}"? Its schedule data stays on this device and can be recovered later if needed, but it will disappear from the app.`)){
+      await deleteEvent(ev.id); render();
+    }
+  }));
+  el.querySelectorAll("[data-save-event]").forEach(b=>b.addEventListener("click", async ()=>{
+    const name = document.getElementById("ev-name").value.trim();
+    if(!name){ alert("Please name the Event."); return; }
+    const isNew = b.dataset.isnew==="1";
+    if(eventNameTaken(name, isNew?null:b.dataset.eventid)){ alert("You already have an Event with that name this year — please use a different name."); return; }
+    const data = {
+      name, description: document.getElementById("ev-desc").value,
+      date: document.getElementById("ev-date").value,
+      type: document.getElementById("ev-type").value,
+      typeOther: document.getElementById("ev-typeother").value,
+      location: document.getElementById("ev-location").value,
+      locationMapUrl: document.getElementById("ev-mapurl").value,
+      website: document.getElementById("ev-website").value,
+      distance: document.getElementById("ev-distance").value,
+      distanceUnit: document.getElementById("ev-distanceunit").value,
+      trainingStart: document.getElementById("ev-start").value,
+      trainingEndMode: document.getElementById("ev-endmode").value,
+      trainingEndDate: document.getElementById("ev-enddate").value,
+      color: document.getElementById("ev-color").value
+    };
+    if(!data.date || !data.trainingStart){ alert("Please set both the Event Date and the Training Plan Start Date."); return; }
+    if(isNew) await createEvent(data);
+    else await updateEvent(b.dataset.eventid, data);
+    State._eventFormOpen=false; State._editingEventId=null;
+    render();
+  }));
+  const typeSel = el.querySelector("#ev-type");
+  if(typeSel) typeSel.addEventListener("change",()=>{
+    const f = document.getElementById("ev-typeother-field");
+    if(f) f.style.display = typeSel.value==="other" ? "flex" : "none";
+  });
+
+  el.querySelectorAll("[data-create-plan]").forEach(b=>b.addEventListener("click",()=>{ State._eventPlanForId=b.dataset.createPlan; State._generatedPrompt=null; renderTabContent(); }));
+  el.querySelectorAll("[data-cancel-plan]").forEach(b=>b.addEventListener("click",()=>{ State._eventPlanForId=null; State._generatedPrompt=null; renderTabContent(); }));
+  el.querySelectorAll("#plan-extra-info").forEach(t=>t.addEventListener("input",()=>{ State._planExtraInfo=t.value; }));
+  el.querySelectorAll("[data-gen-prompt]").forEach(b=>b.addEventListener("click",()=>{
+    const ev = eventById(b.dataset.genPrompt);
+    State._generatedPrompt = buildPlanPrompt(ev, State._planExtraInfo||"");
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-copy-prompt]").forEach(b=>b.addEventListener("click",()=>{
+    if(navigator.clipboard) navigator.clipboard.writeText(State._generatedPrompt||"");
+  }));
+  el.querySelectorAll("#plan-file-input").forEach(inp=>inp.addEventListener("change", async ()=>{
+    const file = inp.files[0];
+    if(!file) return;
+    const preview = document.getElementById("plan-import-preview");
+    preview.innerHTML = `<p style="font-size:12px;color:var(--ink-600);margin-top:8px;">Reading file…</p>`;
+    try{
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if(!parsed || !Array.isArray(parsed.templates) || !parsed.templates.length) throw new Error("This file doesn't look like a Training Plan export (missing a \"templates\" list).");
+      const ev = eventById(State._eventPlanForId);
+      if(!ev) throw new Error("No Event selected.");
+      // repair pass: auto-create a minimal library workout for any referenced
+      // workoutId that doesn't already exist, so nothing renders broken.
+      let created = 0;
+      for(const day of parsed.templates){
+        for(const ref of (day.refs||[])){
+          if(ref.workoutId && !Lib.workouts[ref.workoutId]){
+            await saveWorkout(ref.workoutId, {
+              name: day.title || ref.workoutId, kind:"cycling", platform:"Outdoor",
+              zoneText:"", timeMin:(ref.overrides&&ref.overrides.timeMin)||45, estMiles:(ref.overrides&&ref.overrides.estMiles)||undefined,
+              desc:"Imported from a generated Training Plan."
+            });
+            created++;
+          }
+        }
+      }
+      await saveJSON("event:"+ev.id+":templates", parsed.templates);
+      await saveJSON("event:"+ev.id+":templatesStart", parsed.templatesStart || parsed.templates[0].date);
+      await saveJSON("event:"+ev.id+":planStart", parsed.templatesStart || parsed.templates[0].date);
+      await initEventPlan(ev);
+      preview.innerHTML = `<p style="font-size:12.5px;color:var(--teal-dark);margin-top:8px;">✓ Imported ${parsed.templates.length} days${created?` (added ${created} new workout${created>1?'s':''} to your library to match)`:''}. </p>`;
+      setTimeout(()=>{ State._eventPlanForId=null; State._generatedPrompt=null; render(); }, 900);
+    } catch(e){
+      preview.innerHTML = `<p style="font-size:12px;color:var(--red);margin-top:8px;">${esc(e.message)}</p>`;
+    }
+  }));
 
   el.querySelectorAll("[data-toggle]").forEach(h=>h.addEventListener("click",(e)=>{
     if(e.target.closest("[data-reorder-workout]")) return;
@@ -3287,8 +3841,8 @@ function wireTabEvents(scopeEl){
     const {date,slotKey}=parseUid(cb.dataset.complete);
     const log = await getLog(date);
     log.workouts = log.workouts || {};
-    log.workouts[slotKey] = log.workouts[slotKey] || {};
-    log.workouts[slotKey].completed = cb.checked;
+    const formFields = collectWorkoutFields(cb.dataset.complete);
+    log.workouts[slotKey] = Object.assign({}, log.workouts[slotKey]||{}, formFields, {completed: cb.checked});
     await saveLog(date, log);
     renderTabContent();
   }));
@@ -3365,8 +3919,9 @@ function wireTabEvents(scopeEl){
     setTimeout(()=>{ const f=document.querySelector(`[data-addwk-search]`); if(f){ f.focus(); f.selectionStart=f.selectionEnd=f.value.length; } },0);
   }));
   el.querySelectorAll("[data-addwk-kind]").forEach(btn=>btn.addEventListener("click",()=>{ State.editorFilter.addWkKind=btn.dataset.addwkKind; renderTabContent(); }));
+  el.querySelectorAll("[data-addwk-event]").forEach(sel=>sel.addEventListener("change",()=>{ State.editorFilter.addWkEvent=sel.value; renderTabContent(); }));
   el.querySelectorAll("[data-pick-add]").forEach(btn=>btn.addEventListener("click",()=>{
-    addWorkoutToDay(btn.dataset.date, btn.dataset.workoutid);
+    addWorkoutToDay(btn.dataset.eventid, btn.dataset.date, btn.dataset.workoutid);
     State._openItems["addwk_"+btn.dataset.date]=false;
     renderTabContent();
   }));
@@ -3385,10 +3940,10 @@ function wireTabEvents(scopeEl){
     await saveLog(date, log); renderTabContent();
   }));
 
-  el.querySelectorAll("[data-open-skip]").forEach(btn=>btn.addEventListener("click",()=>{ State._openModal="skip"; State._modalDate=btn.dataset.openSkip; renderModalRoot(); }));
-  el.querySelectorAll("[data-open-swap]").forEach(btn=>btn.addEventListener("click",()=>{ State._openModal="swap"; State._modalDate=btn.dataset.openSwap; renderModalRoot(); }));
-  el.querySelectorAll("[data-swap-day]").forEach(btn=>btn.addEventListener("click",()=>{ State._openModal="swap"; State._modalDate=btn.dataset.swapDay; renderModalRoot(); }));
-  el.querySelectorAll("[data-reset-day]").forEach(btn=>btn.addEventListener("click",()=>{ resetDay(btn.dataset.resetDay); render(); }));
+  el.querySelectorAll("[data-open-skip]").forEach(btn=>btn.addEventListener("click",()=>{ const [eventId,date]=btn.dataset.openSkip.split("::"); State._openModal="skip"; State._modalEventId=eventId; State._modalDate=date; renderModalRoot(); }));
+  el.querySelectorAll("[data-open-swap]").forEach(btn=>btn.addEventListener("click",()=>{ const [eventId,date]=btn.dataset.openSwap.split("::"); State._openModal="swap"; State._modalEventId=eventId; State._modalDate=date; renderModalRoot(); }));
+  el.querySelectorAll("[data-swap-day]").forEach(btn=>btn.addEventListener("click",()=>{ const [eventId,date]=btn.dataset.swapDay.split("::"); State._openModal="swap"; State._modalEventId=eventId; State._modalDate=date; renderModalRoot(); }));
+  el.querySelectorAll("[data-reset-day]").forEach(btn=>btn.addEventListener("click",()=>{ const [eventId,date]=btn.dataset.resetDay.split("::"); resetDay(eventId,date); render(); }));
 
   el.querySelectorAll("[data-weather-swap]").forEach(b=>b.addEventListener("click",()=>{
     const date=b.dataset.weatherSwap, slotKey=b.dataset.slot;
@@ -3403,7 +3958,7 @@ function wireTabEvents(scopeEl){
 
   el.querySelectorAll("[data-progress-view]").forEach(b=>b.addEventListener("click",()=>{ State.progressView=b.dataset.progressView; renderTabContent(); }));
   el.querySelectorAll("[data-progresscal-nav]").forEach(b=>b.addEventListener("click",()=>{
-    const [y,m] = (State.progressCalMonth||Plan.start.slice(0,7)).split("-").map(Number);
+    const [y,m] = (State.progressCalMonth||todayISO().slice(0,7)).split("-").map(Number);
     const nd = new Date(y, m-1+parseInt(b.dataset.progresscalNav), 1);
     State.progressCalMonth = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
     renderTabContent();
@@ -3431,10 +3986,12 @@ function wireTabEvents(scopeEl){
   el.querySelectorAll("[data-set-start]").forEach(b=>b.addEventListener("click", async ()=>{
     const v = document.getElementById("start-date-input").value;
     if(!v) return;
-    if(confirm(`Set the program start date to ${fmtDate(v)}? This will regenerate your schedule and clear any skip/swap/substitution changes you've made.`)){
-      await setPlanStart(v);
+    const ev = eventById(b.dataset.setStart);
+    if(confirm(`Set ${ev?ev.name:'this Event'}'s Training Plan start date to ${fmtDate(v)}? This will shift its schedule and clear any skip/swap/substitution changes you've made for it.`)){
+      await setEventPlanStart(b.dataset.setStart, v);
     }
   }));
+  el.querySelectorAll("#start-date-event-select").forEach(sel=>sel.addEventListener("change",()=>{ State._startDateEventId = sel.value; renderTabContent(); }));
 
   el.querySelectorAll("[data-drive-save-clientid]").forEach(b=>b.addEventListener("click", async ()=>{
     const v = document.getElementById("drive-clientid-input").value.trim();
@@ -3772,6 +4329,13 @@ function wireEditorEvents(el){
       else if(w.kind==="run"){ w.paceText = w.paceText || "Easy conversational pace · RPE 3–4"; w.timeMin = w.timeMin || 30; w.platform = "Outdoor"; }
       else { w.exercises = w.exercises || []; w.bodyGroup = w.bodyGroup || "upper"; }
       renderTabContent();
+    } else if(targetId==="ev-endmode"){
+      const f = document.getElementById("ev-enddate-field");
+      if(f) f.style.display = val==="other" ? "flex" : "none";
+      btn.parentElement.querySelectorAll(".choice-btn").forEach(b=>b.classList.toggle("active", b===btn));
+    } else if(targetId==="ev-color"){
+      btn.parentElement.querySelectorAll("button[data-choice-for='ev-color']").forEach(b=>{ b.style.border = "3px solid transparent"; });
+      btn.style.border = "3px solid var(--navy)";
     } else {
       btn.parentElement.querySelectorAll(".choice-btn").forEach(b=>b.classList.toggle("active", b===btn));
     }
@@ -3893,7 +4457,9 @@ async function saveExerciseFromForm(){
 }
 
 
+
 </script>
 </body>
 </html>
+
 
