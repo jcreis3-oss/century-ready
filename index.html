@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 /* ============================================================
    CENTURY READY — DESIGN SYSTEM
@@ -405,6 +407,22 @@ svg.sparkline{width:100%; height:110px;}
   max-height:85vh; overflow-y:auto;
 }
 .modal-box.wide{max-width:720px;}
+.modal-box.mapwide{max-width:820px;}
+
+.tcx-panel{
+  border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); background:var(--grey-50);
+  padding:12px; margin-top:10px;
+}
+.tcx-panel .tcx-summary{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.tcx-panel .tcx-summary .tname{ font-weight:700; font-size:13px; color:var(--navy); }
+.tcx-panel .tcx-summary .tstats{ font-size:11.5px; color:var(--ink-600); }
+#tcx-map{ width:100%; height:360px; border-radius:var(--radius-md); z-index:1; }
+.tcx-stats-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; margin-top:14px; }
+.tcx-stat-box{ background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; }
+.tcx-stat-box .tsv{ font-family:var(--font-display); font-weight:700; font-size:17px; color:var(--navy); }
+.tcx-stat-box .tsl{ font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-600); font-weight:700; margin-top:2px; }
+.tcx-legend{ display:flex; gap:16px; margin-top:10px; font-size:11.5px; color:var(--ink-600); }
+.tcx-legend .lg-line{ display:inline-block; width:18px; height:3px; margin-right:5px; vertical-align:middle; border-radius:2px; }
 
 /* editor */
 .editor-layout{display:grid; grid-template-columns:280px 1fr; gap:18px;}
@@ -768,13 +786,13 @@ function resolveWorkout(workoutId, overrides){
   if(w.kind==="cycling"){
     return {
       kind:"cycling", id:workoutId, name:w.name, desc:w.desc, timeMin:w.timeMin, zoneText:w.zoneText,
-      platform:w.platform, estMiles:w.estMiles, isLongRide:!!w.isLongRide, isRace:!!w.isRace, source:w.source, url:w.url, targetTSS:w.targetTSS
+      platform:w.platform, estMiles:w.estMiles, isLongRide:!!w.isLongRide, isRace:!!w.isRace, source:w.source, url:w.url, targetTSS:w.targetTSS, course:w.course
     };
   }
   if(w.kind==="run"){
     return {
       kind:"run", id:workoutId, name:w.name, desc:w.desc, timeMin:w.timeMin, paceText:w.paceText,
-      platform:w.platform||"Outdoor", estMiles:w.estMiles
+      platform:w.platform||"Outdoor", estMiles:w.estMiles, course:w.course
     };
   }
   if(w.kind==="strengthblock"){
@@ -805,7 +823,7 @@ const Events = { list: [] };
 
 function nextEventColor(){ return EVENT_COLORS[Events.list.length % EVENT_COLORS.length]; }
 function eventById(id){ return Events.list.find(e=>e.id===id); }
-function isEventCompleted(ev){ return !!ev && ev.date < todayISO(); }
+function isEventCompleted(ev){ return !!ev && !ev.isGFP && ev.date < todayISO(); }
 
 async function loadEvents(){
   let list = await loadJSON("events");
@@ -847,7 +865,8 @@ function eventNameTaken(name, excludeId){
 }
 
 async function createEvent(data){
-  const id = uid("ev");
+  await archiveStalePeriods();
+  const id = data.isGFP ? uid("gfp") : uid("ev");
   const ev = Object.assign({
     id, hidden:false, createdAt:new Date().toISOString(), color: nextEventColor(), isLegacyCWC:false
   }, data);
@@ -885,6 +904,7 @@ function isDateInEventPlan(eventId, date){
 }
 function eventTrainingEnd(ev){
   if(ev.isLegacyCWC) return PLAN_HARD_END;
+  if(ev.isGFP) return dateAdd(todayISO(), 120); // open-ended; scaffold extends on each load
   if(ev.trainingEndMode==="other" && ev.trainingEndDate) return ev.trainingEndDate;
   return dateAdd(ev.date, 1);
 }
@@ -1294,6 +1314,206 @@ function resetDay(eventId, date){
   P.dailyQueue[idx] = idx;
   saveJSON("event:"+eventId+":dailyQueue", P.dailyQueue);
   if(P.dayOverrides[date]){ delete P.dayOverrides[date]; saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides); }
+}
+
+/* ============================================================
+   TCX FILES — Course (planned route) and History (completed
+   activity) uploads for Cycling (non-Rouvy) and Run Workouts.
+   Parses client-side via the browser's native XML parser; stores
+   a compact, downsampled representation (not the raw file) to
+   keep storage and Drive-sync payloads reasonable.
+   ============================================================ */
+const TCX_MAX_POINTS = 400;
+
+function isRouvyPlatform(platform){ return /rouvy/i.test(platform||""); }
+/* Whether a workout (library entry or resolved instance) is eligible for TCX upload */
+function tcxEligible(w){
+  if(!w) return false;
+  if(w.kind==="run") return true;
+  if(w.kind==="cycling") return !isRouvyPlatform(w.platform);
+  return false;
+}
+
+function parseTcxFile(xmlText){
+  const xdoc = new DOMParser().parseFromString(xmlText, "text/xml");
+  if(xdoc.querySelector("parsererror")) throw new Error("Couldn't read this file — it doesn't look like valid TCX/XML.");
+  const isCourse = !!xdoc.querySelector("Courses > Course, Course");
+  const isActivity = !!xdoc.querySelector("Activities > Activity, Activity");
+  if(!isCourse && !isActivity) throw new Error("This doesn't look like a TCX Course or Activity (History) file.");
+
+  const rawPoints = [];
+  [...xdoc.querySelectorAll("Trackpoint")].forEach(tp=>{
+    const lat = tp.querySelector("Position > LatitudeDegrees")?.textContent;
+    const lon = tp.querySelector("Position > LongitudeDegrees")?.textContent;
+    if(!lat || !lon) return; // skip points with no GPS fix
+    const alt = tp.querySelector("AltitudeMeters")?.textContent;
+    const dist = tp.querySelector("DistanceMeters")?.textContent;
+    const time = tp.querySelector("Time")?.textContent;
+    const hr = tp.querySelector("HeartRateBpm > Value")?.textContent;
+    const cad = tp.querySelector("Cadence")?.textContent;
+    let watts = tp.querySelector("Watts")?.textContent;
+    if(!watts){
+      const ext = tp.querySelector("Extensions");
+      if(ext){ const wEl = [...ext.getElementsByTagName("*")].find(e=>e.localName==="Watts"); if(wEl) watts = wEl.textContent; }
+    }
+    rawPoints.push({
+      lat: parseFloat(lat), lon: parseFloat(lon),
+      alt: alt?parseFloat(alt):null, dist: dist?parseFloat(dist):null,
+      time: time||null, hr: hr?parseInt(hr):null, cad: cad?parseInt(cad):null, watts: watts?parseFloat(watts):null
+    });
+  });
+  if(!rawPoints.length) throw new Error("No GPS trackpoints with a position were found in this file.");
+
+  let points = rawPoints;
+  if(rawPoints.length > TCX_MAX_POINTS){
+    const step = rawPoints.length / TCX_MAX_POINTS;
+    points = [];
+    for(let i=0;i<TCX_MAX_POINTS;i++) points.push(rawPoints[Math.floor(i*step)]);
+    points.push(rawPoints[rawPoints.length-1]);
+  }
+
+  const alts = rawPoints.map(p=>p.alt).filter(a=>a!=null);
+  let elevGainM=0, elevLossM=0;
+  for(let i=1;i<alts.length;i++){ const d=alts[i]-alts[i-1]; if(d>0) elevGainM+=d; else elevLossM+=Math.abs(d); }
+  const hrs = rawPoints.map(p=>p.hr).filter(h=>h!=null);
+  const watts = rawPoints.map(p=>p.watts).filter(w=>w!=null);
+  const cads = rawPoints.map(p=>p.cad).filter(c=>c!=null);
+  let durationSec = null;
+  if(rawPoints[0].time && rawPoints[rawPoints.length-1].time){
+    const t = (new Date(rawPoints[rawPoints.length-1].time) - new Date(rawPoints[0].time))/1000;
+    if(!isNaN(t) && t>0) durationSec = t;
+  }
+  const lastDist = [...rawPoints].reverse().find(p=>p.dist!=null)?.dist;
+
+  const nameEl = xdoc.querySelector("Course > Name") || xdoc.querySelector("Activities > Activity > Id") || xdoc.querySelector("Activity > Id");
+
+  return {
+    kind: isCourse ? "course" : "history",
+    name: nameEl ? nameEl.textContent.slice(0,80) : "",
+    uploadedAt: new Date().toISOString(),
+    points: points.map(p=>({lat:p.lat, lon:p.lon, alt:p.alt, dist:p.dist})), // trim per-point HR/watts (kept only in aggregate stats) to save space
+    stats: {
+      distanceMi: lastDist!=null ? lastDist/1609.34 : null,
+      elevGainFt: alts.length>1 ? elevGainM*3.28084 : null,
+      elevLossFt: alts.length>1 ? elevLossM*3.28084 : null,
+      durationSec,
+      avgHR: hrs.length ? Math.round(hrs.reduce((a,b)=>a+b,0)/hrs.length) : null,
+      maxHR: hrs.length ? Math.max(...hrs) : null,
+      avgWatts: watts.length ? Math.round(watts.reduce((a,b)=>a+b,0)/watts.length) : null,
+      maxWatts: watts.length ? Math.round(Math.max(...watts)) : null,
+      avgCadence: cads.length ? Math.round(cads.reduce((a,b)=>a+b,0)/cads.length) : null
+    }
+  };
+}
+
+function readFileAsText(file){
+  return file.text();
+}
+
+/* ============================================================
+   GENERAL FITNESS PERIODS & ARCHIVAL
+   A General Fitness Period is a lightweight Event (isGFP:true, no
+   fixed end date) used as the "current plan" whenever no real
+   Event is active. When a new Event or GFP is created, whatever
+   was previously the active period (a completed real Event still
+   lingering, or an active GFP) is archived: a full snapshot of its
+   schedule + the daily logs across its date range is saved as a
+   separate, named, permanently-stored, downloadable/reloadable
+   record — and it's removed from the live Events list. Nothing in
+   the day logs themselves is ever touched by archiving; Progress
+   Log and Body Weight Trend always show every day, regardless.
+   ============================================================ */
+function allDatesInRange(start, end){
+  const dates = [];
+  let d = start;
+  let guard = 0;
+  while(d <= end && guard < 5000){ dates.push(d); d = dateAdd(d,1); guard++; }
+  return dates;
+}
+
+function activeGFP(){ return Events.list.find(e=>e.isGFP && !e.hidden) || null; }
+/* Whether there is any real (non-GFP), non-completed, non-hidden Event active right now */
+function hasCurrentEventPlan(){ return Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e)); }
+
+async function archivePeriod(ev){
+  const P = PlanByEvent[ev.id];
+  const start = (P && P.start) || ev.trainingStart;
+  const end = todayISO();
+  const dates = allDatesInRange(start, end);
+  const logs = {};
+  for(const d of dates){
+    const l = await loadJSON("log:"+d);
+    if(l) logs[d] = l;
+  }
+  const archiveId = "arc_"+ev.id+"_"+Date.now();
+  const archive = {
+    id: archiveId,
+    periodType: ev.isGFP ? "gfp" : "event",
+    name: ev.name,
+    startDate: start,
+    endDate: end,
+    archivedAt: new Date().toISOString(),
+    eventMeta: ev.isGFP ? null : {date:ev.date, type:ev.type, typeOther:ev.typeOther, location:ev.location, locationMapUrl:ev.locationMapUrl, website:ev.website, distance:ev.distance, distanceUnit:ev.distanceUnit, description:ev.description},
+    schedule: P ? {templates:P.templates, dailyQueue:P.dailyQueue, dayOverrides:P.dayOverrides} : null,
+    logs
+  };
+  const archives = (await loadJSON("archives")) || [];
+  archives.push({id:archiveId, periodType:archive.periodType, name:archive.name, startDate:start, endDate:end, archivedAt:archive.archivedAt, dayCount:dates.length});
+  await saveJSON("archives", archives);
+  await saveJSON("archive:"+archiveId, archive);
+  Events.list = Events.list.filter(e=>e.id!==ev.id);
+  await saveEvents();
+  delete PlanByEvent[ev.id];
+  return archiveId;
+}
+
+/* Archive whatever is currently occupying the "active plan" slot but is
+   about to be superseded: any active GFP, and any completed real Event
+   that hasn't been archived yet (e.g. the legacy CWC event once its date
+   has passed). Called whenever the User creates a new Event or GFP. */
+async function archiveStalePeriods(){
+  const gfp = activeGFP();
+  if(gfp) await archivePeriod(gfp);
+  const staleCompleted = Events.list.filter(e=>!e.isGFP && !e.isAdhoc && !e.hidden && isEventCompleted(e));
+  for(const ev of staleCompleted) await archivePeriod(ev);
+}
+
+async function listArchives(){ return (await loadJSON("archives")) || []; }
+
+function triggerBrowserDownload(filename, dataObj){
+  const blob = new Blob([JSON.stringify(dataObj, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+async function downloadArchiveFile(archiveId){
+  const archive = await loadJSON("archive:"+archiveId);
+  if(!archive) return;
+  const safeName = (archive.name||"archive").replace(/[^a-z0-9]+/gi,"_");
+  triggerBrowserDownload(`${safeName}_${archive.startDate}.json`, archive);
+}
+/* Restore an archived period back to the live Events list (its logs were
+   never removed in the first place, so this only restores the schedule). */
+async function reloadArchive(archiveId){
+  const archive = await loadJSON("archive:"+archiveId);
+  if(!archive) return null;
+  const newId = archive.periodType==="gfp" ? uid("gfp") : uid("ev");
+  const ev = archive.periodType==="gfp"
+    ? {id:newId, name:"General Fitness Period", isGFP:true, hidden:false, createdAt:new Date().toISOString(), color:nextEventColor(), trainingStart:archive.startDate}
+    : Object.assign({id:newId, hidden:false, createdAt:new Date().toISOString(), color:nextEventColor(), isLegacyCWC:false, trainingStart:archive.startDate, trainingEndMode:"event"}, archive.eventMeta, {name:archive.name});
+  Events.list.push(ev);
+  await saveEvents();
+  if(archive.schedule){
+    await saveJSON("event:"+newId+":templates", archive.schedule.templates);
+    await saveJSON("event:"+newId+":templatesStart", archive.startDate);
+    await saveJSON("event:"+newId+":dailyQueue", archive.schedule.dailyQueue);
+    await saveJSON("event:"+newId+":dayOverrides", archive.schedule.dayOverrides);
+  }
+  await saveJSON("event:"+newId+":planStart", archive.startDate);
+  await initEventPlan(ev);
+  return ev;
 }
 /* ============================================================
    CENTURY READY — WEATHER
@@ -2210,14 +2430,117 @@ function render(){
   renderTabContent();
 }
 
+function renderTcxPanel(tcxData, removeAttrHtml){
+  if(!tcxData) return "";
+  const s = tcxData.stats||{};
+  const bits = [];
+  if(s.distanceMi!=null) bits.push(s.distanceMi.toFixed(1)+" mi");
+  if(s.elevGainFt!=null) bits.push(Math.round(s.elevGainFt)+" ft gain");
+  if(s.durationSec!=null) bits.push(fmtDurationSec(s.durationSec));
+  return `
+  <div class="tcx-panel">
+    <div class="tcx-summary">
+      <div>
+        <div class="tname">${esc(tcxData.name || (tcxData.kind==='course'?'Course file':'History file'))}</div>
+        <div class="tstats">${esc(bits.join(' · ')||'GPS route uploaded')}</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-ghost" data-view-tcx-map="1">View Map</button>
+        <button type="button" class="btn btn-ghost" ${removeAttrHtml} style="color:var(--red);">Remove</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+let _tcxLeafletMap = null;
+
+function fmtDurationSec(sec){
+  const h=Math.floor(sec/3600), m=Math.round((sec%3600)/60);
+  return h>0 ? `${h}h ${m}m` : `${m}m`;
+}
+function renderTcxStats(t){
+  if(!t || !t.stats) return "";
+  const s = t.stats;
+  const boxes = [];
+  if(s.distanceMi!=null) boxes.push(["Distance", s.distanceMi.toFixed(1)+" mi"]);
+  if(s.durationSec!=null) boxes.push(["Duration", fmtDurationSec(s.durationSec)]);
+  if(s.elevGainFt!=null) boxes.push(["Elev Gain", Math.round(s.elevGainFt)+" ft"]);
+  if(s.elevLossFt!=null) boxes.push(["Elev Loss", Math.round(s.elevLossFt)+" ft"]);
+  if(s.avgHR!=null) boxes.push(["Avg HR", s.avgHR+" bpm"]);
+  if(s.maxHR!=null) boxes.push(["Max HR", s.maxHR+" bpm"]);
+  if(s.avgWatts!=null) boxes.push(["Avg Power", s.avgWatts+" W"]);
+  if(s.maxWatts!=null) boxes.push(["Max Power", s.maxWatts+" W"]);
+  if(s.avgCadence!=null) boxes.push(["Avg Cadence", s.avgCadence]);
+  if(!boxes.length) return `<p style="font-size:12px;color:var(--ink-600);">No additional ride data (HR/power) was in this file — just the GPS route.</p>`;
+  return boxes.map(([l,v])=>`<div class="tcx-stat-box"><div class="tsv">${esc(String(v))}</div><div class="tsl">${esc(l)}</div></div>`).join("");
+}
+
+function renderTcxMapModal(){
+  const d = State._tcxMapData;
+  if(!d) return "";
+  const primary = d.history || d.course;
+  return `
+  <div class="modal-backdrop" id="tcxmap-modal">
+    <div class="modal-box mapwide">
+      <h3 style="margin-bottom:2px;">${esc(d.workoutName||'Route Map')}</h3>
+      <p style="font-size:12px; color:var(--ink-600); margin-bottom:10px;">${esc(primary&&primary.name?primary.name:"")}</p>
+      <div id="tcx-map"></div>
+      ${(d.course && d.history) ? `<div class="tcx-legend">
+        <span><span class="lg-line" style="background:var(--blue); border-bottom:2px dashed var(--blue);"></span>Planned course</span>
+        <span><span class="lg-line" style="background:var(--orange);"></span>Actual (history)</span>
+      </div>` : ""}
+      <div class="tcx-stats-grid">${renderTcxStats(primary)}</div>
+      <div class="save-row" style="justify-content:flex-end; margin-top:14px;">
+        <button class="btn btn-ghost" data-close-modal="1">Close</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initTcxLeafletMap(d){
+  const el = document.getElementById("tcx-map");
+  if(!el || typeof L==="undefined" || !d) return;
+  if(_tcxLeafletMap){ _tcxLeafletMap.remove(); _tcxLeafletMap = null; }
+  _tcxLeafletMap = L.map(el);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+  }).addTo(_tcxLeafletMap);
+
+  const allBounds = [];
+  if(d.course && d.course.points && d.course.points.length){
+    const latlngs = d.course.points.map(p=>[p.lat,p.lon]);
+    L.polyline(latlngs, {color:'#3159C9', weight:4, opacity:0.85, dashArray: d.history ? '7 7' : null}).addTo(_tcxLeafletMap);
+    allBounds.push(...latlngs);
+  }
+  if(d.history && d.history.points && d.history.points.length){
+    const latlngs = d.history.points.map(p=>[p.lat,p.lon]);
+    L.polyline(latlngs, {color:'#E0894F', weight:4, opacity:0.9}).addTo(_tcxLeafletMap);
+    allBounds.push(...latlngs);
+    L.circleMarker(latlngs[0], {radius:6, color:'#16C784', fillColor:'#16C784', fillOpacity:1}).addTo(_tcxLeafletMap).bindTooltip("Start");
+    L.circleMarker(latlngs[latlngs.length-1], {radius:6, color:'#FF4D5E', fillColor:'#FF4D5E', fillOpacity:1}).addTo(_tcxLeafletMap).bindTooltip("Finish");
+  } else if(d.course && d.course.points && d.course.points.length){
+    const latlngs = d.course.points.map(p=>[p.lat,p.lon]);
+    L.circleMarker(latlngs[0], {radius:6, color:'#16C784', fillColor:'#16C784', fillOpacity:1}).addTo(_tcxLeafletMap).bindTooltip("Start");
+    L.circleMarker(latlngs[latlngs.length-1], {radius:6, color:'#FF4D5E', fillColor:'#FF4D5E', fillOpacity:1}).addTo(_tcxLeafletMap).bindTooltip("Finish");
+  }
+  if(allBounds.length) _tcxLeafletMap.fitBounds(allBounds, {padding:[24,24]});
+  else _tcxLeafletMap.setView([39.8,-98.6], 4);
+}
+
 function renderModalRoot(){
   const m = document.getElementById("modal-root");
   if(!m) return;
   if(State._openModal==="weather") m.innerHTML = weatherFormModal();
   else if(State._openModal==="skip") m.innerHTML = skipSwapModal(State._modalEventId, State._modalDate);
   else if(State._openModal==="swap") m.innerHTML = swapModal(State._modalEventId, State._modalDate);
-  else { m.innerHTML = ""; return; }
+  else if(State._openModal==="tcxmap") m.innerHTML = renderTcxMapModal();
+  else {
+    if(_tcxLeafletMap){ _tcxLeafletMap.remove(); _tcxLeafletMap=null; }
+    m.innerHTML = ""; return;
+  }
   wireModalEvents(m);
+  if(State._openModal==="tcxmap") setTimeout(()=>initTcxLeafletMap(State._tcxMapData), 0);
 }
 
 function wireModalEvents(m){
@@ -2238,9 +2561,9 @@ function wireModalEvents(m){
 
 function renderHeader(){
   const dp = getDayPlan(State.selectedDate);
-  const shown = Events.list.filter(e=>!e.hidden && !e.isAdhoc).sort((a,b)=>a.date.localeCompare(b.date));
+  const shown = Events.list.filter(e=>!e.hidden && !e.isAdhoc && !e.isGFP).sort((a,b)=>a.date.localeCompare(b.date));
   const activeShown = shown.filter(e=>!isEventCompleted(e));
-  const completedShown = shown.filter(e=>isEventCompleted(e));
+  const gfp = activeGFP();
 
   function eventRow(e){
     const P = PlanByEvent[e.id];
@@ -2254,19 +2577,40 @@ function renderHeader(){
         <div class="ehr-sub">${esc(e.location||"")}${e.location?" · ":""}${esc(fmtDateLong(e.date))}</div>
       </div>
       <div class="ehr-stats">
-        ${isEventCompleted(e)
-          ? `<span class="badge" style="background:rgba(255,255,255,0.18); color:#fff;">✓ Completed</span>`
-          : `<div class="ehr-stat"><div class="num">${d}</div><div class="lbl">Days to go</div></div>
-             <div class="ehr-stat"><div class="num">Wk ${wk&&wk.weekNum!=null?wk.weekNum:'—'}/${totalWeeks}</div><div class="lbl">${wk&&wk.phaseLabel?esc(wk.phaseLabel):''}</div></div>`}
+        <div class="ehr-stat"><div class="num">${d}</div><div class="lbl">Days to go</div></div>
+        <div class="ehr-stat"><div class="num">Wk ${wk&&wk.weekNum!=null?wk.weekNum:'—'}/${totalWeeks}</div><div class="lbl">${wk&&wk.phaseLabel?esc(wk.phaseLabel):''}</div></div>
       </div>
     </div>`;
+  }
+  function gfpRow(e){
+    const start = (PlanByEvent[e.id]&&PlanByEvent[e.id].start) || e.trainingStart;
+    const elapsed = daysBetween(start, todayISO()) + 1;
+    return `
+    <div class="event-header-row" style="border-left:4px solid ${esc(e.color)};">
+      <div class="ehr-main">
+        <div class="ehr-name">General Fitness Period</div>
+        <div class="ehr-sub">Started ${esc(fmtDateLong(start))}</div>
+      </div>
+      <div class="ehr-stats">
+        <div class="ehr-stat"><div class="num">${elapsed}</div><div class="lbl">Days elapsed</div></div>
+      </div>
+    </div>`;
+  }
+
+  let bodyHtml;
+  if(activeShown.length){
+    bodyHtml = `<div class="event-header-list">${activeShown.map(eventRow).join("")}</div>`;
+  } else if(gfp){
+    bodyHtml = `<div class="event-header-list">${gfpRow(gfp)}</div>`;
+  } else {
+    bodyHtml = `<p class="sub">No current Event Training Plan — create an Event, or start a General Fitness Period, in the Events tab.</p>`;
   }
 
   return `
   <div class="app-header">
     <div class="eyebrow">Event Training Program</div>
     <h1>Event Training Program</h1>
-    ${shown.length ? `<div class="event-header-list">${activeShown.map(eventRow).join("")}${completedShown.map(eventRow).join("")}</div>` : `<p class="sub">No Events yet — create one in the Events tab, or just start logging today's training below.</p>`}
+    ${bodyHtml}
     <div class="header-stats" id="header-stats-row">
       <div class="stat-pill"><div class="num">${State.profile.ftp}W</div><div class="lbl">Current FTP</div></div>
       <div id="clock-widget"></div>
@@ -2520,6 +2864,12 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           <div class="field"><label>RPE (1–10)</label><input type="number" min="1" max="10" class="input-logged" data-f="rpe" data-uid="${uidStr}" value="${savedW.rpe??''}"></div>
           <div class="field wide"><label>Notes (nutrition on bike, how it felt, weather...)</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
         </div>
+        ${!isRouvyPlatform(w.platform) ? `
+        <div class="section-title">TCX History File</div>
+        <p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">Upload your recorded ride (.tcx History/Activity file) for this specific day.</p>
+        <input type="file" class="tcx-history-file" data-uid="${uidStr}" data-date="${date}" data-slotkey="${slotKey}" accept=".tcx">
+        <div class="tcx-history-preview" data-uid="${uidStr}">${renderTcxPanel(savedW.historyTcx, 'data-remove-history="'+uidStr+'"')}</div>
+        ` : ""}
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
           <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">${w.isRace?'':'Substitute workout'}</button>
@@ -2560,6 +2910,10 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           <div class="field"><label>RPE (1–10)</label><input type="number" min="1" max="10" class="input-logged" data-f="rpe" data-uid="${uidStr}" value="${savedW.rpe??''}"></div>
           <div class="field wide"><label>Notes (legs, weather, shoes...)</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
         </div>
+        <div class="section-title">TCX History File</div>
+        <p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">Upload your recorded run (.tcx History/Activity file) for this specific day.</p>
+        <input type="file" class="tcx-history-file" data-uid="${uidStr}" data-date="${date}" data-slotkey="${slotKey}" accept=".tcx">
+        <div class="tcx-history-preview" data-uid="${uidStr}">${renderTcxPanel(savedW.historyTcx, 'data-remove-history="'+uidStr+'"')}</div>
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
           <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">Substitute workout</button>
@@ -3064,7 +3418,7 @@ async function renderSchedule(){
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div>
         <h2 style="font-size:16px;">Weekly Plan Overview</h2>
-        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">${(()=>{ const evs=Events.list.filter(e=>!e.isAdhoc && !e.hidden); return evs.length ? evs.map(e=>esc(e.name)+' ('+esc(fmtDate(PlanByEvent[e.id]?PlanByEvent[e.id].start:e.trainingStart))+' → '+esc(fmtDate(e.date))+')').join(' · ') : 'No active Events — create one on the Events tab.'; })()}</p>
+        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">${(()=>{ const evs=Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e)); if(evs.length) return evs.map(e=>esc(e.name)+' ('+esc(fmtDate(PlanByEvent[e.id]?PlanByEvent[e.id].start:e.trainingStart))+' → '+esc(fmtDate(e.date))+')').join(' · '); const gfp=activeGFP(); if(gfp) return 'General Fitness Period (started '+esc(fmtDate((PlanByEvent[gfp.id]&&PlanByEvent[gfp.id].start)||gfp.trainingStart))+')'; return 'No active Events — create one, or start a General Fitness Period, on the Events tab.'; })()}</p>
       </div>
       <div class="pill-toggle">
         <button class="${view==='list'?'active':''}" data-view-toggle="list">List</button>
@@ -3075,15 +3429,22 @@ async function renderSchedule(){
 
   if(view==="calendar") return html + await renderCalendarView();
 
+  if(!hasCurrentEventPlan()){
+    const gfp = activeGFP();
+    if(gfp) return html + await renderGFPWeeklySchedule(gfp);
+    return html + `<div class="empty-state"><h3>No active plan yet</h3><p>Create an Event or start a General Fitness Period on the Events tab to see a Weekly Schedule here. You can still log today's training from the Today tab in the meantime.</p></div>`;
+  }
+
   const allDates = allCalendarDates();
   const weeks = {};
-  allDates.forEach(d=>{ const dp=getDayPlan(d); (weeks[dp.weekNum]=weeks[dp.weekNum]||[]).push(d); });
+  allDates.forEach(d=>{ const dp=getDayPlan(d); if(dp.weekNum==null) return; (weeks[dp.weekNum]=weeks[dp.weekNum]||[]).push(d); });
 
   for(const wnStr of Object.keys(weeks).sort((a,b)=>a-b)){
     const wn = parseInt(wnStr);
     const weekDates = weeks[wn];
     const isOpen = State.openWeek===wn;
     const wm = WEEK_META_BY_N[wn];
+    if(!wm) continue;
     html += `
     <div class="week-block">
       <div class="week-block-head" data-toggleweek="${wn}">
@@ -3099,6 +3460,59 @@ async function renderSchedule(){
     </div>`;
   }
   return html;
+}
+
+/* ---------------- GENERAL FITNESS PERIOD WEEKLY SCHEDULE ----------------
+   No fixed-length plan, no phase/week_meta concept — just open-ended
+   Week 1, Week 2, Week 3... blocks from the GFP's start date, where each
+   day is blank until the User adds a Workout to it. */
+async function renderGFPWeeklySchedule(gfp){
+  const start = (PlanByEvent[gfp.id] && PlanByEvent[gfp.id].start) || gfp.trainingStart;
+  const today = todayISO();
+  const weekCount = Math.max(1, Math.floor(daysBetween(start, today)/7) + 1);
+  let html = "";
+  for(let wn=1; wn<=weekCount; wn++){
+    const weekStart = dateAdd(start, (wn-1)*7);
+    const weekEnd = dateAdd(weekStart, 6);
+    const weekDates = allDatesInRange(weekStart, weekEnd);
+    const isOpen = State.openGFPWeek!=null ? State.openGFPWeek===wn : wn===weekCount;
+    html += `
+    <div class="week-block">
+      <div class="week-block-head" data-togglegfpweek="${wn}">
+        <div>
+          <div class="wtitle">Week ${wn} — General Fitness Period</div>
+          <div class="wsub">${esc(fmtDate(weekStart))} – ${esc(fmtDate(weekEnd))}</div>
+        </div>
+        <svg class="chev ${isOpen?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--grey-600)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="week-block-body ${isOpen?'open':''}">
+        ${isOpen ? (await Promise.all(weekDates.map(async d=>renderGFPDayRow(d)))).join("") : ""}
+      </div>
+    </div>`;
+  }
+  return html;
+}
+
+async function renderGFPDayRow(date){
+  const dp = getDayPlan(date);
+  const log = await getLog(date);
+  const totalMin = totalDayMinutes(dp, log);
+  const allDone = isDayFullyCompleted(dp, log);
+  const exRecent = await buildRecentExerciseValueLookup(date, 30);
+  const hasWorkouts = dp.workouts.length > 0;
+  const workoutNames = dp.workouts.map(w=>w.name||w.title).join(", ");
+  const types = [...new Set(dp.workouts.map(w=>classifyWorkout(w)))];
+  return `
+  <div class="day-row ${allDone?'day-complete-bg':''}">
+    <div class="day-row-head">
+      <div><span class="drdate">${esc(fmtDate(date))}</span>${hasWorkouts?` &nbsp; <span class="drtitle">${esc(workoutNames)}</span> ${allDone?'<span style="font-size:11px;color:var(--teal-dark);font-weight:700;">✓ All completed</span>':''}`:''}</div>
+      ${hasWorkouts ? `<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">${types.map(t=>typeBadge(t)).join('')}<span class="wi-time">${totalMin>0?fmtHrs(totalMin):''}</span></div>` : ''}
+    </div>
+    <div style="margin-top:10px;">
+      ${hasWorkouts ? dp.workouts.map((w,i)=>renderWorkoutItem(dp,i,w,log,exRecent)).join("") : ""}
+      ${renderAddWorkoutPanel(date)}
+    </div>
+  </div>`;
 }
 
 async function renderDayRow(d){
@@ -3270,6 +3684,30 @@ function renderDriveStatus(){
   fresh.querySelectorAll("[data-drive-disconnect]").forEach(b=>b.addEventListener("click", disconnectDrive));
 }
 
+async function renderArchivesCard(){
+  const archives = await listArchives();
+  if(!archives.length) return "";
+  const sorted = archives.slice().sort((a,b)=>b.archivedAt.localeCompare(a.archivedAt));
+  return `
+  <div class="card">
+    <div class="card-header"><h2>Archived Training Plans</h2><span class="meta">Past Events and General Fitness Periods</span></div>
+    <p style="font-size:12.5px; color:var(--ink-600); margin-bottom:10px;">These are saved automatically whenever you start a new Event or General Fitness Period. Your day-by-day logs, Progress Log, and Body Weight Trend are never affected by archiving — they always keep every day.</p>
+    ${sorted.map(a=>`
+      <div class="tcx-panel">
+        <div class="tcx-summary">
+          <div>
+            <div class="tname">${esc(a.name)}</div>
+            <div class="tstats">${esc(fmtDate(a.startDate))} → ${esc(fmtDate(a.endDate))} · ${a.dayCount||0} days · archived ${esc(fmtDate(a.archivedAt.slice(0,10)))}</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-ghost" data-download-archive="${a.id}">Download</button>
+            <button type="button" class="btn btn-ghost" data-reload-archive="${a.id}">Reload</button>
+          </div>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
 async function renderDataDiagnosticsCard(){
   const allKeys = await listKeys("");
   const logKeys = allKeys.filter(k=>k.startsWith("log:")).sort();
@@ -3281,7 +3719,7 @@ async function renderDataDiagnosticsCard(){
   <div class="card">
     <div class="card-header"><h2>Data Diagnostics</h2><span class="meta">What's actually in storage on this device right now</span></div>
     <div class="calc-box">
-      <div class="cline"><span>Active Events</span><span>${Events.list.filter(e=>!e.isAdhoc && !e.hidden).length}</span></div>
+      <div class="cline"><span>Active Event Training Plans</span><span>${(()=>{ const n = Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e)).length; return n>0 ? n : (activeGFP() ? 1 : 0); })()}</span></div>
       <div class="cline"><span>Days with a logged entry</span><span>${logDates.length}</span></div>
       <div class="cline"><span>Earliest / latest logged day</span><span>${oldest?esc(fmtDate(oldest)):'—'} → ${newest?esc(fmtDate(newest)):'—'}</span></div>
       <div class="cline"><span>Custom workouts saved</span><span>${Object.keys(wl).length}</span></div>
@@ -3312,6 +3750,20 @@ function renderEventsList(){
   const active = shown.filter(e=>!e.hidden);
   const hidden = shown.filter(e=>e.hidden);
   function card(e){
+    if(e.isGFP){
+      const start = (PlanByEvent[e.id]&&PlanByEvent[e.id].start) || e.trainingStart;
+      return `
+      <div class="card" style="border-left:4px solid ${esc(e.color)};">
+        <div class="card-header">
+          <h2>General Fitness Period ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
+          <span class="meta">Started ${esc(fmtDateLong(start))}</span>
+        </div>
+        <div class="save-row" style="margin-top:12px;">
+          <button class="btn btn-ghost" data-hide-event="${e.id}">${e.hidden?'Unhide':'Hide'}</button>
+          <button class="btn btn-ghost" data-delete-event="${e.id}" style="color:var(--red);">Delete</button>
+        </div>
+      </div>`;
+    }
     const completed = isEventCompleted(e);
     const P = PlanByEvent[e.id];
     const hasImportedPlan = e.isLegacyCWC || (P && P.hasRealPlan);
@@ -3349,12 +3801,24 @@ function renderEventsList(){
 }
 
 function renderEventForm(ev){
-  const e = ev || {name:"",description:"",date:"",type:"cycling",typeOther:"",location:"",locationMapUrl:"",website:"",distance:"",distanceUnit:"mi",trainingStart:todayISO(),trainingEndMode:"event",trainingEndDate:"",color:nextEventColor()};
+  const e = ev || {name:"",description:"",date:"",type:"cycling",typeOther:"",location:"",locationMapUrl:"",website:"",distance:"",distanceUnit:"mi",trainingStart:todayISO(),trainingEndMode:"event",trainingEndDate:"",color:nextEventColor(),isGFP:false};
   const isNew = !ev;
+  const isGFP = !!e.isGFP;
   return `
   <div class="card">
-    <div class="card-header"><h2>${isNew?'New Event':'Edit Event'}</h2></div>
-    <div class="field-grid">
+    <div class="card-header"><h2>${isNew?'New Event':(isGFP?'Edit General Fitness Period':'Edit Event')}</h2></div>
+    ${isNew ? `
+    <div class="field wide" style="margin-bottom:14px;"><label>Plan Type</label>
+      <input type="hidden" id="ev-isgfp" value="${isGFP?'1':'0'}">
+      <div class="btn-group">
+        <button type="button" class="choice-btn ${!isGFP?'active':''}" data-choice-for="ev-isgfp" data-choice-value="0">Real Event</button>
+        <button type="button" class="choice-btn ${isGFP?'active':''}" data-choice-for="ev-isgfp" data-choice-value="1">General Fitness Period</button>
+      </div>
+      <p style="font-size:12px; color:var(--ink-600); margin-top:6px;">A General Fitness Period is for when you're not training for a specific Event — just tracking ongoing training. It runs until you create a new Event or start another General Fitness Period.</p>
+    </div>
+    <div class="field" id="ev-gfp-start-field" style="display:${isGFP?'flex':'none'};"><label>Start Date</label><input type="date" id="ev-gfp-start" value="${esc(e.trainingStart||todayISO())}"></div>
+    ` : `<input type="hidden" id="ev-isgfp" value="${isGFP?'1':'0'}">`}
+    <div class="field-grid" id="ev-realfields" style="display:${isGFP?'none':'grid'};">
       <div class="field wide"><label>Name of Event</label><input type="text" id="ev-name" value="${esc(e.name)}"></div>
       <div class="field wide"><label>Description</label><textarea id="ev-desc">${esc(e.description||"")}</textarea></div>
       <div class="field"><label>Date of Event</label><input type="date" id="ev-date" value="${esc(e.date||"")}"></div>
@@ -3385,15 +3849,15 @@ function renderEventForm(ev){
         </div>
       </div>
       <div class="field" id="ev-enddate-field" style="display:${e.trainingEndMode==='other'?'flex':'none'};"><label>Training Plan End Date</label><input type="date" id="ev-enddate" value="${esc(e.trainingEndDate||"")}"></div>
-      <div class="field wide"><label>Color</label>
-        <input type="hidden" id="ev-color" value="${esc(e.color)}">
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          ${EVENT_COLORS.map(c=>`<button type="button" data-choice-for="ev-color" data-choice-value="${c}" style="width:28px; height:28px; border-radius:50%; background:${c}; border:3px solid ${c===e.color?'var(--navy)':'transparent'}; cursor:pointer;"></button>`).join("")}
-        </div>
+    </div>
+    <div class="field wide" style="margin-top:10px;"><label>Color</label>
+      <input type="hidden" id="ev-color" value="${esc(e.color)}">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        ${EVENT_COLORS.map(c=>`<button type="button" data-choice-for="ev-color" data-choice-value="${c}" style="width:28px; height:28px; border-radius:50%; background:${c}; border:3px solid ${c===e.color?'var(--navy)':'transparent'}; cursor:pointer;"></button>`).join("")}
       </div>
     </div>
     <div class="save-row" style="margin-top:16px;">
-      <button class="btn btn-primary" data-save-event="1" data-isnew="${isNew?1:0}" data-eventid="${e.id||''}">Save Event</button>
+      <button class="btn btn-primary" data-save-event="1" data-isnew="${isNew?1:0}" data-eventid="${e.id||''}">Save ${isGFP?'General Fitness Period':'Event'}</button>
       <button class="btn btn-ghost" data-cancel-event="1">Cancel</button>
     </div>
   </div>`;
@@ -3483,6 +3947,7 @@ async function renderProfile(){
   return `
   ${renderCloudSyncCard()}
   ${await renderDataDiagnosticsCard()}
+  ${await renderArchivesCard()}
   <div class="profile-grid">
     <div class="card">
       <div class="card-header"><h2>Biometrics</h2><span class="meta">Update anytime — targets recalculate instantly</span></div>
@@ -3634,11 +4099,8 @@ async function renderProgress(){
   }
 
   const view = State.progressView||"list";
-  const logView = complianceRows.length ? `<table class="progress-table"><thead><tr><th>Date</th><th>Workout Entries</th><th>Weight</th><th>Sleep</th><th>Nutrition Logged</th><th>Notes</th></tr></thead><tbody>
-      ${complianceRows.map(l=>`<tr data-goto-day="${l.date}"><td>${esc(fmtDate(l.date))}</td><td>${l.workouts?Object.keys(l.workouts).length:0}</td><td>${l.bodyweight?l.bodyweight+' lb':'—'}</td><td>${(l.sleepH||l.sleepM)?esc(l.sleepH||'00')+':'+esc(l.sleepM||'00'):'—'}</td><td>${l.nutrition&&Object.keys(l.nutrition).length?(l.nutrition.kcal||'—')+' kcal':'—'}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(l.notes||'')}</td></tr>`).join("")}
-    </tbody></table>` : `<div class="empty-state"><h3>No entries yet</h3><p>Log a workout or check-in on the Today tab and it will show up here.</p></div>`;
-
-  const calView = await renderProgressCalendar(loggedDateSet);
+  const loggedYears = [...new Set(complianceRows.map(l=>l.date.slice(0,4)))].sort((a,b)=>b-a);
+  const logDaysSection = view==='list' ? renderLoggedDaysSection(complianceRows) : await renderProgressCalendar(loggedDateSet);
 
   return `
   <div class="two-col">
@@ -3660,8 +4122,104 @@ async function renderProgress(){
       </div>
     </div>
     <p style="font-size:12px; color:var(--ink-600); margin-bottom:10px;">Click any day to jump to it in the Weekly Schedule.</p>
-    ${view==='list' ? logView : calView}
+    ${view==='list' ? renderProgressLogFilter(loggedYears) : ''}
+    ${logDaysSection}
   </div>`;
+}
+
+function renderProgressLogFilter(years){
+  const mode = State.plogMode || "all";
+  const thisYear = todayISO().slice(0,4);
+  const yearOptions = years.length ? years : [thisYear];
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return `
+  <div style="margin-bottom:16px; padding:12px; background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm);">
+    <div class="btn-group" style="margin-bottom:10px;">
+      <input type="hidden" id="plog-mode" value="${mode}">
+      ${["all","day","week","month"].map(m=>`<button type="button" class="choice-btn ${mode===m?'active':''}" data-choice-for="plog-mode" data-choice-value="${m}">${m==='all'?'All (by Month)':m==='day'?'Specific Day':m==='week'?'Specific Week':'Specific Month'}</button>`).join("")}
+    </div>
+    <div id="plog-filter-fields">
+      ${mode==='day' ? `<div class="field" style="max-width:220px;"><label>Date</label><input type="date" id="plog-date-input" value="${esc(State.plogDate||todayISO())}"></div>` : ''}
+      ${mode==='week' ? `<div class="field" style="max-width:220px;"><label>Any day in the week</label><input type="date" id="plog-week-input" value="${esc(State.plogDate||todayISO())}"></div>` : ''}
+      ${mode==='month' ? `<div class="field-grid" style="max-width:340px;">
+          <div class="field"><label>Month</label><select id="plog-month-input">${MONTH_NAMES.map((m,i)=>`<option value="${i}" ${(State.plogMonth??new Date().getMonth())==i?'selected':''}>${m}</option>`).join("")}</select></div>
+          <div class="field"><label>Year</label><select id="plog-year-input">${yearOptions.map(y=>`<option value="${y}" ${(State.plogYear||thisYear)==y?'selected':''}>${y}</option>`).join("")}</select></div>
+        </div>` : ''}
+      ${mode!=='all' ? `<button class="btn btn-primary" data-apply-plog-filter="1" style="margin-top:8px;">Show</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function logRowsMatchingFilter(complianceRows){
+  const mode = State.plogMode||"all";
+  if(mode==="day"){
+    const d = State.plogDate||todayISO();
+    return complianceRows.filter(l=>l.date===d);
+  }
+  if(mode==="week"){
+    const anchor = State.plogDate||todayISO();
+    const dow = new Date(anchor+"T00:00:00").getDay();
+    const weekStart = dateAdd(anchor, -dow);
+    const weekEnd = dateAdd(weekStart, 6);
+    return complianceRows.filter(l=>l.date>=weekStart && l.date<=weekEnd);
+  }
+  if(mode==="month"){
+    const y = State.plogYear||todayISO().slice(0,4);
+    const m = String((State.plogMonth??new Date().getMonth())+1).padStart(2,'0');
+    const prefix = `${y}-${m}`;
+    return complianceRows.filter(l=>l.date.startsWith(prefix));
+  }
+  return complianceRows;
+}
+
+function renderLoggedDaysTable(rows){
+  if(!rows.length) return `<div class="empty-state"><h3>No entries in this range</h3><p>Try a different day, week, or month.</p></div>`;
+  return `<table class="progress-table"><thead><tr><th>Date</th><th>Workout Entries</th><th>Weight</th><th>Sleep</th><th>Nutrition Logged</th><th>Notes</th></tr></thead><tbody>
+      ${rows.map(l=>`<tr data-goto-day="${l.date}"><td>${esc(fmtDate(l.date))}</td><td>${l.workouts?Object.keys(l.workouts).length:0}</td><td>${l.bodyweight?l.bodyweight+' lb':'—'}</td><td>${(l.sleepH||l.sleepM)?esc(l.sleepH||'00')+':'+esc(l.sleepM||'00'):'—'}</td><td>${l.nutrition&&Object.keys(l.nutrition).length?(l.nutrition.kcal||'—')+' kcal':'—'}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(l.notes||'')}</td></tr>`).join("")}
+    </tbody></table>`;
+}
+
+function renderLoggedDaysSection(complianceRows){
+  if(!complianceRows.length) return `<div class="empty-state"><h3>No entries yet</h3><p>Log a workout or check-in on the Today tab and it will show up here.</p></div>`;
+  const mode = State.plogMode||"all";
+  if(mode!=="all"){
+    return renderLoggedDaysTable(logRowsMatchingFilter(complianceRows));
+  }
+  // grouped by year > month, most recent first, collapsible
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const groups = {};
+  complianceRows.forEach(l=>{
+    const year = l.date.slice(0,4), month = l.date.slice(5,7);
+    groups[year] = groups[year] || {};
+    groups[year][month] = groups[year][month] || [];
+    groups[year][month].push(l);
+  });
+  const years = Object.keys(groups).sort((a,b)=>b-a);
+  let html = "";
+  let firstOpen = true;
+  years.forEach(year=>{
+    const months = Object.keys(groups[year]).sort((a,b)=>b-a);
+    months.forEach(month=>{
+      const key = `${year}-${month}`;
+      const rows = groups[year][month];
+      const isOpen = State.openLogMonth ? State.openLogMonth===key : firstOpen;
+      firstOpen = false;
+      html += `
+      <div class="week-block">
+        <div class="week-block-head" data-togglelogmonth="${key}">
+          <div>
+            <div class="wtitle">${MONTH_NAMES[parseInt(month)-1]} ${year}</div>
+            <div class="wsub">${rows.length} logged day${rows.length===1?'':'s'}</div>
+          </div>
+          <svg class="chev ${isOpen?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--grey-600)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="week-block-body ${isOpen?'open':''}">
+          ${isOpen ? renderLoggedDaysTable(rows) : ""}
+        </div>
+      </div>`;
+    });
+  });
+  return html;
 }
 
 async function renderProgressCalendar(loggedDateSet){
@@ -3726,9 +4284,22 @@ function wireTabEvents(scopeEl){
     }
   }));
   el.querySelectorAll("[data-save-event]").forEach(b=>b.addEventListener("click", async ()=>{
+    const isNew = b.dataset.isnew==="1";
+    const isGFP = document.getElementById("ev-isgfp")?.value === "1";
+    if(isGFP){
+      const startDate = document.getElementById("ev-gfp-start").value;
+      if(!startDate){ alert("Please set the date this General Fitness Period begins."); return; }
+      const data = {
+        name: "General Fitness Period", isGFP: true,
+        trainingStart: startDate, color: document.getElementById("ev-color").value
+      };
+      await createEvent(data);
+      State._eventFormOpen=false; State._editingEventId=null;
+      render();
+      return;
+    }
     const name = document.getElementById("ev-name").value.trim();
     if(!name){ alert("Please name the Event."); return; }
-    const isNew = b.dataset.isnew==="1";
     if(eventNameTaken(name, isNew?null:b.dataset.eventid)){ alert("You already have an Event with that name this year — please use a different name."); return; }
     const data = {
       name, description: document.getElementById("ev-desc").value,
@@ -3743,7 +4314,8 @@ function wireTabEvents(scopeEl){
       trainingStart: document.getElementById("ev-start").value,
       trainingEndMode: document.getElementById("ev-endmode").value,
       trainingEndDate: document.getElementById("ev-enddate").value,
-      color: document.getElementById("ev-color").value
+      color: document.getElementById("ev-color").value,
+      isGFP: false
     };
     if(!data.date || !data.trainingStart){ alert("Please set both the Event Date and the Training Plan Start Date."); return; }
     if(isNew) await createEvent(data);
@@ -3832,6 +4404,18 @@ function wireTabEvents(scopeEl){
     renderTabContent();
   }));
   el.querySelectorAll("[data-toggleweek]").forEach(h=>h.addEventListener("click",()=>{ const n=parseInt(h.dataset.toggleweek); State.openWeek=State.openWeek===n?null:n; renderTabContent(); }));
+  el.querySelectorAll("[data-togglegfpweek]").forEach(h=>h.addEventListener("click",()=>{ const n=parseInt(h.dataset.togglegfpweek); State.openGFPWeek=State.openGFPWeek===n?null:n; renderTabContent(); }));
+  el.querySelectorAll("[data-togglelogmonth]").forEach(h=>h.addEventListener("click",()=>{ const key=h.dataset.togglelogmonth; State.openLogMonth=State.openLogMonth===key?null:key; renderTabContent(); }));
+  el.querySelectorAll("[data-apply-plog-filter]").forEach(b=>b.addEventListener("click",()=>{
+    const mode = State.plogMode;
+    if(mode==="day") State.plogDate = document.getElementById("plog-date-input").value;
+    else if(mode==="week") State.plogDate = document.getElementById("plog-week-input").value;
+    else if(mode==="month"){
+      State.plogMonth = parseInt(document.getElementById("plog-month-input").value);
+      State.plogYear = document.getElementById("plog-year-input").value;
+    }
+    renderTabContent();
+  }));
   el.querySelectorAll("[data-save]").forEach(btn=>btn.addEventListener("click",async()=>{
     const {date,slotKey}=parseUid(btn.dataset.save);
     await saveWorkoutEntry(date, slotKey, btn.dataset.save);
@@ -3992,6 +4576,13 @@ function wireTabEvents(scopeEl){
     }
   }));
   el.querySelectorAll("#start-date-event-select").forEach(sel=>sel.addEventListener("change",()=>{ State._startDateEventId = sel.value; renderTabContent(); }));
+  el.querySelectorAll("[data-download-archive]").forEach(btn=>btn.addEventListener("click",()=>{ downloadArchiveFile(btn.dataset.downloadArchive); }));
+  el.querySelectorAll("[data-reload-archive]").forEach(btn=>btn.addEventListener("click", async ()=>{
+    if(confirm("Restore this archived plan? It will reappear as an active Event or General Fitness Period. This doesn't duplicate any logged data — your logs were never removed.")){
+      await reloadArchive(btn.dataset.reloadArchive);
+      render();
+    }
+  }));
 
   el.querySelectorAll("[data-drive-save-clientid]").forEach(b=>b.addEventListener("click", async ()=>{
     const v = document.getElementById("drive-clientid-input").value.trim();
@@ -4165,6 +4756,15 @@ function renderWorkoutForm(id, w, isNew){
       <div class="field wide"><label>Description</label><textarea id="wf-desc">${esc(w.desc||'')}</textarea></div>
     </div>
 
+    ${isRideOrRun ? `
+    <div class="section-title" id="wf-course-section" style="display:${tcxEligible(w)?'flex':'none'};">TCX Course File</div>
+    <div id="wf-course-field" style="display:${tcxEligible(w)?'block':'none'};">
+      <p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">Upload a planned route (.tcx Course file) for this Workout. ${isCycling?'Not available for Rouvy platforms — Rouvy already provides its own route.':''}</p>
+      <input type="file" id="wf-course-file" accept=".tcx">
+      <div id="wf-course-preview">${renderTcxPanel(w.course, 'data-remove-course="1"')}</div>
+    </div>
+    ` : ""}
+
     ${!isRideOrRun ? `
     <div class="section-title">Exercises <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--grey-600); margin-left:8px;">— est. duration updates automatically: <b id="wf-live-time">${fmtHrs(liveTime)}</b></span></div>
     <div id="wf-exercise-list">
@@ -4316,7 +4916,78 @@ function wireEditorEvents(el){
     const tssField = document.getElementById("wf-tss-field"), urlField = document.getElementById("wf-rouvyurl-field");
     if(tssField) tssField.style.display = isRouvy ? "flex" : "none";
     if(urlField) urlField.style.display = isRouvy ? "flex" : "none";
+    const courseSection = document.getElementById("wf-course-section"), courseField = document.getElementById("wf-course-field");
+    if(courseSection) courseSection.style.display = isRouvy ? "none" : "flex";
+    if(courseField) courseField.style.display = isRouvy ? "none" : "block";
   });
+  const courseFileInput = el.querySelector("#wf-course-file");
+  if(courseFileInput) courseFileInput.addEventListener("change", async ()=>{
+    const file = courseFileInput.files[0];
+    if(!file) return;
+    const preview = document.getElementById("wf-course-preview");
+    preview.innerHTML = `<p style="font-size:12px;color:var(--ink-600);margin-top:6px;">Reading file…</p>`;
+    try{
+      const text = await readFileAsText(file);
+      const parsed = parseTcxFile(text);
+      const draft = getEditingWorkoutDraft();
+      draft.course = parsed;
+      renderTabContent();
+    } catch(e){
+      preview.innerHTML = `<p style="font-size:12px;color:var(--red);margin-top:6px;">${esc(e.message)}</p>`;
+    }
+  });
+  const removeCourseBtn = el.querySelector("[data-remove-course]");
+  if(removeCourseBtn) removeCourseBtn.addEventListener("click",()=>{
+    const draft = getEditingWorkoutDraft();
+    delete draft.course;
+    renderTabContent();
+  });
+  el.querySelectorAll("[data-view-tcx-map]").forEach(btn=>btn.addEventListener("click", async (e)=>{
+    e.preventDefault();
+    const panel = btn.closest(".tcx-panel");
+    const coursePreview = panel.closest("#wf-course-preview");
+    const historyPreview = panel.closest(".tcx-history-preview");
+    if(coursePreview){
+      const draft = getEditingWorkoutDraft();
+      State._tcxMapData = {course: draft.course, history: null, workoutName: draft.name||"Course Map"};
+    } else if(historyPreview){
+      const uidStr = historyPreview.dataset.uid;
+      const {date, slotKey} = parseUid(uidStr);
+      const dp = getDayPlan(date);
+      const w = dp.workouts.find(x=>x.slotKey===slotKey);
+      const log = await getLog(date);
+      const savedW = (log.workouts && log.workouts[slotKey]) || {};
+      State._tcxMapData = {course: w?w.course:null, history: savedW.historyTcx, workoutName: (w?w.name:"")+" — "+fmtDate(date)};
+    }
+    State._openModal = "tcxmap";
+    renderModalRoot();
+  }));
+  el.querySelectorAll(".tcx-history-file").forEach(inp=>inp.addEventListener("change", async ()=>{
+    const file = inp.files[0];
+    if(!file) return;
+    const uidStr = inp.dataset.uid, date = inp.dataset.date, slotKey = inp.dataset.slotkey;
+    const preview = el.querySelector(`.tcx-history-preview[data-uid="${uidStr}"]`);
+    if(preview) preview.innerHTML = `<p style="font-size:12px;color:var(--ink-600);margin-top:6px;">Reading file…</p>`;
+    try{
+      const text = await readFileAsText(file);
+      const parsed = parseTcxFile(text);
+      const log = await getLog(date);
+      log.workouts = log.workouts || {};
+      log.workouts[slotKey] = Object.assign({}, log.workouts[slotKey]||{}, {historyTcx: parsed});
+      await saveLog(date, log);
+      renderTabContent();
+    } catch(err){
+      if(preview) preview.innerHTML = `<p style="font-size:12px;color:var(--red);margin-top:6px;">${esc(err.message)}</p>`;
+    }
+  }));
+  el.querySelectorAll("[data-remove-history]").forEach(btn=>btn.addEventListener("click", async ()=>{
+    const uidStr = btn.dataset.removeHistory;
+    const {date, slotKey} = parseUid(uidStr);
+    const log = await getLog(date);
+    if(log.workouts && log.workouts[slotKey]) delete log.workouts[slotKey].historyTcx;
+    await saveLog(date, log);
+    renderTabContent();
+  }));
   el.querySelectorAll("[data-choice-for]").forEach(btn=>btn.addEventListener("click",()=>{
     const targetId = btn.dataset.choiceFor, val = btn.dataset.choiceValue;
     const hidden = document.getElementById(targetId);
@@ -4333,6 +5004,18 @@ function wireEditorEvents(el){
       const f = document.getElementById("ev-enddate-field");
       if(f) f.style.display = val==="other" ? "flex" : "none";
       btn.parentElement.querySelectorAll(".choice-btn").forEach(b=>b.classList.toggle("active", b===btn));
+    } else if(targetId==="ev-isgfp"){
+      const isGFP = val==="1";
+      const realFields = document.getElementById("ev-realfields");
+      const gfpField = document.getElementById("ev-gfp-start-field");
+      if(realFields) realFields.style.display = isGFP ? "none" : "grid";
+      if(gfpField) gfpField.style.display = isGFP ? "flex" : "none";
+      const saveBtn = document.querySelector("[data-save-event]");
+      if(saveBtn) saveBtn.textContent = "Save " + (isGFP ? "General Fitness Period" : "Event");
+      btn.parentElement.querySelectorAll(".choice-btn").forEach(b=>b.classList.toggle("active", b===btn));
+    } else if(targetId==="plog-mode"){
+      State.plogMode = val;
+      renderTabContent();
     } else if(targetId==="ev-color"){
       btn.parentElement.querySelectorAll("button[data-choice-for='ev-color']").forEach(b=>{ b.style.border = "3px solid transparent"; });
       btn.style.border = "3px solid var(--navy)";
@@ -4416,6 +5099,9 @@ async function saveWorkoutFromForm(){
       const tssEl = document.getElementById("wf-tss"), urlEl = document.getElementById("wf-rouvyurl");
       if(tssEl && tssEl.value) data.targetTSS = parseInt(tssEl.value);
       if(urlEl && urlEl.value) data.url = urlEl.value.trim();
+    } else {
+      const draft = getEditingWorkoutDraft();
+      if(draft.course) data.course = draft.course;
     }
   } else if(kind==="run"){
     data = {
@@ -4424,6 +5110,8 @@ async function saveWorkoutFromForm(){
       timeMin: parseInt(document.getElementById("wf-time").value)||20,
       estMiles: document.getElementById("wf-miles").value ? parseFloat(document.getElementById("wf-miles").value) : undefined
     };
+    const draft = getEditingWorkoutDraft();
+    if(draft.course) data.course = draft.course;
   } else {
     const draft = syncFormIntoDraft();
     data = {name, kind, desc, bodyGroup:document.getElementById("wf-bodygroup").value, exercises:draft.exercises};
@@ -4461,5 +5149,6 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
 
