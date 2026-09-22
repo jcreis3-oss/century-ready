@@ -368,7 +368,13 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 /* progress tab */
 .progress-table{width:100%; border-collapse:collapse; font-size:13px;}
 .progress-table th{text-align:left; padding:9px 10px; font-size:10.5px; text-transform:uppercase; color:var(--ink-600); border-bottom:1.5px solid var(--grey-200); letter-spacing:.04em;}
-.progress-table td{padding:9px 10px; border-bottom:1px solid var(--grey-100);}
+.progress-table td{padding:9px 10px; border-bottom:1px solid var(--grey-100); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.progress-table th:nth-child(1), .progress-table td:nth-child(1){ width:15%; }
+.progress-table th:nth-child(2), .progress-table td:nth-child(2){ width:14%; }
+.progress-table th:nth-child(3), .progress-table td:nth-child(3){ width:12%; }
+.progress-table th:nth-child(4), .progress-table td:nth-child(4){ width:11%; }
+.progress-table th:nth-child(5), .progress-table td:nth-child(5){ width:16%; }
+.progress-table th:nth-child(6), .progress-table td:nth-child(6){ width:32%; }
 .progress-table tr{cursor:pointer; transition:background .12s;}
 .progress-table tr:hover td{background:var(--indigo-pale);}
 .empty-state{text-align:center; padding:40px 20px; color:var(--ink-600);}
@@ -480,11 +486,12 @@ svg.sparkline{width:100%; height:110px;}
 .cal-legend .lg-item{display:flex; align-items:center; gap:6px;}
 .cal-legend .lg-swatch{width:12px; height:12px; border-radius:4px; display:inline-block;}
 
-/* tables don't reflow naturally — let them scroll horizontally rather than
-   break the page layout on narrow screens */
-.progress-table, .zone-table{ display:block; overflow-x:auto; white-space:nowrap; -webkit-overflow-scrolling:touch; }
-.progress-table thead, .progress-table tbody, .progress-table tr,
-.zone-table thead, .zone-table tbody, .zone-table tr{ display:table; width:100%; table-layout:auto; }
+/* tables don't reflow naturally — wrap them (see .table-scroll) so they
+   scroll horizontally on narrow screens without breaking column alignment
+   (per-row display:table sizes each row's columns independently, which is
+   what caused the misalignment) */
+.table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.progress-table, .zone-table{ width:100%; border-collapse:collapse; table-layout:fixed; }
 
 @media(max-width:680px){
   #root{ padding:0 12px 60px; }
@@ -1476,6 +1483,26 @@ function allDatesInRange(start, end){
 function activeGFP(){ return Events.list.find(e=>e.isGFP && !e.hidden) || null; }
 /* Whether there is any real (non-GFP), non-completed, non-hidden Event active right now */
 function hasCurrentEventPlan(){ return Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e)); }
+
+/* The date range(s) and name(s) of whatever is currently the active plan —
+   one or more real Events, or (if none) the active General Fitness Period.
+   Used for Plan Snapshot metrics scoped to "the current plan" specifically,
+   as opposed to all-time / all-Events totals. */
+function getCurrentPlanInfo(){
+  const activeReal = Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e));
+  const dateSet = new Set();
+  if(activeReal.length){
+    activeReal.forEach(e=>{ const P = PlanByEvent[e.id]; if(P) allDatesInRange(P.start, P.end).forEach(d=>dateSet.add(d)); });
+    return { names: activeReal.map(e=>e.name), dates: dateSet };
+  }
+  const gfp = activeGFP();
+  if(gfp){
+    const P = PlanByEvent[gfp.id];
+    if(P) allDatesInRange(P.start, todayISO()).forEach(d=>dateSet.add(d)); // GFP is open-ended; cap at today, not its future scaffold
+    return { names: [gfp.name], dates: dateSet };
+  }
+  return { names: [], dates: dateSet };
+}
 
 async function archivePeriod(ev){
   const P = PlanByEvent[ev.id];
@@ -2698,7 +2725,7 @@ function renderHeader(){
       <div class="ehr-main" style="display:flex; align-items:center; gap:10px;">
         ${e.icon?`<img src="${esc(e.icon)}" alt="" class="ehr-icon">`:''}
         <div>
-          <div class="ehr-name">General Fitness Period</div>
+          <div class="ehr-name">${esc(e.name)}</div>
           <div class="ehr-sub">Started ${esc(fmtDateLong(start))}</div>
         </div>
       </div>
@@ -3556,7 +3583,7 @@ async function renderSchedule(){
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div>
         <h2 style="font-size:16px;">Weekly Plan Overview</h2>
-        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">${(()=>{ const evs=Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e)); if(evs.length) return evs.map(e=>esc(e.name)+' ('+esc(fmtDate(PlanByEvent[e.id]?PlanByEvent[e.id].start:e.trainingStart))+' → '+esc(fmtDate(e.date))+')').join(' · '); const gfp=activeGFP(); if(gfp) return 'General Fitness Period (started '+esc(fmtDate((PlanByEvent[gfp.id]&&PlanByEvent[gfp.id].start)||gfp.trainingStart))+')'; return 'No active Events — create one, or start a General Fitness Period, on the Events tab.'; })()}</p>
+        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">${(()=>{ const evs=Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e)); if(evs.length) return evs.map(e=>esc(e.name)+' ('+esc(fmtDate(PlanByEvent[e.id]?PlanByEvent[e.id].start:e.trainingStart))+' → '+esc(fmtDate(e.date))+')').join(' · '); const gfp=activeGFP(); if(gfp) return esc(gfp.name)+' (started '+esc(fmtDate((PlanByEvent[gfp.id]&&PlanByEvent[gfp.id].start)||gfp.trainingStart))+')'; return 'No active Events — create one, or start a General Fitness Period, on the Events tab.'; })()}</p>
       </div>
       <div class="pill-toggle">
         <button class="${view==='list'?'active':''}" data-view-toggle="list">List</button>
@@ -3618,7 +3645,7 @@ async function renderGFPWeeklySchedule(gfp){
     <div class="week-block">
       <div class="week-block-head" data-togglegfpweek="${wn}">
         <div>
-          <div class="wtitle">Week ${wn} — General Fitness Period</div>
+          <div class="wtitle">Week ${wn} — ${esc(gfp.name)}</div>
           <div class="wsub">${esc(fmtDate(weekStart))} – ${esc(fmtDate(weekEnd))}</div>
         </div>
         <svg class="chev ${isOpen?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--grey-600)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3915,7 +3942,7 @@ function renderEventsList(){
         <div class="card-header">
           <div style="display:flex; align-items:center; gap:10px;">
             ${e.icon?`<img src="${esc(e.icon)}" alt="" class="event-card-icon">`:''}
-            <h2>General Fitness Period ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
+            <h2>${esc(e.name)} ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
           </div>
           <span class="meta">Started ${esc(fmtDateLong(start))}</span>
         </div>
@@ -3966,6 +3993,18 @@ function renderEventsList(){
   `;
 }
 
+const GFP_BASE_NAME = "General Fitness Period";
+function gfpNameSuffix(name){
+  if(!name) return "";
+  if(name===GFP_BASE_NAME) return "";
+  const prefix = GFP_BASE_NAME + " - ";
+  return name.startsWith(prefix) ? name.slice(prefix.length) : "";
+}
+function gfpFullName(suffix){
+  const s = (suffix||"").trim();
+  return s ? `${GFP_BASE_NAME} - ${s}` : GFP_BASE_NAME;
+}
+
 function renderEventForm(ev){
   const e = ev || {name:"",description:"",date:"",type:"cycling",typeOther:"",location:"",locationMapUrl:"",website:"",distance:"",distanceUnit:"mi",trainingStart:todayISO(),trainingEndMode:"event",trainingEndDate:"",color:nextEventColor(),isGFP:false};
   const isNew = !ev;
@@ -3983,6 +4022,8 @@ function renderEventForm(ev){
       <p style="font-size:12px; color:var(--ink-600); margin-top:6px;">A General Fitness Period is for when you're not training for a specific Event — just tracking ongoing training. It runs until you create a new Event or start another General Fitness Period.</p>
     </div>
     <div class="field" id="ev-gfp-start-field" style="display:${isGFP?'flex':'none'};"><label>Start Date</label><input type="date" id="ev-gfp-start" value="${esc(e.trainingStart||todayISO())}"></div>
+    <div class="field wide" id="ev-gfp-name-field" style="display:${isGFP?'flex':'none'};"><label>Name (optional)</label><input type="text" id="ev-gfp-name" value="${esc(gfpNameSuffix(e.name))}" placeholder="e.g. Fall 2026"></div>
+    <p id="ev-gfp-name-preview" style="font-size:12px; color:var(--ink-600); margin-top:-6px; display:${isGFP?'block':'none'};">Will be named: <strong>${esc(gfpFullName(gfpNameSuffix(e.name)))}</strong></p>
     ` : `<input type="hidden" id="ev-isgfp" value="${isGFP?'1':'0'}">`}
     <div class="field-grid" id="ev-realfields" style="display:${isGFP?'none':'grid'};">
       <div class="field wide"><label>Name of Event</label><input type="text" id="ev-name" value="${esc(e.name)}"></div>
@@ -4183,14 +4224,14 @@ async function renderProfile(){
     </div>
     <div>
       <div class="card"><div class="card-header"><h2>Power Zones</h2><span class="meta">Coggan Classic, from FTP</span></div>
-        <table class="zone-table"><thead><tr><th>Zone</th><th>Name</th><th>Watts</th></tr></thead><tbody>
+        <div class="table-scroll"><table class="zone-table"><thead><tr><th>Zone</th><th>Name</th><th>Watts</th></tr></thead><tbody>
           ${pZones.map(z=>`<tr><td><span class="zone-swatch" style="background:${z.color}"></span>${z.z}</td><td>${z.name}</td><td style="font-family:var(--font-mono)">${z.watts}</td></tr>`).join("")}
-        </tbody></table>
+        </tbody></table></div>
       </div>
       <div class="card"><div class="card-header"><h2>Heart Rate Zones</h2><span class="meta">Joe Friel bike zones, from threshold HR</span></div>
-        <table class="zone-table"><thead><tr><th>Zone</th><th>Name</th><th>BPM</th></tr></thead><tbody>
+        <div class="table-scroll"><table class="zone-table"><thead><tr><th>Zone</th><th>Name</th><th>BPM</th></tr></thead><tbody>
           ${hZones.map(z=>`<tr><td><span class="zone-swatch" style="background:${z.color}"></span>${z.z}</td><td>${z.name}</td><td style="font-family:var(--font-mono)">${z.bpm}</td></tr>`).join("")}
-        </tbody></table>
+        </tbody></table></div>
       </div>
       <div class="card"><div class="card-header"><h2>Nutrition Formula</h2></div>
         <div class="calc-box" style="background:var(--teal-pale);">
@@ -4282,11 +4323,19 @@ async function renderProgress(){
   <div class="two-col">
     <div class="card"><div class="card-header"><h2>Body Weight Trend</h2><span class="meta">Last 14 logged entries</span></div>${sparkline}</div>
     <div class="card"><div class="card-header"><h2>Plan Snapshot</h2></div>
+      ${(()=>{ const info = getCurrentPlanInfo();
+        const thisYear = todayISO().slice(0,4);
+        const loggedUnderPlan = complianceRows.filter(l=>info.dates.has(l.date)).length;
+        const loggedThisYear = complianceRows.filter(l=>l.date.startsWith(thisYear)).length;
+        return `
+      ${info.names.length ? `<p style="font-size:13px; font-weight:600; color:var(--indigo); margin:-6px 0 12px;">${esc(info.names.join(' · '))}</p>` : `<p style="font-size:12.5px; color:var(--ink-600); margin:-6px 0 12px;">No active plan right now</p>`}
       <div class="calc-box">
-        <div class="cline"><span>Days logged</span><span>${complianceRows.length}</span></div>
+        <div class="cline"><span>Days logged (current plan)</span><span>${loggedUnderPlan}</span></div>
+        <div class="cline"><span>Days tracked (current plan)</span><span>${info.dates.size}</span></div>
+        <div class="cline"><span>Days logged this year</span><span>${loggedThisYear}</span></div>
         <div class="cline"><span>Total days tracked</span><span>${allCalendarDates().length}</span></div>
         <div class="cline"><span>Days to next Event</span><span>${daysUntilNearestEvent()!==null?daysUntilNearestEvent():'—'}</span></div>
-      </div>
+      </div>`; })()}
     </div>
   </div>
   <div class="card">
@@ -4350,9 +4399,9 @@ function logRowsMatchingFilter(complianceRows){
 
 function renderLoggedDaysTable(rows){
   if(!rows.length) return `<div class="empty-state"><h3>No entries in this range</h3><p>Try a different day, week, or month.</p></div>`;
-  return `<table class="progress-table"><thead><tr><th>Date</th><th>Workout Entries</th><th>Weight</th><th>Sleep</th><th>Nutrition Logged</th><th>Notes</th></tr></thead><tbody>
-      ${rows.map(l=>`<tr data-goto-day="${l.date}"><td>${esc(fmtDate(l.date))}</td><td>${l.workouts?Object.keys(l.workouts).length:0}</td><td>${l.bodyweight?l.bodyweight+' lb':'—'}</td><td>${(l.sleepH||l.sleepM)?esc(l.sleepH||'00')+':'+esc(l.sleepM||'00'):'—'}</td><td>${l.nutrition&&Object.keys(l.nutrition).length?(l.nutrition.kcal||'—')+' kcal':'—'}</td><td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(l.notes||'')}</td></tr>`).join("")}
-    </tbody></table>`;
+  return `<div class="table-scroll"><table class="progress-table"><thead><tr><th>Date</th><th>Workout Entries</th><th>Weight</th><th>Sleep</th><th>Nutrition Logged</th><th>Notes</th></tr></thead><tbody>
+      ${rows.map(l=>`<tr data-goto-day="${l.date}"><td>${esc(fmtDate(l.date))}</td><td>${l.workouts?Object.keys(l.workouts).length:0}</td><td>${l.bodyweight?l.bodyweight+' lb':'—'}</td><td>${(l.sleepH||l.sleepM)?esc(l.sleepH||'00')+':'+esc(l.sleepM||'00'):'—'}</td><td>${l.nutrition&&Object.keys(l.nutrition).length?(l.nutrition.kcal||'—')+' kcal':'—'}</td><td>${esc(l.notes||'')}</td></tr>`).join("")}
+    </tbody></table></div>`;
 }
 
 function renderLoggedDaysSection(complianceRows){
@@ -4371,15 +4420,16 @@ function renderLoggedDaysSection(complianceRows){
     groups[year][month].push(l);
   });
   const years = Object.keys(groups).sort((a,b)=>b-a);
+  let firstKey = null;
+  years.forEach(year=>{ Object.keys(groups[year]).sort((a,b)=>b-a).forEach(month=>{ if(!firstKey) firstKey = `${year}-${month}`; }); });
+  if(State.openLogMonth === undefined) State.openLogMonth = firstKey;
   let html = "";
-  let firstOpen = true;
   years.forEach(year=>{
     const months = Object.keys(groups[year]).sort((a,b)=>b-a);
     months.forEach(month=>{
       const key = `${year}-${month}`;
       const rows = groups[year][month];
-      const isOpen = State.openLogMonth ? State.openLogMonth===key : firstOpen;
-      firstOpen = false;
+      const isOpen = State.openLogMonth === key;
       html += `
       <div class="week-block">
         <div class="week-block-head" data-togglelogmonth="${key}">
@@ -4452,6 +4502,11 @@ function wireTabEvents(scopeEl){
   el.querySelectorAll("[data-new-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=true; State._editingEventId=null; renderTabContent(); }));
   el.querySelectorAll("[data-edit-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=true; State._editingEventId=b.dataset.editEvent; renderTabContent(); }));
   el.querySelectorAll("[data-cancel-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=false; State._editingEventId=null; renderTabContent(); }));
+  const gfpNameInput = el.querySelector("#ev-gfp-name");
+  if(gfpNameInput) gfpNameInput.addEventListener("input",()=>{
+    const preview = document.getElementById("ev-gfp-name-preview");
+    if(preview) preview.innerHTML = `Will be named: <strong>${esc(gfpFullName(gfpNameInput.value))}</strong>`;
+  });
   const iconFileInput = el.querySelector("#ev-icon-file");
   if(iconFileInput) iconFileInput.addEventListener("change", async ()=>{
     const file = iconFileInput.files[0];
@@ -4478,8 +4533,9 @@ function wireTabEvents(scopeEl){
     if(isGFP){
       const startDate = document.getElementById("ev-gfp-start").value;
       if(!startDate){ alert("Please set the date this General Fitness Period begins."); return; }
+      const nameSuffix = document.getElementById("ev-gfp-name").value;
       const data = {
-        name: "General Fitness Period", isGFP: true,
+        name: gfpFullName(nameSuffix), isGFP: true,
         trainingStart: startDate, color: document.getElementById("ev-color").value
       };
       await createEvent(data);
@@ -5338,7 +5394,5 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
-
-
 
 
