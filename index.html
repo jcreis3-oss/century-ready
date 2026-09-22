@@ -35,7 +35,7 @@
   --grey-800:#1c2333;
   --white:#ffffff;
 
-  /* brand navy (from event mark) */
+  /* brand navy (hero) */
   --navy:#0E1B33;
   --navy-2:#182C52;
   --blue:#3159C9;
@@ -50,6 +50,14 @@
   --teal-pale:#E1FBF4;
   --indigo:#5B5FEF;
   --indigo-pale:#ECEDFE;
+
+  /* SIGNATURE — "Sunrise Ascent": used only for the header's ascent-line
+     hero motif (the elevation-profile flourish), not as the app's
+     functional brand color. Grounded in the golden-hour light distance
+     athletes actually train in. */
+  --summit-1:#FF7A45;
+  --summit-2:#FFB648;
+  --grad-summit: linear-gradient(115deg, var(--summit-1) 0%, var(--summit-2) 100%);
 
   /* warm energy gradient — highlights, today markers, weather/clock */
   --grad-warm-1:#FF6B4A;
@@ -86,10 +94,7 @@
 html,body{margin:0;padding:0;}
 body{
   font-family:var(--font-body);
-  background:
-    radial-gradient(1200px 600px at 90% -10%, rgba(91,95,239,0.06) 0%, rgba(91,95,239,0) 60%),
-    radial-gradient(900px 500px at -10% 10%, rgba(0,224,184,0.07) 0%, rgba(0,224,184,0) 55%),
-    var(--bg);
+  background:var(--bg);
   color:var(--ink);
   -webkit-font-smoothing:antialiased;
   line-height:1.5;
@@ -107,36 +112,33 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 #root{max-width:1180px; margin:0 auto; padding:0 20px 80px;}
 
 .app-header{
-  background:
-    radial-gradient(700px 400px at 88% -20%, rgba(0,224,184,0.35) 0%, rgba(0,224,184,0) 60%),
-    radial-gradient(600px 380px at 10% 120%, rgba(255,107,74,0.28) 0%, rgba(255,107,74,0) 60%),
-    linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 55%, #24407A 100%);
+  background: linear-gradient(150deg, var(--navy) 0%, var(--navy-2) 55%, #24407A 100%);
   color:var(--white);
   border-radius:var(--radius-lg);
-  padding:30px 30px 24px;
+  padding:34px 30px 26px;
   margin:18px 0 22px;
   position:relative;
   overflow:hidden;
   box-shadow:var(--shadow-lg);
 }
-.app-header::before{
-  content:""; position:absolute; inset:0; opacity:.5; pointer-events:none;
-  background-image:radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
-  background-size:22px 22px;
+.app-header .ascent-motif{ position:absolute; inset:0; width:100%; height:100%; z-index:0; }
+.app-header .ascent-fill{ fill:url(#ascentFillGrad); opacity:.5; }
+.app-header .ascent-line{
+  fill:none; stroke:url(#ascentLineGrad); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1100; stroke-dashoffset:1100; animation:drawAscent 1.8s cubic-bezier(.4,0,.2,1) .15s forwards;
 }
-.app-header .eyebrow{
-  font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#8FE9D6; font-weight:700; position:relative;
-}
+@keyframes drawAscent{ to{ stroke-dashoffset:0; } }
+.app-header .header-top{ position:relative; z-index:1; display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.app-header .logo-mark{ flex-shrink:0; filter:drop-shadow(0 6px 16px rgba(232,103,46,0.4)); }
 .app-header h1{
-  color:#fff; font-size:30px; margin-top:6px; position:relative; font-weight:800;
-  background:linear-gradient(90deg,#fff 0%, #CFE8FF 100%); -webkit-background-clip:text; background-clip:text;
+  color:#fff; font-size:32px; line-height:1.15; font-weight:800; letter-spacing:-0.01em; margin:0;
 }
-.app-header .sub{color:#B9C6E8; font-size:13.5px; margin-top:6px; max-width:560px; position:relative;}
+.app-header .sub{color:#B9C6E8; font-size:14px; margin-top:6px; max-width:580px; position:relative;}
 
-.event-header-list{ display:flex; flex-direction:column; gap:10px; margin-top:16px; position:relative; z-index:1; }
+.event-header-list{ display:flex; flex-direction:column; gap:10px; margin-top:20px; position:relative; z-index:1; }
 .event-header-row{
   display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
-  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16);
+  background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.16);
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   border-radius:var(--radius-md); padding:12px 16px;
 }
@@ -146,6 +148,7 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 .ehr-stat{ text-align:center; }
 .ehr-stat .num{ font-family:var(--font-display); font-size:17px; font-weight:800; color:#fff; line-height:1; }
 .ehr-stat .lbl{ font-size:9.5px; text-transform:uppercase; letter-spacing:.07em; color:#AEC0EA; margin-top:3px; font-weight:600; }
+.ehr-icon{ width:40px; height:40px; border-radius:11px; object-fit:cover; border:1.5px solid rgba(255,255,255,0.25); flex-shrink:0; }
 .header-stats{ display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; align-items:stretch; position:relative; z-index:1; }
 .stat-pill{
   background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16);
@@ -186,8 +189,9 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 .card{
   background:var(--bg-alt); border:1px solid var(--grey-200); border-radius:var(--radius-lg);
   padding:22px; margin-bottom:18px; box-shadow:var(--shadow-sm);
-  animation:fadeSlideIn .35s ease both; transition:box-shadow .2s ease;
+  animation:fadeSlideIn .35s ease both; transition:box-shadow .2s ease, transform .2s ease;
 }
+.card:hover{ box-shadow:var(--shadow-md); }
 .card-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;}
 .card-header h2{font-size:17px;}
 .card-header .meta{font-size:12.5px; color:var(--ink-600); font-weight:500;}
@@ -356,7 +360,8 @@ input,select,textarea{font-family:inherit; font-size:14px;}
 .zone-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-600); padding:6px 8px; border-bottom:1.5px solid var(--grey-200);}
 .zone-table td{padding:7px 8px; border-bottom:1px solid var(--grey-100);}
 .zone-swatch{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:7px;}
-.calc-box{background:var(--indigo-pale); border-radius:var(--radius-md); padding:16px; margin-top:14px;}
+.calc-box{background:var(--indigo-pale); border-radius:var(--radius-md); padding:16px; margin-top:14px; transition:box-shadow .18s ease;}
+.calc-box:hover{box-shadow:0 6px 18px rgba(91,95,239,0.16);}
 .calc-box .cline{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px dashed rgba(91,95,239,0.22);}
 .calc-box .cline:last-child{border-bottom:none; font-weight:700; color:var(--indigo);}
 
@@ -411,14 +416,16 @@ svg.sparkline{width:100%; height:110px;}
 
 .tcx-panel{
   border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); background:var(--grey-50);
-  padding:12px; margin-top:10px;
+  padding:12px; margin-top:10px; transition:border-color .18s ease, background .18s ease;
 }
+.tcx-panel:hover{ border-color:var(--indigo); background:var(--indigo-pale); }
 .tcx-panel .tcx-summary{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .tcx-panel .tcx-summary .tname{ font-weight:700; font-size:13px; color:var(--navy); }
 .tcx-panel .tcx-summary .tstats{ font-size:11.5px; color:var(--ink-600); }
 #tcx-map{ width:100%; height:360px; border-radius:var(--radius-md); z-index:1; }
 .tcx-stats-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; margin-top:14px; }
-.tcx-stat-box{ background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; }
+.tcx-stat-box{ background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; transition:transform .16s ease, box-shadow .16s ease; }
+.tcx-stat-box:hover{ transform:translateY(-2px); box-shadow:var(--shadow-sm); }
 .tcx-stat-box .tsv{ font-family:var(--font-display); font-weight:700; font-size:17px; color:var(--navy); }
 .tcx-stat-box .tsl{ font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-600); font-weight:700; margin-top:2px; }
 .tcx-legend{ display:flex; gap:16px; margin-top:10px; font-size:11.5px; color:var(--ink-600); }
@@ -472,6 +479,41 @@ svg.sparkline{width:100%; height:110px;}
 .cal-legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-600); margin-top:12px;}
 .cal-legend .lg-item{display:flex; align-items:center; gap:6px;}
 .cal-legend .lg-swatch{width:12px; height:12px; border-radius:4px; display:inline-block;}
+
+/* tables don't reflow naturally — let them scroll horizontally rather than
+   break the page layout on narrow screens */
+.progress-table, .zone-table{ display:block; overflow-x:auto; white-space:nowrap; -webkit-overflow-scrolling:touch; }
+.progress-table thead, .progress-table tbody, .progress-table tr,
+.zone-table thead, .zone-table tbody, .zone-table tr{ display:table; width:100%; table-layout:auto; }
+
+@media(max-width:680px){
+  #root{ padding:0 12px 60px; }
+  .app-header{ padding:24px 18px 20px; border-radius:var(--radius-md); }
+  .app-header h1{ font-size:25px; }
+  .app-header .sub{ font-size:13px; }
+  .logo-mark{ width:38px; height:38px; }
+  .event-header-row{ flex-direction:column; align-items:flex-stretch; }
+  .ehr-stats{ justify-content:flex-start; }
+  .header-stats{ gap:8px; }
+  .stat-pill{ padding:10px 14px; }
+  .stat-pill .num{ font-size:18px; }
+  .card{ padding:16px; border-radius:var(--radius-md); }
+  h1{ font-size:22px; }
+  .card-header h2{ font-size:15px; }
+  .week-block-head{ padding:13px 14px; }
+  .day-row{ padding:13px 14px; }
+  .wi-head{ padding:12px; flex-wrap:wrap; }
+  .field-grid{ grid-template-columns:1fr; }
+  .modal-box{ padding:18px; max-width:100%; }
+  .btn-group{ width:100%; }
+  .choice-btn{ flex:1; text-align:center; }
+  .save-row{ flex-wrap:wrap; }
+  .save-row .btn{ flex:1; min-width:120px; }
+}
+@media(max-width:420px){
+  .app-header h1{ font-size:21px; }
+  .header-top{ gap:10px; }
+}
 </style>
 </head>
 <body>
@@ -1454,6 +1496,8 @@ async function archivePeriod(ev){
     endDate: end,
     archivedAt: new Date().toISOString(),
     eventMeta: ev.isGFP ? null : {date:ev.date, type:ev.type, typeOther:ev.typeOther, location:ev.location, locationMapUrl:ev.locationMapUrl, website:ev.website, distance:ev.distance, distanceUnit:ev.distanceUnit, description:ev.description},
+    icon: ev.icon || null,
+    photos: ev.photos || [],
     schedule: P ? {templates:P.templates, dailyQueue:P.dailyQueue, dayOverrides:P.dayOverrides} : null,
     logs
   };
@@ -1503,6 +1547,8 @@ async function reloadArchive(archiveId){
   const ev = archive.periodType==="gfp"
     ? {id:newId, name:"General Fitness Period", isGFP:true, hidden:false, createdAt:new Date().toISOString(), color:nextEventColor(), trainingStart:archive.startDate}
     : Object.assign({id:newId, hidden:false, createdAt:new Date().toISOString(), color:nextEventColor(), isLegacyCWC:false, trainingStart:archive.startDate, trainingEndMode:"event"}, archive.eventMeta, {name:archive.name});
+  if(archive.icon) ev.icon = archive.icon;
+  if(archive.photos && archive.photos.length) ev.photos = archive.photos;
   Events.list.push(ev);
   await saveEvents();
   if(archive.schedule){
@@ -1514,6 +1560,65 @@ async function reloadArchive(archiveId){
   await saveJSON("event:"+newId+":planStart", archive.startDate);
   await initEventPlan(ev);
   return ev;
+}
+
+/* ============================================================
+   EVENT IMAGES — icons and dated photo galleries for Events and
+   General Fitness Periods. Images are downscaled and re-compressed
+   client-side via canvas before storing (as data URIs) to keep
+   storage and Drive-sync payloads reasonable — this app has hit
+   real size problems before when storing uploads at full resolution.
+   ============================================================ */
+function resizeImageFile(file, maxDim, quality){
+  return new Promise((resolve,reject)=>{
+    if(!file.type || !file.type.startsWith("image/")){ reject(new Error("Please choose an image file.")); return; }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w>maxDim || h>maxDim){
+          if(w>=h){ h = Math.round(h*maxDim/w); w = maxDim; }
+          else { w = Math.round(w*maxDim/h); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = ()=>reject(new Error("Couldn't read that image file."));
+      img.src = reader.result;
+    };
+    reader.onerror = ()=>reject(new Error("Couldn't read that file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function setEventIcon(eventId, file){
+  const ev = eventById(eventId);
+  if(!ev) return;
+  ev.icon = await resizeImageFile(file, 160, 0.85);
+  await saveEvents();
+}
+async function removeEventIcon(eventId){
+  const ev = eventById(eventId);
+  if(!ev) return;
+  delete ev.icon;
+  await saveEvents();
+}
+async function addEventPhoto(eventId, file, date, caption){
+  const ev = eventById(eventId);
+  if(!ev) return;
+  const dataUrl = await resizeImageFile(file, 900, 0.75);
+  ev.photos = ev.photos || [];
+  ev.photos.push({id: uid("ph"), dataUrl, date: date||todayISO(), caption: caption||""});
+  await saveEvents();
+}
+async function removeEventPhoto(eventId, photoId){
+  const ev = eventById(eventId);
+  if(!ev || !ev.photos) return;
+  ev.photos = ev.photos.filter(p=>p.id!==photoId);
+  await saveEvents();
 }
 /* ============================================================
    CENTURY READY — WEATHER
@@ -2572,9 +2677,12 @@ function renderHeader(){
     const totalWeeks = e.isLegacyCWC ? 10 : (P ? Math.max(1, Math.ceil(daysBetween(P.start,P.end)/7)) : 1);
     return `
     <div class="event-header-row" style="border-left:4px solid ${esc(e.color)};">
-      <div class="ehr-main">
-        <div class="ehr-name">${esc(e.name)}</div>
-        <div class="ehr-sub">${esc(e.location||"")}${e.location?" · ":""}${esc(fmtDateLong(e.date))}</div>
+      <div class="ehr-main" style="display:flex; align-items:center; gap:10px;">
+        ${e.icon?`<img src="${esc(e.icon)}" alt="" class="ehr-icon">`:''}
+        <div>
+          <div class="ehr-name">${esc(e.name)}</div>
+          <div class="ehr-sub">${esc(e.location||"")}${e.location?" · ":""}${esc(fmtDateLong(e.date))}</div>
+        </div>
       </div>
       <div class="ehr-stats">
         <div class="ehr-stat"><div class="num">${d}</div><div class="lbl">Days to go</div></div>
@@ -2587,9 +2695,12 @@ function renderHeader(){
     const elapsed = daysBetween(start, todayISO()) + 1;
     return `
     <div class="event-header-row" style="border-left:4px solid ${esc(e.color)};">
-      <div class="ehr-main">
-        <div class="ehr-name">General Fitness Period</div>
-        <div class="ehr-sub">Started ${esc(fmtDateLong(start))}</div>
+      <div class="ehr-main" style="display:flex; align-items:center; gap:10px;">
+        ${e.icon?`<img src="${esc(e.icon)}" alt="" class="ehr-icon">`:''}
+        <div>
+          <div class="ehr-name">General Fitness Period</div>
+          <div class="ehr-sub">Started ${esc(fmtDateLong(start))}</div>
+        </div>
       </div>
       <div class="ehr-stats">
         <div class="ehr-stat"><div class="num">${elapsed}</div><div class="lbl">Days elapsed</div></div>
@@ -2608,11 +2719,38 @@ function renderHeader(){
 
   return `
   <div class="app-header">
-    <div class="eyebrow">Event Training Program</div>
-    <h1>Event Training Program</h1>
+    <svg class="ascent-motif" viewBox="0 0 900 220" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="ascentLineGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FFB648" stop-opacity="0.85"/>
+          <stop offset="100%" stop-color="#FF7A45" stop-opacity="0.55"/>
+        </linearGradient>
+        <linearGradient id="ascentFillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#FF7A45" stop-opacity="0.16"/>
+          <stop offset="100%" stop-color="#FF7A45" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path class="ascent-fill" d="M0,190 L70,165 L130,178 L210,120 L260,140 L340,80 L410,105 L480,55 L560,90 L640,40 L900,68 L900,220 L0,220 Z"/>
+      <path class="ascent-line" d="M0,190 L70,165 L130,178 L210,120 L260,140 L340,80 L410,105 L480,55 L560,90 L640,40 L900,68"/>
+    </svg>
+    <div class="header-top">
+      <svg class="logo-mark" width="46" height="46" viewBox="0 0 48 48" aria-hidden="true">
+        <defs><linearGradient id="logoGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF7A45"/><stop offset="100%" stop-color="#FFB648"/>
+        </linearGradient></defs>
+        <rect width="48" height="48" rx="14" fill="url(#logoGrad)"/>
+        <path d="M5.5 25 L13.5 17.5 L18 20.5 L26.5 9 L42.5 12.5" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+        <circle cx="26.5" cy="9" r="2.5" fill="#fff"/>
+        <text x="24" y="40.5" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="800" font-size="13.5" letter-spacing="0.3" fill="#fff">KoT</text>
+      </svg>
+      <div style="min-width:0; flex:1;">
+        <h1>Keep on Training</h1>
+        <p class="sub">Personal Event Training &amp; Fitness Tracker</p>
+      </div>
+    </div>
     ${bodyHtml}
     <div class="header-stats" id="header-stats-row">
-      <div class="stat-pill"><div class="num">${State.profile.ftp}W</div><div class="lbl">Current FTP</div></div>
+      <div class="stat-pill" style="min-width:120px;"><div class="num" style="font-size:16px;">${State.profile.ftp}W</div><div class="lbl">Current FTP</div></div>
       <div id="clock-widget"></div>
       <div id="weather-widget"></div>
     </div>
@@ -3745,6 +3883,26 @@ function renderEvents(){
   return renderEventsList();
 }
 
+function renderPhotoGallery(e){
+  const photos = (e.photos||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return `
+  <div class="photo-gallery-section">
+    <div class="section-title" style="margin-bottom:8px;">Photos</div>
+    ${photos.length ? `<div class="photo-gallery-grid">
+      ${photos.map(p=>`
+        <div class="photo-thumb">
+          <img src="${esc(p.dataUrl)}" alt="${esc(p.caption||'')}">
+          <div class="photo-thumb-date">${esc(fmtDate(p.date))}</div>
+          <button type="button" class="photo-thumb-remove" data-remove-photo="${e.id}::${p.id}" title="Remove photo">×</button>
+        </div>`).join("")}
+    </div>` : `<p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">No photos yet.</p>`}
+    <div class="photo-upload-row">
+      <input type="date" class="photo-date-input" data-eventid="${e.id}" value="${esc(todayISO())}">
+      <input type="file" class="photo-file-input" data-eventid="${e.id}" accept="image/*">
+    </div>
+  </div>`;
+}
+
 function renderEventsList(){
   const shown = Events.list.filter(e=>!e.isAdhoc);
   const active = shown.filter(e=>!e.hidden);
@@ -3755,9 +3913,13 @@ function renderEventsList(){
       return `
       <div class="card" style="border-left:4px solid ${esc(e.color)};">
         <div class="card-header">
-          <h2>General Fitness Period ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${e.icon?`<img src="${esc(e.icon)}" alt="" class="event-card-icon">`:''}
+            <h2>General Fitness Period ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
+          </div>
           <span class="meta">Started ${esc(fmtDateLong(start))}</span>
         </div>
+        ${renderPhotoGallery(e)}
         <div class="save-row" style="margin-top:12px;">
           <button class="btn btn-ghost" data-hide-event="${e.id}">${e.hidden?'Unhide':'Hide'}</button>
           <button class="btn btn-ghost" data-delete-event="${e.id}" style="color:var(--red);">Delete</button>
@@ -3770,7 +3932,10 @@ function renderEventsList(){
     return `
     <div class="card" style="border-left:4px solid ${esc(e.color)};">
       <div class="card-header">
-        <h2>${esc(e.name)} ${completed?'<span class="badge badge-rest">Completed</span>':''} ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${e.icon?`<img src="${esc(e.icon)}" alt="" class="event-card-icon">`:''}
+          <h2>${esc(e.name)} ${completed?'<span class="badge badge-rest">Completed</span>':''} ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
+        </div>
         <span class="meta">${esc(fmtDateLong(e.date))}</span>
       </div>
       ${e.description?`<p style="font-size:13px; color:var(--ink-600); margin-bottom:8px;">${esc(e.description)}</p>`:''}
@@ -3781,6 +3946,7 @@ function renderEventsList(){
         <div class="cline"><span>Training window</span><span>${esc(fmtDate(e.trainingStart))} → ${esc(fmtDate(eventTrainingEnd(e)))}</span></div>
         ${!hasImportedPlan?`<div class="cline"><span>Training Plan</span><span style="color:var(--orange);">Not created yet</span></div>`:''}
       </div>
+      ${renderPhotoGallery(e)}
       <div class="save-row" style="margin-top:12px;">
         ${e.website?`<a href="${esc(e.website)}" target="_blank" rel="noopener" class="btn btn-ghost">Event Website ↗</a>`:''}
         ${e.locationMapUrl?`<a href="${esc(e.locationMapUrl)}" target="_blank" rel="noopener" class="btn btn-ghost">Map ↗</a>`:''}
@@ -3850,6 +4016,16 @@ function renderEventForm(ev){
       </div>
       <div class="field" id="ev-enddate-field" style="display:${e.trainingEndMode==='other'?'flex':'none'};"><label>Training Plan End Date</label><input type="date" id="ev-enddate" value="${esc(e.trainingEndDate||"")}"></div>
     </div>
+    ${!isNew ? `
+    <div class="field wide" style="margin-top:10px;"><label>Icon</label>
+      <div style="display:flex; align-items:center; gap:12px;">
+        ${e.icon ? `<img src="${esc(e.icon)}" alt="" style="width:52px; height:52px; border-radius:14px; object-fit:cover; border:1.5px solid var(--grey-200);">` : `<div style="width:52px; height:52px; border-radius:14px; background:var(--grey-100); display:flex; align-items:center; justify-content:center; color:var(--grey-400); font-size:11px;">None</div>`}
+        <div>
+          <input type="file" id="ev-icon-file" accept="image/*">
+          ${e.icon ? `<button type="button" class="btn btn-ghost" data-remove-icon="${e.id}" style="margin-top:6px; color:var(--red);">Remove icon</button>` : ''}
+        </div>
+      </div>
+    </div>` : `<p style="font-size:12px; color:var(--ink-600); margin-top:10px;">You can add an icon and photos once this is saved.</p>`}
     <div class="field wide" style="margin-top:10px;"><label>Color</label>
       <input type="hidden" id="ev-color" value="${esc(e.color)}">
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -4276,6 +4452,19 @@ function wireTabEvents(scopeEl){
   el.querySelectorAll("[data-new-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=true; State._editingEventId=null; renderTabContent(); }));
   el.querySelectorAll("[data-edit-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=true; State._editingEventId=b.dataset.editEvent; renderTabContent(); }));
   el.querySelectorAll("[data-cancel-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=false; State._editingEventId=null; renderTabContent(); }));
+  const iconFileInput = el.querySelector("#ev-icon-file");
+  if(iconFileInput) iconFileInput.addEventListener("change", async ()=>{
+    const file = iconFileInput.files[0];
+    if(!file) return;
+    try{
+      await setEventIcon(State._editingEventId, file);
+      renderTabContent();
+    } catch(err){ alert(err.message); }
+  });
+  el.querySelectorAll("[data-remove-icon]").forEach(b=>b.addEventListener("click", async ()=>{
+    await removeEventIcon(b.dataset.removeIcon);
+    renderTabContent();
+  }));
   el.querySelectorAll("[data-hide-event]").forEach(b=>b.addEventListener("click", async ()=>{ const ev=eventById(b.dataset.hideEvent); await setEventHidden(ev.id, !ev.hidden); render(); }));
   el.querySelectorAll("[data-delete-event]").forEach(b=>b.addEventListener("click", async ()=>{
     const ev = eventById(b.dataset.deleteEvent);
@@ -5149,6 +5338,7 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
 
 
