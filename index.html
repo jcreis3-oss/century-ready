@@ -5252,9 +5252,13 @@ function wireEditorEvents(el){
     } else if(targetId==="ev-isgfp"){
       const isGFP = val==="1";
       const realFields = document.getElementById("ev-realfields");
-      const gfpField = document.getElementById("ev-gfp-start-field");
+      const gfpStartField = document.getElementById("ev-gfp-start-field");
+      const gfpNameField = document.getElementById("ev-gfp-name-field");
+      const gfpNamePreview = document.getElementById("ev-gfp-name-preview");
       if(realFields) realFields.style.display = isGFP ? "none" : "grid";
-      if(gfpField) gfpField.style.display = isGFP ? "flex" : "none";
+      if(gfpStartField) gfpStartField.style.display = isGFP ? "flex" : "none";
+      if(gfpNameField) gfpNameField.style.display = isGFP ? "flex" : "none";
+      if(gfpNamePreview) gfpNamePreview.style.display = isGFP ? "block" : "none";
       const saveBtn = document.querySelector("[data-save-event]");
       if(saveBtn) saveBtn.textContent = "Save " + (isGFP ? "General Fitness Period" : "Event");
       btn.parentElement.querySelectorAll(".choice-btn").forEach(b=>b.classList.toggle("active", b===btn));
@@ -5394,5 +5398,4 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
-
 
