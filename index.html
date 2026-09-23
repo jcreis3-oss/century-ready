@@ -450,6 +450,12 @@ svg.sparkline{width:100%; height:110px;}
 .lib-row.active{border-color:var(--teal); background:var(--teal-pale);}
 .lib-row .lr-name{font-weight:700; font-size:13px; color:var(--navy);}
 .lib-row .lr-meta{font-size:11px; color:var(--ink-600); margin-top:2px;}
+.lr-dup-btn{
+  flex-shrink:0; width:28px; height:28px; border-radius:8px; border:1px solid var(--grey-200); background:#fff;
+  color:var(--ink-600); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:all .15s ease;
+}
+.lr-dup-btn:hover{ background:var(--indigo-pale); border-color:var(--indigo); color:var(--indigo); transform:scale(1.08); }
 .tag-chip{display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:2px 7px; border-radius:10px; background:var(--grey-100); color:var(--ink-600); margin-right:4px;}
 .exercise-row-editor{border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px;}
 .filter-chips{display:flex; flex-wrap:wrap; gap:6px;}
@@ -4953,6 +4959,9 @@ function renderWorkoutEditor(){
                   ${item.kind==='strengthblock'?(item.exercises||[]).length+' exercises':fmtHrs(item.timeMin)}
                 </div>
               </div>
+              <button type="button" class="lr-dup-btn" data-duplicate-workout="${id}" title="Duplicate this Workout">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="2"/></svg>
+              </button>
             </div>`).join("")}
           ${!list.length?`<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`:''}
         </div>
@@ -4961,6 +4970,34 @@ function renderWorkoutEditor(){
     <div>
       ${w ? renderWorkoutForm(editing, w, editingIsNew) : `<div class="card empty-state"><h3>Select a workout</h3><p>Choose one from the list, or create a new one.</p></div>`}
     </div>
+  </div>`;
+}
+
+function renderImportExercisesPanel(currentWorkoutId){
+  const sourceId = State._importSourceId || "";
+  const strengthWorkouts = Object.entries(Lib.workouts).filter(([wid,w])=>w.kind==="strengthblock" && wid!==currentWorkoutId);
+  const source = sourceId ? Lib.workouts[sourceId] : null;
+  return `
+  <div class="tcx-panel" style="margin-top:10px;">
+    <div class="field"><label>Import from</label>
+      <select id="wf-import-source">
+        <option value="">Choose a Workout…</option>
+        ${strengthWorkouts.map(([wid,w])=>`<option value="${wid}" ${wid===sourceId?'selected':''}>${esc(w.name)} (${(w.exercises||[]).length} exercises)</option>`).join("")}
+      </select>
+    </div>
+    ${!strengthWorkouts.length ? `<p style="font-size:12px; color:var(--ink-600); margin-top:6px;">No other Strength Workouts exist yet to import from.</p>` : ""}
+    ${source ? `
+    <div style="margin-top:10px;">
+      ${(source.exercises||[]).length ? (source.exercises||[]).map((ref,i)=>{ const ex=Lib.exercises[ref.exId]; return `
+        <label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px; cursor:pointer;">
+          <input type="checkbox" class="wf-import-check" value="${i}">
+          <span>${esc(ex?ex.name:ref.exId)} — ${esc(ref.sets)} × ${esc(ref.reps)}</span>
+        </label>`; }).join("") : `<p style="font-size:12px; color:var(--ink-600);">This Workout has no exercises.</p>`}
+      ${(source.exercises||[]).length ? `<div class="save-row" style="margin-top:8px;">
+        <button type="button" class="btn btn-ghost" id="wf-import-selectall">Select All</button>
+        <button type="button" class="btn btn-primary" id="wf-import-apply">Import Selected</button>
+      </div>` : ""}
+    </div>` : ''}
   </div>`;
 }
 
@@ -5041,6 +5078,8 @@ function renderWorkoutForm(id, w, isNew){
       </select>
       <button class="btn btn-ghost" id="wf-add-exercise-btn">Add</button>
     </div>
+    <button type="button" class="btn btn-ghost" id="wf-toggle-import" style="width:100%; margin-top:8px;">${State._importPanelOpen?'Close':'+ Combine — Import exercises from another Workout'}</button>
+    ${State._importPanelOpen ? renderImportExercisesPanel(id) : ""}
     ` : ""}
 
     <div class="save-row" style="margin-top:16px;">
@@ -5140,8 +5179,22 @@ function wireEditorEvents(el){
   el.querySelectorAll("[data-wkkind]").forEach(b=>b.addEventListener("click",()=>{ State.editorFilter.kind=b.dataset.wkkind; renderTabContent(); }));
   const wkSearch = el.querySelector("#wk-search");
   if(wkSearch) wkSearch.addEventListener("input", ()=>{ State.editorFilter.q=wkSearch.value; renderTabContent(); setTimeout(()=>{const f=document.getElementById("wk-search"); if(f){f.focus(); f.selectionStart=f.selectionEnd=f.value.length;}},0); });
-  el.querySelectorAll("[data-new-workout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId="__new__"; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
-  el.querySelectorAll("[data-editworkout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId=b.dataset.editworkout; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-new-workout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId="__new__"; State._workoutDraft=null; State._workoutDraftId=null; State._importPanelOpen=false; State._importSourceId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-editworkout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId=b.dataset.editworkout; State._workoutDraft=null; State._workoutDraftId=null; State._importPanelOpen=false; State._importSourceId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-duplicate-workout]").forEach(b=>b.addEventListener("click",(e)=>{
+    e.stopPropagation();
+    const srcId = b.dataset.duplicateWorkout;
+    const src = Lib.workouts[srcId];
+    if(!src) return;
+    const clone = JSON.parse(JSON.stringify(src));
+    clone.name = clone.name + " (Copy)";
+    State.editingWorkoutId = "__new__";
+    State._workoutDraft = clone;
+    State._workoutDraftId = "__new__";
+    State._importPanelOpen = false;
+    State._importSourceId = null;
+    renderTabContent();
+  }));
   el.querySelectorAll("[data-cancel-workout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId=null; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
   el.querySelectorAll("[data-removeex]").forEach(b=>b.addEventListener("click",()=>{
     const w = syncFormIntoDraft(); w.exercises.splice(parseInt(b.dataset.removeex),1); renderTabContent();
@@ -5153,6 +5206,36 @@ function wireEditorEvents(el){
     const w = syncFormIntoDraft();
     const ex = Lib.exercises[sel.value];
     w.exercises.push({exId:sel.value, sets:ex.sets||"2", reps:ex.reps||"10"});
+    renderTabContent();
+  });
+  const toggleImportBtn = el.querySelector("#wf-toggle-import");
+  if(toggleImportBtn) toggleImportBtn.addEventListener("click",()=>{
+    syncFormIntoDraft();
+    State._importPanelOpen = !State._importPanelOpen;
+    if(!State._importPanelOpen) State._importSourceId = null;
+    renderTabContent();
+  });
+  const importSourceSel = el.querySelector("#wf-import-source");
+  if(importSourceSel) importSourceSel.addEventListener("change",()=>{
+    syncFormIntoDraft();
+    State._importSourceId = importSourceSel.value || null;
+    renderTabContent();
+  });
+  const importSelectAllBtn = el.querySelector("#wf-import-selectall");
+  if(importSelectAllBtn) importSelectAllBtn.addEventListener("click",()=>{
+    el.querySelectorAll(".wf-import-check").forEach(cb=>cb.checked=true);
+  });
+  const importApplyBtn = el.querySelector("#wf-import-apply");
+  if(importApplyBtn) importApplyBtn.addEventListener("click",()=>{
+    const source = Lib.workouts[State._importSourceId];
+    if(!source) return;
+    const checked = [...el.querySelectorAll(".wf-import-check:checked")].map(cb=>parseInt(cb.value));
+    if(!checked.length) return;
+    const w = syncFormIntoDraft();
+    w.exercises = w.exercises || [];
+    checked.forEach(i=>{ const ref = source.exercises[i]; if(ref) w.exercises.push({exId:ref.exId, sets:ref.sets, reps:ref.reps}); });
+    State._importPanelOpen = false;
+    State._importSourceId = null;
     renderTabContent();
   });
   const platformInput = el.querySelector("[data-platform-watch]");
@@ -5398,4 +5481,5 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
