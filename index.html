@@ -629,7 +629,19 @@ function estimateStrengthMinutesFromItems(items, exLib){
   return Math.max(5, Math.round(totalSec/60));
 }
 
-/* ---------------- WORKOUT LIBRARY (seed data) ---------------- */
+/* ---------------- FLEXIBILITY / RECOVERY CATEGORY ---------------- */
+const FLEX_SESSION_TYPES = ["Stretching","Yoga","Mobility","Foam Rolling","Restorative","Breathwork / Meditation","Massage / Recovery Tools","Other"];
+/* Strength and Flexibility/Recovery both carry an (optional, for Flex) exercise list */
+function isExKind(k){ return k==="strengthblock" || k==="flexrecovery"; }
+function kindLabel(k){ return k==="cycling"?"Cycling":(k==="run"?"Run":(k==="flexrecovery"?"Flex / Recovery":"Strength")); }
+function flexTypeFromBodyGroup(bg, name){
+  const n=(name||"").toLowerCase();
+  if(n.includes("foam")) return "Foam Rolling";
+  if(n.includes("yoga")) return "Yoga";
+  if(n.includes("relax")) return "Restorative";
+  if(n.includes("flex")) return "Stretching";
+  return bg==="recovery" ? "Restorative" : "Mobility";
+}
 function sref(exId, sets, reps){ return {exId, sets, reps}; }
 
 const WORKOUT_SEED = {
@@ -688,6 +700,14 @@ const WORKOUT_SEED = {
   rouvy_route_mallorca:        {name:"Mallorca Climbs (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", zoneText:"Free ride — pace to Zone 2–3", timeMin:75, desc:"A scenic real-world climbing route filmed in Mallorca — ride it in Just Ride mode at endurance/tempo pace as a change of scenery from structured intervals. Search this name in the Rouvy Routes library.", url:"https://riders.rouvy.com/routes"},
   rouvy_route_nz:              {name:"Rolling New Zealand Countryside (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", zoneText:"Free ride — pace to Zone 2", timeMin:60, desc:"A rolling, scenic real-world route through New Zealand countryside — a relaxed option for an easy endurance or recovery spin. Search this name in the Rouvy Routes library.", url:"https://riders.rouvy.com/routes"}
 };
+/* Mobility / recovery library workouts now live in the Flexibility/Recovery category */
+Object.keys(WORKOUT_SEED).forEach(id=>{
+  const w = WORKOUT_SEED[id];
+  if(w.kind==="strengthblock" && (w.bodyGroup==="mobility" || w.bodyGroup==="recovery")){
+    w.kind = "flexrecovery";
+    w.sessionType = flexTypeFromBodyGroup(w.bodyGroup, w.name);
+  }
+});
 
 /* ---------------- WEEK PROGRESSION TABLE (long ride build) ---------------- */
 const WEEK_META = [
@@ -801,6 +821,19 @@ async function loadLibraries(){
   const exCustom = (await loadJSON("exerciseLibrary")) || {};
   const wkCustom = (await loadJSON("workoutLibrary")) || {};
   Lib.exercises = Object.assign({}, EXERCISE_SEED, exCustom);
+  /* One-time: saved Strength workouts that are really mobility/recovery sessions move to Flexibility/Recovery */
+  const migrated = await loadJSON("flexRecoveryMigrated");
+  if(!migrated){
+    let changed = false;
+    Object.keys(wkCustom).forEach(id=>{
+      const w = wkCustom[id];
+      if(w && w.kind==="strengthblock" && (w.bodyGroup==="mobility" || w.bodyGroup==="recovery")){
+        w.kind = "flexrecovery"; w.sessionType = w.sessionType || flexTypeFromBodyGroup(w.bodyGroup, w.name); changed = true;
+      }
+    });
+    if(changed) await saveJSON("workoutLibrary", wkCustom);
+    await saveJSON("flexRecoveryMigrated", {at:new Date().toISOString()});
+  }
   Lib.workouts = Object.assign({}, WORKOUT_SEED, wkCustom);
 }
 async function saveExercise(id, data){
@@ -857,6 +890,15 @@ function resolveWorkout(workoutId, overrides){
     });
     const timeMin = estimateStrengthMinutes(w.exercises||[], Lib.exercises);
     return {kind:"strengthblock", id:workoutId, title:w.name, desc:w.desc, bodyGroup:w.bodyGroup, timeMin, items};
+  }
+  if(w.kind==="flexrecovery"){
+    const items = (w.exercises||[]).map(ref=>{
+      const ex = Lib.exercises[ref.exId] || {name:"(missing exercise)", desc:"", bodyGroup:"", bodyParts:[]};
+      return {exId:ref.exId, name:ex.name, desc:ex.desc, bodyGroup:ex.bodyGroup, bodyParts:ex.bodyParts, targetSets:ref.sets, targetReps:ref.reps};
+    });
+    const plannedMin = parseInt(w.timeMin)||0;
+    const timeMin = plannedMin>0 ? plannedMin : (items.length ? estimateStrengthMinutes(w.exercises||[], Lib.exercises) : 20);
+    return {kind:"flexrecovery", id:workoutId, title:w.name, desc:w.desc, bodyGroup:w.bodyGroup, sessionType:w.sessionType||"Stretching", plannedMin, timeMin, items};
   }
   return null;
 }
@@ -1072,7 +1114,7 @@ function getEventDayPlan(eventId, date){
     w.slotKey = eventId+"|"+sd.slotKey;
     w.eventId = eventId; w.eventName = ev.name; w.eventColor = ev.color;
 
-    if(w.kind==="strengthblock"){
+    if(isExKind(w.kind)){
       const exAdd = (ov.exAdd && ov.exAdd[sd.slotKey]) || [];
       let canonical = w.items.slice();
       exAdd.forEach(ref=>{
@@ -1090,7 +1132,8 @@ function getEventDayPlan(eventId, date){
         items = reordered;
       }
       w.items = items;
-      w.timeMin = estimateStrengthMinutesFromItems(items, Lib.exercises);
+      if(w.kind==="flexrecovery"){ if(!(w.plannedMin>0)) w.timeMin = items.length ? estimateStrengthMinutesFromItems(items, Lib.exercises) : 20; }
+      else w.timeMin = estimateStrengthMinutesFromItems(items, Lib.exercises);
     }
     return w;
   }).filter(Boolean);
@@ -1136,6 +1179,7 @@ function classifyWorkout(w){
     if(txt.includes("recovery") || txt.includes("zone 1")) return "recovery";
     return "indoor";
   }
+  if(w.kind==="flexrecovery") return "recovery";
   if(w.kind==="strengthblock"){
     if(w.bodyGroup==="recovery" || w.bodyGroup==="mobility") return "recovery";
     return "strength";
@@ -1273,7 +1317,7 @@ function reorderExercisesInSlot(date, slotKey, exOrigIndex, direction){
   const [eventId, realSlotKey] = slotKey.split("|");
   const day = getEventDayPlan(eventId, date);
   const w = day.workouts.find(x=>x.slotKey===slotKey);
-  if(!w || w.kind!=="strengthblock") return;
+  if(!w || !isExKind(w.kind)) return;
   const order = w.items.map(it=>it.origIndex);
   const i = order.indexOf(exOrigIndex);
   const j = i + direction;
@@ -2121,7 +2165,7 @@ async function exportAllData(){
   const keys = await listKeys("");
   const bundle = {};
   for(const k of keys){
-    if(k==="driveConfig") continue;
+    if(k==="driveConfig" || k==="stravaConfig") continue;
     bundle[k] = await loadJSON(k);
   }
   return {updatedAt: new Date().toISOString(), data: bundle};
@@ -2311,6 +2355,12 @@ function iconForWorkout(w){
     if(w.source==="rouvy" && (w.platform||"").includes("Route")) return ICONS.route;
     return ICONS.bikeIndoor;
   }
+  if(w.kind==="flexrecovery"){
+    if(w.bodyGroup==="mobility") return ICONS.mobility;
+    if(w.bodyGroup==="recovery") return ICONS.recovery;
+    const st = w.sessionType||"";
+    return (st==="Yoga"||st==="Restorative"||st==="Breathwork / Meditation"||st==="Massage / Recovery Tools") ? ICONS.recovery : ICONS.mobility;
+  }
   if(w.kind==="strengthblock"){
     const bg = w.bodyGroup;
     if(bg==="upper") return ICONS.strengthUpper;
@@ -2448,6 +2498,8 @@ function workoutKcal(day, p){
       kcal += 8*3.5*wKg/200*w.timeMin;
     } else if(w.kind==="strengthblock"){
       kcal += 5*3.5*wKg/200*w.timeMin;
+    } else if(w.kind==="flexrecovery"){
+      kcal += 2.5*3.5*wKg/200*w.timeMin;
     }
   });
   return Math.round(kcal);
@@ -2537,6 +2589,298 @@ async function initAdhocPseudoEvent(){
 }
 /* saves for the adhoc pseudo-event use its own namespaced key like any other event */
 
+/* ============================================================
+   STRAVA IMPORT
+   The app talks only to the user's own Cloudflare Worker, which holds
+   the Strava client secret and refresh token. Strava data is stored
+   only in the user's workout logs and is never sent to Claude or
+   included in any plan prompt.
+   ============================================================ */
+const Strava = { cfg:null, status:null, notice:"", busy:false, cache:{} };
+async function loadStravaConfig(){
+  if(Strava.cfg) return Strava.cfg;
+  Strava.cfg = (await loadJSON("stravaConfig")) || {workerUrl:"", appKey:""};
+  return Strava.cfg;
+}
+async function saveStravaConfig(workerUrl, appKey){
+  Strava.cfg = {workerUrl:(workerUrl||"").trim().replace(/\/+$/,""), appKey:(appKey||"").trim()};
+  await saveJSONRaw("stravaConfig", Strava.cfg); // raw: never queued for Drive sync
+}
+function stravaConfigured(){ return !!(Strava.cfg && Strava.cfg.workerUrl && Strava.cfg.appKey); }
+async function stravaCall(path, opts){
+  const cfg = await loadStravaConfig();
+  if(!stravaConfigured()) throw new Error("Add your Worker URL and app key on the Profile & Zones page first.");
+  let res;
+  try{
+    res = await fetch(cfg.workerUrl + path, Object.assign({headers:Object.assign({"X-App-Key":cfg.appKey}, (opts&&opts.body)?{"Content-Type":"application/json"}:{})}, opts||{}));
+  } catch(e){ throw new Error("Couldn't reach your Strava Worker. Check the Worker URL and your connection."); }
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok){
+    if(res.status===429) throw new Error("Strava's rate limit was reached. Wait a few minutes and try again.");
+    if(res.status===401 || res.status===403) throw new Error((data&&data.error) || "The app key was rejected or Strava isn't connected.");
+    throw new Error((data&&data.error) || ("Strava request failed ("+res.status+")."));
+  }
+  return data;
+}
+async function stravaCheckStatus(){
+  try{ Strava.status = await stravaCall("/status"); }
+  catch(e){ Strava.status = {connected:false, error:e.message}; }
+  return Strava.status;
+}
+async function stravaConnect(){
+  const ret = location.href.split("#")[0];
+  const r = await stravaCall("/auth/start", {method:"POST", body:JSON.stringify({returnUrl:ret})});
+  if(!r || !r.url) throw new Error("The Worker didn't return a Strava sign-in link.");
+  window.location.href = r.url;
+}
+async function stravaDisconnect(){
+  await stravaCall("/disconnect", {method:"POST", body:"{}"});
+  Strava.status = {connected:false};
+}
+
+/* ---- list a day's activities ---- */
+async function stravaActivitiesForDate(date){
+  const after = Math.floor(new Date(dateAdd(date,-1)+"T00:00:00Z").getTime()/1000);
+  const before = Math.floor(new Date(dateAdd(date,2)+"T00:00:00Z").getTime()/1000);
+  const list = await stravaCall("/activities?after="+after+"&before="+before+"&per_page=50");
+  return (Array.isArray(list)?list:[]).filter(a=>(a.start_date_local||"").slice(0,10)===date);
+}
+
+/* ---- unit helpers ---- */
+const M_PER_MI = 1609.344;
+function paceFromSpeed(mps){ if(!mps || mps<=0) return ""; let sec = Math.round(M_PER_MI/mps); const m = Math.floor(sec/60), s = sec%60; return m+":"+String(s).padStart(2,"0"); }
+function r1(n){ return Math.round(n*10)/10; }
+function hasNum(v){ return v!=null && !isNaN(v) && v!==0; }
+
+/* ---- turn Strava streams into the same compact shape the TCX History parser produces ---- */
+function buildHistoryFromStreams(detail, streams){
+  const ll = streams && streams.latlng && streams.latlng.data;
+  if(!ll || !ll.length) return null;
+  const n = ll.length;
+  const get = k => (streams[k] && streams[k].data) || null;
+  const alt = get("altitude"), dist = get("distance"), hr = get("heartrate"), cad = get("cadence"), watts = get("watts"), time = get("time");
+  const idxs = [];
+  if(n > TCX_MAX_POINTS){ const step = n/TCX_MAX_POINTS; for(let i=0;i<TCX_MAX_POINTS;i++) idxs.push(Math.floor(i*step)); idxs.push(n-1); }
+  else for(let i=0;i<n;i++) idxs.push(i);
+  const points = idxs.map(i=>({lat:ll[i][0], lon:ll[i][1], alt: alt?alt[i]:null, dist: dist?dist[i]:null}));
+  let gain=0, loss=0;
+  if(alt) for(let i=1;i<alt.length;i++){ const d=alt[i]-alt[i-1]; if(d>0) gain+=d; else loss+=-d; }
+  const avg = a => a && a.length ? Math.round(a.reduce((x,y)=>x+y,0)/a.length) : null;
+  const mx = a => a && a.length ? Math.round(Math.max(...a)) : null;
+  return {
+    kind:"history", source:"strava", name:(detail.name||"Strava activity").slice(0,80), uploadedAt:new Date().toISOString(),
+    points,
+    stats:{
+      distanceMi: dist ? dist[dist.length-1]/M_PER_MI : (detail.distance? detail.distance/M_PER_MI : null),
+      elevGainFt: alt ? gain*3.28084 : null, elevLossFt: alt ? loss*3.28084 : null,
+      durationSec: time ? time[time.length-1] : (detail.elapsed_time||null),
+      avgHR: avg(hr), maxHR: mx(hr), avgWatts: avg(watts), maxWatts: mx(watts), avgCadence: avg(cad)
+    }
+  };
+}
+
+/* ---- map a Strava activity onto this app's log fields for a given workout kind ---- */
+function mapStravaToFields(detail, kind, streams){
+  const f = {};
+  const set = (k,v)=>{ if(v!=null && v!=="" && !(typeof v==="number" && isNaN(v))) f[k] = String(v); };
+  const mv = detail.moving_time || 0;
+  if(kind==="cycling" || kind==="run" || kind==="flexrecovery"){
+    set("durationH", String(Math.floor(mv/3600)).padStart(2,"0"));
+    set("durationM", String(Math.floor((mv%3600)/60)).padStart(2,"0"));
+    set("durationS", String(mv%60).padStart(2,"0"));
+  } else if(mv){ set("actualLenOverride", Math.max(1, Math.round(mv/60))); }
+  if(detail.elapsed_time) set("elapsedMin", r1(detail.elapsed_time/60));
+  if(hasNum(detail.average_heartrate)) set("avgHR", Math.round(detail.average_heartrate));
+  if(hasNum(detail.max_heartrate)) set("maxHR", Math.round(detail.max_heartrate));
+  if(hasNum(detail.calories)) set("calories", Math.round(detail.calories));
+  else if(hasNum(detail.kilojoules) && kind==="cycling") set("calories", Math.round(detail.kilojoules)); // ~1 kcal per kJ of work
+  if(hasNum(detail.perceived_exertion)) set("rpe", Math.round(detail.perceived_exertion));
+  if(hasNum(detail.suffer_score)) set("relEffort", Math.round(detail.suffer_score));
+  if(detail.average_temp!=null && !isNaN(detail.average_temp)) set("avgTemp", Math.round(detail.average_temp*9/5+32));
+  if(detail.gear && detail.gear.name) set("gear", detail.gear.name);
+  if(detail.device_name) set("device", detail.device_name);
+  if(detail.name) set("stravaName", detail.name);
+  if(detail.id) set("stravaUrl", "https://www.strava.com/activities/"+detail.id);
+  if(kind==="cycling" || kind==="run"){
+    if(hasNum(detail.distance)) set("distance", Math.round(detail.distance/M_PER_MI*100)/100);
+    if(hasNum(detail.total_elevation_gain)) set("elevation", Math.round(detail.total_elevation_gain*3.28084));
+    if(hasNum(detail.average_speed)) set("avgSpeed", r1(detail.average_speed*2.23694));
+  }
+  if(kind==="cycling"){
+    if(hasNum(detail.average_watts)) set("avgPower", Math.round(detail.average_watts));
+    if(hasNum(detail.max_watts)) set("maxPower", Math.round(detail.max_watts));
+    if(hasNum(detail.weighted_average_watts)) set("normPower", Math.round(detail.weighted_average_watts));
+    if(hasNum(detail.kilojoules)) set("kilojoules", Math.round(detail.kilojoules));
+    if(hasNum(detail.average_cadence)) set("cadence", Math.round(detail.average_cadence));
+    const cadS = streams && streams.cadence && streams.cadence.data;
+    if(cadS && cadS.length) set("maxCadence", Math.max(...cadS));
+    if(hasNum(detail.max_speed)) set("maxSpeed", r1(detail.max_speed*2.23694));
+  }
+  if(kind==="run"){
+    if(hasNum(detail.average_speed)) set("pace", paceFromSpeed(detail.average_speed));
+    if(hasNum(detail.max_speed)) set("maxPace", paceFromSpeed(detail.max_speed));
+    if(hasNum(detail.average_cadence)) set("runCadence", Math.round(detail.average_cadence*2)); // Strava reports one foot; spm = x2
+  }
+  if(kind==="flexrecovery"){
+    const st = detail.sport_type || detail.type || "";
+    if(st==="Yoga") set("sessionType","Yoga");
+  }
+  return f;
+}
+
+/* ---- fetch + save one activity into a workout's log entry ---- */
+async function importStravaActivity(uidStr, aid){
+  const {date, slotKey} = parseUid(uidStr);
+  const day = getDayPlan(date);
+  const wk = day && day.workouts.find(x=>x.slotKey===slotKey);
+  const kind = wk ? wk.kind : "strengthblock";
+  const detail = await stravaCall("/activity/"+aid);
+  let streams = null;
+  const hasGps = detail.start_latlng && detail.start_latlng.length===2;
+  if(hasGps && (kind==="cycling" || kind==="run" || kind==="flexrecovery" || kind==="strengthblock")){
+    try{ streams = await stravaCall("/activity/"+aid+"/streams"); } catch(e){ /* stats still import without the map */ }
+  }
+  const mapped = mapStravaToFields(detail, kind, streams);
+  const log = await getLog(date);
+  log.workouts = log.workouts || {};
+  const current = Object.assign({}, log.workouts[slotKey]||{}, collectWorkoutFields(uidStr)); // keep anything typed but not yet saved
+  const merged = Object.assign(current, mapped, {stravaId:String(detail.id)});
+  if(!String(current.notes||"").trim() && detail.description) merged.notes = detail.description;
+  if(streams && wk && tcxEligible(wk)){
+    const h = buildHistoryFromStreams(detail, streams);
+    if(h) merged.historyTcx = h;
+  }
+  log.workouts[slotKey] = merged;
+  await saveLog(date, log);
+  return {fields:Object.keys(mapped).length, map:!!merged.historyTcx};
+}
+
+/* ---- UI: the Import from Strava block inside each workout ---- */
+function stravaImportBlock(uidStr, date, slotKey, w){
+  const open = !!State._openItems["strava_"+uidStr];
+  const btn = `<div style="margin:8px 0;"><button type="button" class="btn btn-ghost" data-strava-toggle="${uidStr}" style="border-color:#fc4c02; color:#c93a00; font-weight:700;">${open?'Close Strava import':'⟳ Import from Strava'}</button> <span style="font-size:11.5px; color:var(--grey-600);">or enter the details manually below</span></div>`;
+  if(!open) return btn;
+  let inner;
+  if(!stravaConfigured()){
+    inner = `<p style="font-size:12.5px; color:var(--grey-600);">Strava isn't set up yet. Add your Worker URL and app key under <b>Profile &amp; Zones → Strava</b>, then connect.</p>`;
+  } else {
+    const c = Strava.cache[date];
+    if(!c || c.loading) inner = `<p style="font-size:12.5px; color:var(--grey-600);">Looking up your Strava activities for ${esc(fmtDate(date))}…</p>`;
+    else if(c.error) inner = `<p style="font-size:12.5px; color:var(--red);">${esc(c.error)}</p><button type="button" class="btn btn-ghost" data-strava-refresh="${uidStr}">Try again</button>`;
+    else if(!c.items.length) inner = `<p style="font-size:12.5px; color:var(--grey-600);">No Strava activities found on ${esc(fmtDate(date))}.</p><button type="button" class="btn btn-ghost" data-strava-refresh="${uidStr}">Refresh</button>`;
+    else inner = c.items.map(a=>{
+      const t = (a.start_date_local||"").slice(11,16);
+      const mins = Math.round((a.moving_time||0)/60);
+      const mi = a.distance ? (a.distance/M_PER_MI).toFixed(1)+" mi · " : "";
+      return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--grey-100);">
+        <div style="min-width:0;"><div style="font-size:13px; font-weight:700; color:var(--navy);">${esc(a.name||'Activity')}</div>
+        <div style="font-size:11.5px; color:var(--grey-600);">${esc(a.sport_type||a.type||'')} · ${esc(t)} · ${mi}${mins} min</div></div>
+        <button type="button" class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-strava-import="${uidStr}" data-aid="${a.id}" ${Strava.busy?'disabled':''}>${Strava.busy?'Importing…':'Import'}</button>
+      </div>`; }).join("") + `<div style="margin-top:6px;"><button type="button" class="btn btn-ghost" data-strava-refresh="${uidStr}">Refresh</button></div>`;
+  }
+  const note = (w.kind==="strengthblock") ? `<p style="font-size:11.5px; color:var(--grey-600); margin-top:8px;">Strava doesn't record sets, reps or weights, so enter those yourself. Time, heart rate, calories and the rest import automatically.</p>` : "";
+  return btn + `<div style="background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:10px;">${inner}${note}${Strava.notice?`<p style="font-size:12px; color:var(--teal-dark); margin-top:8px;">${esc(Strava.notice)}</p>`:''}</div>`;
+}
+async function loadStravaDay(date){
+  Strava.cache[date] = {loading:true};
+  try{ Strava.cache[date] = {items: await stravaActivitiesForDate(date)}; }
+  catch(e){ Strava.cache[date] = {error:e.message}; }
+}
+
+/* ---- UI: Profile & Zones card ---- */
+function renderStravaCard(){
+  const cfg = Strava.cfg || {workerUrl:"", appKey:""};
+  const st = Strava.status;
+  const connected = st && st.connected;
+  return `
+  <div class="card" id="strava-card">
+    <div class="card-header"><h2>Strava</h2><span class="meta">Import workouts from Strava (and anything synced into it)</span></div>
+    <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:10px;">Strava imports go through a small private Worker you host for free on Cloudflare (setup guide included with the app). Imported data stays in your workout logs only — it is never sent to Claude.</p>
+    <div class="field-grid">
+      <div class="field wide"><label>Worker URL</label><input type="url" id="strava-worker-url" value="${esc(cfg.workerUrl)}" placeholder="https://strava-bridge.your-name.workers.dev"></div>
+      <div class="field wide"><label>App Key</label><input type="password" id="strava-app-key" value="${esc(cfg.appKey)}" placeholder="the APP_KEY secret you set on the Worker" autocomplete="off"></div>
+    </div>
+    ${connected ? `<div class="calc-box" style="background:var(--teal-pale); margin-top:10px;"><div class="cline"><span>Status</span><span style="color:var(--teal-dark); font-weight:700;">● Connected${st.athlete?' as '+esc(st.athlete):''}</span></div></div>`
+      : (st && st.error ? `<p style="font-size:12px; color:var(--red); margin-top:8px;">${esc(st.error)}</p>` : `<p style="font-size:12px; color:var(--grey-600); margin-top:8px;">Not connected.</p>`)}
+    ${Strava.notice?`<p style="font-size:12px; color:var(--teal-dark); margin-top:6px;">${esc(Strava.notice)}</p>`:''}
+    <div class="save-row">
+      <button class="btn btn-ghost" data-strava-save="1">Save settings</button>
+      <button class="btn btn-ghost" data-strava-check="1">Check connection</button>
+      ${connected ? `<button class="btn btn-ghost" data-strava-disconnect="1" style="color:var(--red);">Disconnect</button>` : `<button class="btn btn-primary" data-strava-connect="1" style="background:#fc4c02; border-color:#fc4c02;">Connect to Strava</button>`}
+    </div>
+  </div>`;
+}
+
+/* ---- handlers (bound from wireTabEvents) ---- */
+/* keep anything typed-but-unsaved in a workout before the panel redraws */
+async function stashWorkoutForm(uidStr){
+  const {date, slotKey} = parseUid(uidStr);
+  const fields = collectWorkoutFields(uidStr);
+  if(!Object.keys(fields).length) return;
+  const log = await getLog(date);
+  log.workouts = log.workouts || {};
+  log.workouts[slotKey] = Object.assign({}, log.workouts[slotKey]||{}, fields);
+  await saveLog(date, log);
+}
+function wireStravaEvents(el){
+  el.querySelectorAll("[data-strava-toggle]").forEach(b=>b.addEventListener("click", async ()=>{
+    const uidStr = b.dataset.stravaToggle;
+    await stashWorkoutForm(uidStr);
+    const k = "strava_"+uidStr;
+    State._openItems[k] = !State._openItems[k];
+    if(State._openItems[k]){
+      await loadStravaConfig();
+      const {date} = parseUid(uidStr);
+      if(stravaConfigured() && !Strava.cache[date]){ renderTabContent(); await loadStravaDay(date); }
+    }
+    renderTabContent();
+  }));
+  el.querySelectorAll("[data-strava-refresh]").forEach(b=>b.addEventListener("click", async ()=>{
+    const {date} = parseUid(b.dataset.stravaRefresh);
+    await stashWorkoutForm(b.dataset.stravaRefresh);
+    Strava.cache[date] = {loading:true}; renderTabContent();
+    await loadStravaDay(date); renderTabContent();
+  }));
+  el.querySelectorAll("[data-strava-import]").forEach(b=>b.addEventListener("click", async ()=>{
+    const uidStr = b.dataset.stravaImport;
+    await stashWorkoutForm(uidStr);
+    Strava.busy = true; Strava.notice = ""; renderTabContent();
+    try{
+      const r = await importStravaActivity(uidStr, b.dataset.aid);
+      Strava.notice = "Imported "+r.fields+" fields"+(r.map?" and the route map":"")+". Review them below, then Save entry.";
+    } catch(e){ Strava.notice = "Import failed: "+e.message; }
+    Strava.busy = false; renderTabContent();
+  }));
+  el.querySelectorAll("[data-strava-save]").forEach(b=>b.addEventListener("click", async ()=>{
+    await saveStravaConfig(document.getElementById("strava-worker-url").value, document.getElementById("strava-app-key").value);
+    Strava.notice = "Settings saved."; renderTabContent();
+  }));
+  el.querySelectorAll("[data-strava-check]").forEach(b=>b.addEventListener("click", async ()=>{
+    await saveStravaConfig(document.getElementById("strava-worker-url").value, document.getElementById("strava-app-key").value);
+    Strava.notice = ""; await stravaCheckStatus(); renderTabContent();
+  }));
+  el.querySelectorAll("[data-strava-connect]").forEach(b=>b.addEventListener("click", async ()=>{
+    await saveStravaConfig(document.getElementById("strava-worker-url").value, document.getElementById("strava-app-key").value);
+    try{ await stravaConnect(); } catch(e){ Strava.status = {connected:false, error:e.message}; renderTabContent(); }
+  }));
+  el.querySelectorAll("[data-strava-disconnect]").forEach(b=>b.addEventListener("click", async ()=>{
+    if(!confirm("Disconnect Strava? Your imported workout data stays in the app.")) return;
+    try{ await stravaDisconnect(); Strava.notice = "Disconnected."; } catch(e){ Strava.status = {connected:false, error:e.message}; }
+    renderTabContent();
+  }));
+}
+async function handleStravaReturn(){
+  await loadStravaConfig();
+  const m = /strava=(\w+)/.exec(location.hash||"");
+  if(!m) return false;
+  history.replaceState(null, "", location.href.split("#")[0]);
+  State.tab = "profile";
+  if(m[1]==="connected"){ await stravaCheckStatus(); Strava.notice = "Strava connected."; }
+  else Strava.status = {connected:false, error:"Strava connection wasn't completed ("+m[1]+")."};
+  return true;
+}
+
 async function init(){
   State.profile = (await loadJSON("profile")) || {...DEFAULT_PROFILE};
   State.weightHistory = (await loadJSON("weightHistory")) || [];
@@ -2545,6 +2889,7 @@ async function init(){
   await initAdhocPseudoEvent();
   await initWeather();
   await initDriveSync();
+  await handleStravaReturn();
 
   let today = todayISO();
   const dates = allCalendarDates();
@@ -2963,7 +3308,7 @@ function timeOptions(max, selected){
    timed differently than estimated). Falls back to the planned/target time. */
 function displayWorkoutMinutes(w, savedW){
   if(savedW && savedW.actualLenOverride){ const v = parseFloat(savedW.actualLenOverride); if(!isNaN(v) && v>0) return {min:v, isActual:true, isOverride:true}; }
-  if(savedW && savedW.completed && (w.kind==="cycling"||w.kind==="run") && durationLogged(savedW)){
+  if(savedW && savedW.completed && (w.kind==="cycling"||w.kind==="run"||w.kind==="flexrecovery") && durationLogged(savedW)){
     return {min: durationTotalMinutes(savedW), isActual:true, isOverride:false};
   }
   return {min: w.timeMin||0, isActual:false, isOverride:false};
@@ -2985,6 +3330,42 @@ function durationDropdowns(uidStr, savedW){
       <select class="input-logged" data-f="durationS" data-uid="${uidStr}">${timeOptions(59,s)}</select><span class="tp-unit">s</span>
     </div>
   </div>`;
+}
+
+
+/* ---------------- ADDITIONAL TRACKED FIELDS (all manually editable; Strava import can fill them) ---------------- */
+const XF = {
+  maxHR:{label:"Max HR (bpm)",type:"number"}, avgHR:{label:"Avg HR (bpm)",type:"number"}, rpe:{label:"RPE (1–10)",type:"number",min:1,max:10},
+  calories:{label:"Calories (kcal)",type:"number"}, elapsedMin:{label:"Elapsed Time (min)",type:"number",step:"0.1"},
+  relEffort:{label:"Relative Effort (Strava)",type:"number"}, avgTemp:{label:"Avg Temp (°F)",type:"number"},
+  gear:{label:"Gear / Equipment",type:"text"}, device:{label:"Recording Device",type:"text"},
+  stravaName:{label:"Strava Activity Name",type:"text"}, stravaUrl:{label:"Strava Activity Link",type:"url"},
+  avgSpeed:{label:"Avg Speed (mph)",type:"number",step:"0.1"}, maxSpeed:{label:"Max Speed (mph)",type:"number",step:"0.1"},
+  maxPower:{label:"Max Power (W)",type:"number"}, normPower:{label:"Normalized Power (W)",type:"number"},
+  kilojoules:{label:"Work (kJ)",type:"number"}, maxCadence:{label:"Max Cadence (rpm)",type:"number"},
+  runCadence:{label:"Avg Cadence (spm)",type:"number"}, maxPace:{label:"Best Pace (min/mi)",type:"text"}
+};
+const XF_COMMON = ["maxHR","calories","elapsedMin","relEffort","avgTemp","gear","device","stravaName","stravaUrl"];
+function extraFieldList(kind){
+  if(kind==="cycling") return ["avgSpeed","maxSpeed","maxPower","normPower","kilojoules","maxCadence"].concat(XF_COMMON);
+  if(kind==="run") return ["runCadence","maxPace","avgSpeed"].concat(XF_COMMON);
+  return ["avgHR","rpe"].concat(XF_COMMON); // strength + flexibility/recovery
+}
+function extraFieldsBlock(uidStr, savedW, kind){
+  const list = extraFieldList(kind);
+  const hasAny = list.some(f=>savedW[f]!=null && savedW[f]!=="");
+  const open = State._openItems["more_"+uidStr] ?? hasAny;
+  return `
+  <details class="more-fields" data-more="${uidStr}" ${open?'open':''} style="margin-top:12px;">
+    <summary style="cursor:pointer; font-size:12.5px; font-weight:700; color:var(--navy);">More details (Strava &amp; other metrics)</summary>
+    <div class="field-grid" style="margin-top:10px;">
+      ${list.map(f=>{ const d=XF[f]; return `<div class="field${d.type==='url'?' wide':''}"><label>${d.label}</label><input type="${d.type}" ${d.min!=null?`min="${d.min}"`:(d.type==='number'?'min="0"':'')} ${d.max!=null?`max="${d.max}"`:''} ${d.step?`step="${d.step}"`:''} class="input-logged" data-f="${f}" data-uid="${uidStr}" value="${esc(savedW[f]??'')}"></div>`; }).join("")}
+    </div>
+  </details>`;
+}
+function flexTypeSelect(uidStr, savedW, w){
+  const cur = savedW.sessionType || w.sessionType || "";
+  return `<div class="field"><label>Session Type</label><select class="input-logged" data-f="sessionType" data-uid="${uidStr}">${FLEX_SESSION_TYPES.map(t=>`<option value="${esc(t)}" ${cur===t?'selected':''}>${esc(t)}</option>`).join("")}</select></div>`;
 }
 
 function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
@@ -3023,6 +3404,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
       </div>
       <div class="wi-body ${isOpen?'open':''}">
         <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${w.targetTSS?` · TSS ~${w.targetTSS}`:""} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Open Rouvy Workout ↗</a>`:""}</div>
+        ${stravaImportBlock(uidStr, date, slotKey, w)}
         <div class="field-grid">
           ${durationDropdowns(uidStr, savedW)}
           ${actualLenOverrideField(uidStr, savedW)}
@@ -3035,6 +3417,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           <div class="field"><label>RPE (1–10)</label><input type="number" min="1" max="10" class="input-logged" data-f="rpe" data-uid="${uidStr}" value="${savedW.rpe??''}"></div>
           <div class="field wide"><label>Notes (nutrition on bike, how it felt, weather...)</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
         </div>
+        ${extraFieldsBlock(uidStr, savedW, "cycling")}
         ${!isRouvyPlatform(w.platform) ? `
         <div class="section-title">TCX History File</div>
         <p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">Upload your recorded ride (.tcx History/Activity file) for this specific day.</p>
@@ -3071,6 +3454,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
       </div>
       <div class="wi-body ${isOpen?'open':''}">
         <div class="wi-target"><b>Target:</b> ${esc(w.paceText||"")} · 🌤 Outdoor</div>
+        ${stravaImportBlock(uidStr, date, slotKey, w)}
         <div class="field-grid">
           ${durationDropdowns(uidStr, savedW)}
           ${actualLenOverrideField(uidStr, savedW)}
@@ -3081,6 +3465,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           <div class="field"><label>RPE (1–10)</label><input type="number" min="1" max="10" class="input-logged" data-f="rpe" data-uid="${uidStr}" value="${savedW.rpe??''}"></div>
           <div class="field wide"><label>Notes (legs, weather, shoes...)</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
         </div>
+        ${extraFieldsBlock(uidStr, savedW, "run")}
         <div class="section-title">TCX History File</div>
         <p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">Upload your recorded run (.tcx History/Activity file) for this specific day.</p>
         <input type="file" class="tcx-history-file" data-uid="${uidStr}" data-date="${date}" data-slotkey="${slotKey}" accept=".tcx">
@@ -3095,7 +3480,8 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
     </div>`;
   }
 
-  if(w.kind==="strengthblock"){
+  if(isExKind(w.kind)){
+    const isFlex = w.kind==="flexrecovery";
     const rows = w.items.map((it, ii)=>{
       const oi = it.origIndex;
       const key = `s${oi}`;
@@ -3139,7 +3525,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
             <div class="wi-title">${esc(w.title)} ${savedBadge(uidStr)}</div>
-            <div class="wi-desc">${w.items.length} exercise${w.items.length===1?'':'s'} · ${esc(w.desc||"")}</div>
+            <div class="wi-desc">${isFlex?esc(w.sessionType||'')+' · ':''}${w.items.length} exercise${w.items.length===1?'':'s'} · ${esc(w.desc||"")}</div>
           </div>
         </div>
         <div class="wi-right">
@@ -3148,10 +3534,18 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
         </div>
       </div>
       <div class="wi-body ${isOpen?'open':''}">
-        <p style="font-size:11px; color:var(--grey-600); margin-bottom:4px;">Use the ▲▼ arrows to reorder, or ✕ to drop an exercise, for today only. Workout time updates automatically. Permanent changes are made in the Workout &amp; Exercise Editor.</p>
+        ${stravaImportBlock(uidStr, date, slotKey, w)}
+        ${isFlex ? `<div class="field-grid" style="margin-bottom:8px;">
+          ${durationDropdowns(uidStr, savedW)}
+          ${actualLenOverrideField(uidStr, savedW)}
+          ${flexTypeSelect(uidStr, savedW, w)}
+        </div>
+        <div class="section-title">Exercises (optional)</div>` : ``}
+        <p style="font-size:11px; color:var(--grey-600); margin-bottom:4px;">${isFlex && !w.items.length ? 'No exercises are listed for this session — add some below if you like, or just log the duration and session type above.' : 'Use the ▲▼ arrows to reorder, or ✕ to drop an exercise, for today only. Workout time updates automatically. Permanent changes are made in the Workout &amp; Exercise Editor.'}</p>
         ${rows}
         ${renderAddExercisePanel(uidStr, date, slotKey)}
-        <div class="field wide">${actualLenOverrideField(uidStr, savedW)}</div>
+        ${isFlex ? `` : `<div class="field wide">${actualLenOverrideField(uidStr, savedW)}</div>`}
+        ${extraFieldsBlock(uidStr, savedW, w.kind)}
         <div class="field wide" style="margin-top:12px;"><label>Session Notes</label><textarea data-f="notes" data-uid="${uidStr}">${esc(savedW.notes||'')}</textarea></div>
         <div class="save-row">
           <button class="btn btn-primary" data-save="${uidStr}">Save entry</button>
@@ -3159,7 +3553,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           <button class="btn btn-ghost" data-toggle-sub="${uidStr}" style="margin-left:auto;">Substitute workout</button>
           ${slotKey[0]==='a' ? `<button class="btn btn-ghost" data-remove-added="${uidStr}" style="color:var(--red);">Remove</button>` : ""}
         </div>
-        ${renderSubPicker(uidStr, date, slotKey, "strengthblock", subOpen)}
+        ${renderSubPicker(uidStr, date, slotKey, w.kind, subOpen)}
       </div>
     </div>`;
   }
@@ -3197,14 +3591,14 @@ function renderSubPicker(uidStr, date, slotKey, kind, open){
       <button class="btn btn-ghost" data-swap-day="${slotKey.split('|')[0]}::${date}">Swap with another day</button>
     </div>
     <div class="filter-chips" style="margin-bottom:10px;">
-      ${["all","cycling","run","strengthblock"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-subkind="${k}">${k==='all'?'All':(k==='cycling'?'Cycling':(k==='run'?'Run':'Strength'))}</button>`).join("")}
+      ${["all","cycling","run","strengthblock","flexrecovery"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-subkind="${k}">${k==='all'?'All':kindLabel(k)}</button>`).join("")}
     </div>
     <div style="max-height:220px; overflow-y:auto;">
       ${results.length ? results.map(([id,w])=>`
         <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 4px; border-bottom:1px solid var(--grey-100);">
           <div>
             <div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(w.name)}</div>
-            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):(w.kind==='run'?esc(w.paceText||''):esc((w.exercises||[]).length+' exercises'))} ${w.platform?(' · '+esc(w.platform)):''}</div>
+            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):(w.kind==='run'?esc(w.paceText||''):esc((w.kind==='flexrecovery'?(w.sessionType||'')+' · ':'')+(w.exercises||[]).length+' exercises'))} ${w.platform?(' · '+esc(w.platform)):''}</div>
           </div>
           <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-sub="${uidStr}" data-workoutid="${id}">Use this</button>
         </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
@@ -3260,11 +3654,11 @@ async function buildRecentExerciseValueLookup(beforeDate, lookbackDays){
   const byExercise = {};
   for(const d of dates){
     const dp = getDayPlan(d);
-    if(!dp || !dp.workouts.some(w=>w.kind==="strengthblock")) continue;
+    if(!dp || !dp.workouts.some(w=>isExKind(w.kind))) continue;
     const log = await getLog(d);
     if(!log.workouts) continue;
     for(const w of dp.workouts){
-      if(w.kind!=="strengthblock") continue;
+      if(!isExKind(w.kind)) continue;
       const savedW = log.workouts[w.slotKey];
       if(!savedW) continue;
       for(const it of w.items){
@@ -3358,7 +3752,7 @@ function renderAddWorkoutPanel(date){
     <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
       <input type="text" placeholder="Search workout library..." data-addwk-search="1" value="${esc(State.editorFilter.addWkQ||"")}" style="flex:1; border:1.5px solid var(--grey-200); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px;">
       <div class="filter-chips">
-        ${["all","cycling","run","strengthblock"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-addwk-kind="${k}">${k==='all'?'All':(k==='cycling'?'Cycling':(k==='run'?'Run':'Strength'))}</button>`).join("")}
+        ${["all","cycling","run","strengthblock","flexrecovery"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-addwk-kind="${k}">${k==='all'?'All':kindLabel(k)}</button>`).join("")}
       </div>
     </div>
     <div style="max-height:220px; overflow-y:auto;">
@@ -3715,7 +4109,8 @@ function navCalendarMonth(delta){
 function workoutIsLogged(w, savedW){
   if(!savedW) return false;
   if(w.kind==="cycling" || w.kind==="run") return durationLogged(savedW);
-  if(w.kind==="strengthblock"){
+  if(w.kind==="flexrecovery" && durationLogged(savedW)) return true;
+  if(isExKind(w.kind)){
     return w.items.some(it=>{ const k = savedW["s"+it.origIndex]; return k && (k.sets || k.reps); });
   }
   return false;
@@ -4169,6 +4564,7 @@ async function renderProfile(){
 
   return `
   ${renderCloudSyncCard()}
+  ${renderStravaCard()}
   ${await renderDataDiagnosticsCard()}
   ${await renderArchivesCard()}
   <div class="profile-grid">
@@ -4503,6 +4899,7 @@ async function renderProgressCalendar(loggedDateSet){
 function wireTabEvents(scopeEl){
   const el = scopeEl || document.getElementById("tabcontent");
   if(!el) return;
+  wireStravaEvents(el);
 
   /* ---- Events tab ---- */
   el.querySelectorAll("[data-new-event]").forEach(b=>b.addEventListener("click",()=>{ State._eventFormOpen=true; State._editingEventId=null; renderTabContent(); }));
@@ -4943,7 +5340,7 @@ function renderWorkoutEditor(){
         <div class="editor-search">
           <input type="text" placeholder="Search workouts..." id="wk-search" value="${esc(State.editorFilter.q||"")}">
           <div class="filter-chips">
-            ${["all","cycling","run","strengthblock"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-wkkind="${k}">${k==='all'?'All':(k==='cycling'?'Cycling':(k==='run'?'Run':'Strength'))}</button>`).join("")}
+            ${["all","cycling","run","strengthblock","flexrecovery"].map(k=>`<button class="filter-chip ${kindFilter===k?'active':''}" data-wkkind="${k}">${k==='all'?'All':kindLabel(k)}</button>`).join("")}
           </div>
         </div>
         <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" data-new-workout="1">+ New Workout</button>
@@ -4954,9 +5351,9 @@ function renderWorkoutEditor(){
               <div style="flex:1; min-width:0;">
                 <div class="lr-name">${esc(item.name)}</div>
                 <div class="lr-meta">
-                  <span class="tag-chip">${item.kind==='cycling'?'Cycling':(item.kind==='run'?'Run':'Strength')}</span>
+                  <span class="tag-chip">${kindLabel(item.kind)}</span>${item.kind==='flexrecovery'&&item.sessionType?`<span class="tag-chip">${esc(item.sessionType)}</span>`:''}
                   ${item.platform?`<span class="tag-chip">${esc(item.platform)}</span>`:''}
-                  ${item.kind==='strengthblock'?(item.exercises||[]).length+' exercises':fmtHrs(item.timeMin)}
+                  ${item.kind==='strengthblock'?(item.exercises||[]).length+' exercises':(item.kind==='flexrecovery'?(item.timeMin?fmtHrs(item.timeMin)+' · ':'')+(item.exercises||[]).length+' exercises':fmtHrs(item.timeMin))}
                 </div>
               </div>
               <button type="button" class="lr-dup-btn" data-duplicate-workout="${id}" title="Duplicate this Workout">
@@ -4975,7 +5372,7 @@ function renderWorkoutEditor(){
 
 function renderImportExercisesPanel(currentWorkoutId){
   const sourceId = State._importSourceId || "";
-  const strengthWorkouts = Object.entries(Lib.workouts).filter(([wid,w])=>w.kind==="strengthblock" && wid!==currentWorkoutId);
+  const strengthWorkouts = Object.entries(Lib.workouts).filter(([wid,w])=>isExKind(w.kind) && wid!==currentWorkoutId);
   const source = sourceId ? Lib.workouts[sourceId] : null;
   return `
   <div class="tcx-panel" style="margin-top:10px;">
@@ -4985,7 +5382,7 @@ function renderImportExercisesPanel(currentWorkoutId){
         ${strengthWorkouts.map(([wid,w])=>`<option value="${wid}" ${wid===sourceId?'selected':''}>${esc(w.name)} (${(w.exercises||[]).length} exercises)</option>`).join("")}
       </select>
     </div>
-    ${!strengthWorkouts.length ? `<p style="font-size:12px; color:var(--ink-600); margin-top:6px;">No other Strength Workouts exist yet to import from.</p>` : ""}
+    ${!strengthWorkouts.length ? `<p style="font-size:12px; color:var(--ink-600); margin-top:6px;">No other Strength or Flexibility/Recovery Workouts exist yet to import from.</p>` : ""}
     ${source ? `
     <div style="margin-top:10px;">
       ${(source.exercises||[]).length ? (source.exercises||[]).map((ref,i)=>{ const ex=Lib.exercises[ref.exId]; return `
@@ -5005,6 +5402,7 @@ function renderWorkoutForm(id, w, isNew){
   const isCycling = w.kind==="cycling";
   const isRun = w.kind==="run";
   const isRideOrRun = isCycling || isRun;
+  const isFlexKind = w.kind==="flexrecovery";
   const liveTime = isRideOrRun ? w.timeMin : estimateStrengthMinutes(w.exercises||[], Lib.exercises);
   return `
   <div class="card">
@@ -5016,7 +5414,8 @@ function renderWorkoutForm(id, w, isNew){
         <div class="btn-group">
           <button type="button" class="choice-btn ${w.kind==='cycling'?'active':''}" data-choice-for="wf-kind" data-choice-value="cycling">🚴 Cycling</button>
           <button type="button" class="choice-btn ${w.kind==='run'?'active':''}" data-choice-for="wf-kind" data-choice-value="run">🏃 Run</button>
-          <button type="button" class="choice-btn ${w.kind==='strengthblock'?'active':''}" data-choice-for="wf-kind" data-choice-value="strengthblock">💪 Strength / Mobility</button>
+          <button type="button" class="choice-btn ${w.kind==='strengthblock'?'active':''}" data-choice-for="wf-kind" data-choice-value="strengthblock">💪 Strength</button>
+          <button type="button" class="choice-btn ${w.kind==='flexrecovery'?'active':''}" data-choice-for="wf-kind" data-choice-value="flexrecovery">🧘 Flexibility / Recovery</button>
         </div>
       </div>
       ${isCycling ? `
@@ -5030,6 +5429,11 @@ function renderWorkoutForm(id, w, isNew){
         <div class="field"><label>Target Pace / Effort</label><input type="text" id="wf-zone" value="${esc(w.paceText||'')}" placeholder="Easy conversational pace · RPE 3–4"></div>
         <div class="field"><label>Duration (min)</label><input type="number" id="wf-time" value="${w.timeMin||0}"></div>
         <div class="field"><label>Est. Distance (mi)</label><input type="number" id="wf-miles" value="${w.estMiles||''}"></div>
+      ` : isFlexKind ? `
+        <div class="field"><label>Session Type</label>
+          <select id="wf-sessiontype">${FLEX_SESSION_TYPES.map(t=>`<option value="${esc(t)}" ${(w.sessionType||'Stretching')===t?'selected':''}>${esc(t)}</option>`).join("")}</select>
+        </div>
+        <div class="field"><label>Duration (min)</label><input type="number" min="0" id="wf-time" value="${w.timeMin||''}" placeholder="e.g. 20"></div>
       ` : `
         <div class="field"><label>Body Group</label>
           <select id="wf-bodygroup">${BODY_GROUPS.map(g=>`<option value="${g}" ${w.bodyGroup===g?'selected':''}>${g}</option>`).join("")}</select>
@@ -5048,7 +5452,7 @@ function renderWorkoutForm(id, w, isNew){
     ` : ""}
 
     ${!isRideOrRun ? `
-    <div class="section-title">Exercises <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--grey-600); margin-left:8px;">— est. duration updates automatically: <b id="wf-live-time">${fmtHrs(liveTime)}</b></span></div>
+    <div class="section-title">Exercises${isFlexKind?' (optional)':''} <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--grey-600); margin-left:8px;">— est. duration updates automatically: <b id="wf-live-time">${fmtHrs(liveTime)}</b></span></div>
     <div id="wf-exercise-list">
       ${(w.exercises||[]).map((ref,i)=>{
         const ex = Lib.exercises[ref.exId];
@@ -5290,6 +5694,7 @@ function wireEditorEvents(el){
     State._openModal = "tcxmap";
     renderModalRoot();
   }));
+  el.querySelectorAll("details[data-more]").forEach(d=>d.addEventListener("toggle", ()=>{ State._openItems["more_"+d.dataset.more] = d.open; }));
   el.querySelectorAll(".tcx-history-file").forEach(inp=>inp.addEventListener("change", async ()=>{
     const file = inp.files[0];
     if(!file) return;
@@ -5326,6 +5731,7 @@ function wireEditorEvents(el){
       w.kind = val;
       if(w.kind==="cycling"){ w.platform = w.platform || "Rouvy (Indoor)"; w.zoneText = w.zoneText || ""; w.timeMin = w.timeMin || 30; }
       else if(w.kind==="run"){ w.paceText = w.paceText || "Easy conversational pace · RPE 3–4"; w.timeMin = w.timeMin || 30; w.platform = "Outdoor"; }
+      else if(w.kind==="flexrecovery"){ w.exercises = w.exercises || []; w.sessionType = w.sessionType || "Stretching"; if(!(w.timeMin>0)) w.timeMin = 20; }
       else { w.exercises = w.exercises || []; w.bodyGroup = w.bodyGroup || "upper"; }
       renderTabContent();
     } else if(targetId==="ev-endmode"){
@@ -5402,6 +5808,7 @@ function syncFormIntoDraft(){
   if(descEl) draft.desc = descEl.value;
   if(kindEl) draft.kind = kindEl.value;
   const bgEl = document.getElementById("wf-bodygroup"); if(bgEl) draft.bodyGroup = bgEl.value;
+  const stEl = document.getElementById("wf-sessiontype"); if(stEl) draft.sessionType = stEl.value;
   const platEl = document.getElementById("wf-platform"); if(platEl) draft.platform = platEl.value;
   const zoneEl = document.getElementById("wf-zone"); if(zoneEl) draft.zoneText = zoneEl.value;
   const timeEl = document.getElementById("wf-time"); if(timeEl) draft.timeMin = parseInt(timeEl.value)||0;
@@ -5444,6 +5851,13 @@ async function saveWorkoutFromForm(){
     };
     const draft = getEditingWorkoutDraft();
     if(draft.course) data.course = draft.course;
+  } else if(kind==="flexrecovery"){
+    const draft = syncFormIntoDraft();
+    const stEl = document.getElementById("wf-sessiontype");
+    const timeVal = parseInt((document.getElementById("wf-time")||{}).value)||0;
+    data = {name, kind, desc, sessionType: stEl?stEl.value:"Stretching", exercises:draft.exercises};
+    if(timeVal>0) data.timeMin = timeVal;
+    if(draft.bodyGroup === "mobility" || draft.bodyGroup === "recovery") data.bodyGroup = draft.bodyGroup;
   } else {
     const draft = syncFormIntoDraft();
     data = {name, kind, desc, bodyGroup:document.getElementById("wf-bodygroup").value, exercises:draft.exercises};
@@ -5481,5 +5895,6 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
 
