@@ -3572,7 +3572,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
           ${wiIconChip(w)}
           <div style="flex:1; min-width:0;">
             <div class="wi-title">${esc(w.title)} ${savedBadge(uidStr)}</div>
-            <div class="wi-desc">${isFlex?esc(w.sessionType||'')+(w.desc||!hideEx?' · ':''):''}${hideEx?'':w.items.length+' exercise'+(w.items.length===1?'':'s')+' · '}${esc(w.desc||"")}</div>
+            <div class="wi-desc">${isFlex?esc(w.sessionType||'')+(w.desc||!hideEx?' · ':''):''}${(hideEx||!w.items.length)?'':w.items.length+' exercise'+(w.items.length===1?'':'s')+' · '}${esc(w.desc||"")}</div>
           </div>
         </div>
         <div class="wi-right">
@@ -3650,7 +3650,7 @@ function renderSubPicker(uidStr, date, slotKey, kind, open){
         <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 4px; border-bottom:1px solid var(--grey-100);">
           <div>
             <div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(w.name)}</div>
-            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):(w.kind==='run'?esc(w.paceText||''):esc((w.kind==='flexrecovery'?(w.sessionType||'')+' · ':'')+(w.exercises||[]).length+' exercises'))} ${w.platform?(' · '+esc(w.platform)):''}</div>
+            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):(w.kind==='run'?esc(w.paceText||''):esc([(w.kind==='flexrecovery'?(w.sessionType||''):''),((w.exercises||[]).length?(w.exercises||[]).length+' exercises':'')].filter(Boolean).join(' · ')))} ${w.platform?(' · '+esc(w.platform)):''}</div>
           </div>
           <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-sub="${uidStr}" data-workoutid="${id}">Use this</button>
         </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
@@ -3812,7 +3812,7 @@ function renderAddWorkoutPanel(date){
         <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 4px; border-bottom:1px solid var(--grey-100);">
           <div>
             <div style="font-size:12.5px; font-weight:700; color:var(--navy);">${esc(w.name)}</div>
-            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):esc((w.exercises||[]).length+' exercises')} ${w.platform?(' · '+esc(w.platform)):''}</div>
+            <div style="font-size:11px; color:var(--grey-600);">${w.kind==='cycling'?esc(w.zoneText||''):esc((w.exercises||[]).length?(w.exercises||[]).length+' exercises':'')} ${w.platform?(' · '+esc(w.platform)):''}</div>
           </div>
           <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" data-pick-add="1" data-date="${date}" data-workoutid="${id}" data-eventid="${selectedEventId}">Add</button>
         </div>`).join("") : `<p style="font-size:12px;color:var(--grey-600);">No matches.</p>`}
@@ -5406,7 +5406,7 @@ function renderWorkoutEditor(){
                 <div class="lr-meta">
                   <span class="tag-chip">${kindLabel(item.kind)}</span>${item.kind==='flexrecovery'&&item.sessionType?`<span class="tag-chip">${esc(item.sessionType)}</span>`:''}
                   ${item.platform?`<span class="tag-chip">${esc(item.platform)}</span>`:''}
-                  ${item.kind==='strengthblock'?(item.exercises||[]).length+' exercises':((item.kind==='flexrecovery' || item.kind==='other')?(item.timeMin?fmtHrs(item.timeMin)+' · ':'')+(item.exercises||[]).length+' exercises':fmtHrs(item.timeMin))}
+                  ${item.kind==='strengthblock'?((item.exercises||[]).length?(item.exercises||[]).length+' exercises':''):((item.kind==='flexrecovery' || item.kind==='other')?[(item.timeMin?fmtHrs(item.timeMin):''),((item.exercises||[]).length?(item.exercises||[]).length+' exercises':'')].filter(Boolean).join(' · '):fmtHrs(item.timeMin))}
                 </div>
               </div>
               <button type="button" class="lr-dup-btn" data-duplicate-workout="${id}" title="Duplicate this Workout">
@@ -5432,7 +5432,7 @@ function renderImportExercisesPanel(currentWorkoutId){
     <div class="field"><label>Import from</label>
       <select id="wf-import-source">
         <option value="">Choose a Workout…</option>
-        ${strengthWorkouts.map(([wid,w])=>`<option value="${wid}" ${wid===sourceId?'selected':''}>${esc(w.name)} (${(w.exercises||[]).length} exercises)</option>`).join("")}
+        ${strengthWorkouts.map(([wid,w])=>`<option value="${wid}" ${wid===sourceId?'selected':''}>${esc(w.name)}${(w.exercises||[]).length?' ('+(w.exercises||[]).length+' exercises)':''}</option>`).join("")}
       </select>
     </div>
     ${!strengthWorkouts.length ? `<p style="font-size:12px; color:var(--ink-600); margin-top:6px;">No other Strength or Flexibility/Recovery Workouts exist yet to import from.</p>` : ""}
@@ -5971,4 +5971,5 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
