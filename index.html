@@ -2565,7 +2565,7 @@ async function exportAllData(){
   const keys = await listKeys("");
   const bundle = {};
   for(const k of keys){
-    if(k==="driveConfig" || k==="stravaConfig" || k==="gsyncConfig" || k==="coachApiKey") continue;
+    if(k==="driveConfig" || k==="stravaConfig" || k==="gsyncConfig" || k==="coachApiKey" || k==="coachRelayToken") continue;
     bundle[k] = await loadJSON(k);
   }
   return {updatedAt: new Date().toISOString(), data: bundle};
@@ -2573,7 +2573,7 @@ async function exportAllData(){
 async function importAllData(payload){
   if(!payload || !payload.data) return;
   for(const [k,v] of Object.entries(payload.data)){
-    if(k==="coachApiKey") continue; /* on-device only */
+    if(k==="coachApiKey" || k==="coachRelayToken") continue; /* on-device only */
     await saveJSONRaw(k, v);
   }
   State.logs = {}; // clear in-memory log cache so re-reads pick up imported data
@@ -4137,15 +4137,16 @@ if(!window.__pgBound){ window.__pgBound = true; document.addEventListener("click
    plan generation, rolling GFP schedule, .zwo export).
    Everything numeric/functional comes from the rules below.
    ============================================================ */
-const CX_KEY = "coachApiKey";              /* on-device only: excluded from export/Drive/backups, skipped on import */
+const CX_KEY = "coachApiKey";
+const CX_TOK = "coachRelayToken";        /* relay app token: same on-device-only treatment as the API key */              /* on-device only: excluded from export/Drive/backups, skipped on import */
 const CX_R = {
   rampAmber:1.3, rampRed:1.5, sleepLow:6.5, sleepVeryLow:5.5, rhrUp:6, energyLow:2.5,
   minCheckins:14, patDiff:0.7, patMin:4, shorten:0.7, startCap:1.10, rampCap:1.10,
   runMin:45, runMax:60, rideMin:45, rideMax:60, vrMin:8, vrMax:14, windowDays:7, defaultDays:5, defaultMiles:50,
   aiTimeoutMs:20000, reachMs:4000, failMemoMs:600000, aiMaxChars:900
 };
-const CX_AI_DEFAULT = {v:1, mode:"off", localUrl:"http://localhost:11434", cloudUrl:"https://ollama.com", style:"openai", modelLocal:"llama3.2:3b", modelCloud:"gpt-oss:20b"};
-const CX = { cfg:null, prefs:null, state:null, key:"", loaded:false, failUntil:{}, aiBusy:false, tickSig:"", ticking:false, msg:"", genForm:null, genPlan:null, testRes:null };
+const CX_AI_DEFAULT = {v:1, mode:"off", localUrl:"http://localhost:11434", cloudUrl:"https://ollama.com", style:"openai", modelLocal:"llama3.2:3b", modelCloud:"gpt-oss:20b", relayUrl:"", modelRelay:"gpt-oss:20b"};
+const CX = { cfg:null, prefs:null, state:null, key:"", tok:"", loaded:false, failUntil:{}, aiBusy:false, tickSig:"", ticking:false, msg:"", genForm:null, genPlan:null, testRes:null };
 window.CX = CX;
 
 const cxClamp = (x,a,b)=>Math.max(a,Math.min(b,x));
@@ -4153,12 +4154,12 @@ const cxR1 = x=>Math.round(x*10)/10;
 const cxR5 = m=>Math.round(m/5)*5;
 const cxHM = h=>{ if(h==null) return "–"; const m = Math.round(h*60); return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"; };
 const cxMean = a=>{ const v = a.filter(x=>x!=null && isFinite(x)); return v.length ? v.reduce((p,c)=>p+c,0)/v.length : null; };
-function cxScrub(s){ s = String(s==null?"":s); if(CX.key && CX.key.length>3) s = s.split(CX.key).join("[key]"); return s; }
+function cxScrub(s){ s = String(s==null?"":s); if(CX.key && CX.key.length>3) s = s.split(CX.key).join("[key]"); if(CX.tok && CX.tok.length>3) s = s.split(CX.tok).join("[token]"); return s; }
 
 async function cxLoad(){
   const c = (await loadJSON("coachAiConfig")) || {};
   CX.cfg = Object.assign({}, CX_AI_DEFAULT, c);
-  if(!["off","local","cloud"].includes(CX.cfg.mode)) CX.cfg.mode = "off";
+  if(!["off","local","cloud","relay"].includes(CX.cfg.mode)) CX.cfg.mode = "off";
   if(!["openai","native"].includes(CX.cfg.style)) CX.cfg.style = "openai";
   const p = (await loadJSON("coachPrefs")) || {};
   CX.prefs = Object.assign({v:1, showDet:false, form:null}, p);
@@ -4167,11 +4168,13 @@ async function cxLoad(){
   CX.state = Object.assign({v:1, applied:[], dismissed:{}, paste:null, aiCache:null}, s);
   CX.state.gfp = Object.assign({days:{}, changes:[], undone:{}}, s.gfp||{});
   const k = await loadJSON(CX_KEY); CX.key = typeof k==="string" ? k : "";
+  const tk = await loadJSON(CX_TOK); CX.tok = typeof tk==="string" ? tk : "";
   CX.loaded = true;
 }
 async function cxSaveCfg(){ await saveJSON("coachAiConfig", CX.cfg); }
 async function cxSavePrefs(){ await saveJSON("coachPrefs", CX.prefs); }
 async function cxSaveState(){ await saveJSON("coachState", CX.state); }
+async function cxSaveTok(k){ CX.tok = String(k||"").trim(); if(CX.tok) await saveJSONRaw(CX_TOK, CX.tok); else { try{ await window.storage.delete(CX_TOK, false); }catch(e){ await saveJSONRaw(CX_TOK, ""); } } }
 async function cxSaveKey(k){ CX.key = String(k||"").trim(); if(CX.key) await saveJSONRaw(CX_KEY, CX.key); else { try{ await window.storage.delete(CX_KEY, false); }catch(e){ await saveJSONRaw(CX_KEY, ""); } } }
 
 /* ---------- data summary: the one object every part of the coach reads ---------- */
@@ -4314,6 +4317,11 @@ async function cxPatterns(){
 /* ---------- optional AI wording (never numbers, schedules or actions) ---------- */
 function cxAiTarget(){
   const c = CX.cfg; if(!c || c.mode==="off") return null;
+  if(c.mode==="relay"){
+    const rb = String(c.relayUrl||"").trim().replace(/\/+$/,"").replace(/\/chat$/,"");
+    if(!/^https:\/\//i.test(rb) || !CX.tok || !c.modelRelay) return null;
+    return {mode:"relay", base:rb, model:c.modelRelay, openai:true, url:rb+"/chat", modelsUrl:null, headers:{"Content-Type":"application/json","X-KoT-Token":CX.tok}};
+  }
   const base = String(c.mode==="local" ? c.localUrl : c.cloudUrl).replace(/\/+$/,"");
   if(!/^https?:\/\//i.test(base)) return null;
   if(c.mode==="cloud" && !CX.key) return null;
@@ -4360,9 +4368,30 @@ async function cxAiRefresh(){
   }catch(e){} finally{ CX.aiBusy = false; }
   if(changed && typeof cxRefreshViews==="function") cxRefreshViews();
 }
+/* relay mode: one tiny chat call through the Worker (it has no model-list route); status codes are read as the Worker/Ollama send them */
+async function cxTestRelay(tg, res){
+  let r;
+  try{ r = await cxFetch(tg.url, {method:"POST", headers:tg.headers, body:JSON.stringify({model:tg.model, messages:[{role:"user",content:"Reply with: ok"}], stream:false, max_tokens:8})}, CX_R.aiTimeoutMs); }
+  catch(e){
+    let reach = false; try{ await cxFetch(tg.base, {mode:"no-cors"}, CX_R.reachMs); reach = true; }catch(e2){}
+    if(reach){ res.code = "relay"; res.message = "The relay address answers, but the browser got no usable reply. First check: in Cloudflare, the Worker's KV namespace must be bound as exactly RL (a missing or misnamed binding makes the Worker fail without CORS headers). Also possible: the relay rejected this page's origin, or the Worker is not deployed."; }
+    else { res.code = "unreachable"; res.message = "Could not reach "+tg.base+". Wrong relay URL, or the Worker is down."; }
+    return res;
+  }
+  let body = ""; try{ const j = await r.clone().json(); body = String((j && (j.error && (j.error.message||j.error) || j.message)) || ""); }catch(e){}
+  if(r.status===401){ if(/bad token/i.test(body)){ res.code = "token"; res.message = "401: the relay rejected the app token (wrong or missing)."; } else { res.code = "key"; res.message = "401 from Ollama: the relay is reachable and your token is accepted, but the Worker's OLLAMA_API_KEY was rejected. Fix that secret in Cloudflare."; } return res; }
+  if(r.status===403){ res.code = "origin"; res.message = "403: the relay rejected this page's origin."; return res; }
+  if(r.status===429){ res.code = "limit"; res.message = "429: rate limited (the relay's daily cap or Ollama's limit)."; return res; }
+  if(r.status===400 && /model/i.test(body)){ res.code = "model"; res.message = "400: the relay does not allow model \""+tg.model+"\". Edit the MODELS line in the Worker, or change the model name here."; return res; }
+  if(r.status===404){ res.code = "model"; res.message = "404: the relay URL answered, but not on /chat, or Ollama has no model \""+tg.model+"\"."; return res; }
+  if(!r.ok){ res.code = "http"; res.message = "The relay answered with HTTP "+r.status+"."; return res; }
+  res.ok = true; res.code = "ok"; res.message = "Connected through the relay. Model \""+tg.model+"\" answered."; return res;
+}
 /* settings gate: plain reachability / key / CORS verdicts */
 async function cxTestConn(){
   const tg = cxAiTarget(); const res = {ok:false, code:"config", message:"", models:[]};
+  if(!tg && CX.cfg.mode==="relay"){ res.message = !/^https:\/\//i.test(String(CX.cfg.relayUrl||"").trim()) ? "Enter the relay URL (https://...)." : !CX.tok ? "Paste your app token first." : "Check the model name."; return res; }
+  if(tg && tg.mode==="relay") return cxTestRelay(tg, res);
   if(!tg){ res.message = CX.cfg.mode==="cloud" && !CX.key ? "Paste your Ollama API key first." : CX.cfg.mode==="off" ? "AI coach is off." : "Check the URL and model name."; return res; }
   try{
     const r = await cxFetch(tg.modelsUrl, {method:"GET", headers:tg.mode==="cloud"?{"Authorization":"Bearer "+CX.key}:{}}, CX_R.reachMs*2);
@@ -4865,22 +4894,25 @@ async function renderCoachTab(){
 
 /* ----- settings card (Profile & Zones) ----- */
 function cxSettingsInner(){
-  const c = CX.cfg, r = CX.testRes, cloud = c.mode==="cloud", local = c.mode==="local";
+  const c = CX.cfg, r = CX.testRes, cloud = c.mode==="cloud", local = c.mode==="local", relay = c.mode==="relay";
   const keyLine = cloud ? `<div class="field wide"><label for="cx-key">Ollama API key</label><input type="password" id="cx-key" autocomplete="off" spellcheck="false" placeholder="${CX.key?"Saved on this device. Paste a new key to replace it.":"Paste your key once"}"><div class="pg-actions"><button type="button" class="btn btn-primary" data-cx-savekey="1">Save key</button>${CX.key?`<button type="button" class="btn btn-ghost" data-cx-clearkey="1">Clear key</button>`:""}</div><p class="pg-sub">Stored on this device only. It is never synced to Drive, never included in backups or exports, and never put in the coach brief. Paste it again on each device you use.</p></div>` : "";
-  const urlLine = cloud ? `<div class="field wide"><label for="cx-cfg-cloudUrl">Cloud URL</label><input type="text" id="cx-cfg-cloudUrl" data-cx-cfg="cloudUrl" value="${esc(c.cloudUrl)}"></div>` : local ? `<div class="field wide"><label for="cx-cfg-localUrl">Local Ollama URL</label><input type="text" id="cx-cfg-localUrl" data-cx-cfg="localUrl" value="${esc(c.localUrl)}"><p class="pg-sub">Your phone cannot reach your PC's localhost. The PC must start Ollama with OLLAMA_ORIGINS allowing this page's origin (${esc(location.origin||"")}).</p></div>` : "";
-  const modelLine = c.mode!=="off" ? `<div class="field"><label for="cx-cfg-model">Model</label><input type="text" id="cx-cfg-model" data-cx-cfg="${cloud?"modelCloud":"modelLocal"}" value="${esc(cloud?c.modelCloud:c.modelLocal)}"></div>
-    <div class="field"><label for="cx-cfg-style">Endpoint style</label><select id="cx-cfg-style" data-cx-cfg="style"><option value="openai" ${c.style==="openai"?"selected":""}>OpenAI-compatible (/v1)</option><option value="native" ${c.style==="native"?"selected":""}>Ollama native (/api)</option></select></div>
+  const relayLine = relay ? `<div class="field wide"><label for="cx-cfg-relayUrl">Relay URL</label><input type="text" id="cx-cfg-relayUrl" data-cx-cfg="relayUrl" autocomplete="off" spellcheck="false" placeholder="https://your-relay.workers.dev" value="${esc(c.relayUrl||"")}"></div>
+    <div class="field wide"><label for="cx-tok">App token</label><input type="password" id="cx-tok" autocomplete="off" spellcheck="false" placeholder="${CX.tok?"Saved. Paste a new token to replace it.":"Paste your app token once"}"><div class="pg-actions"><button type="button" class="btn btn-primary" data-cx-savetok="1">Save token</button>${CX.tok?`<span class="pg-sub" id="cx-tok-state">saved</span><button type="button" class="btn btn-ghost" data-cx-cleartok="1">Clear token</button>`:""}</div><p class="pg-sub">The relay holds the Ollama key, so no Ollama key is needed here. This token stays on this device only: never synced to Drive, never in backups, exports or the coach brief. Paste it again on each device you use.</p></div>` : "";
+  const urlLine = cloud ? `<div class="field wide"><label for="cx-cfg-cloudUrl">Cloud URL</label><input type="text" id="cx-cfg-cloudUrl" data-cx-cfg="cloudUrl" value="${esc(c.cloudUrl)}"><p class="pg-sub">Direct calls to Ollama cloud are blocked by the browser (CORS) on most setups. Use the relay option if Test connection reports that.</p></div>` : local ? `<div class="field wide"><label for="cx-cfg-localUrl">Local Ollama URL</label><input type="text" id="cx-cfg-localUrl" data-cx-cfg="localUrl" value="${esc(c.localUrl)}"><p class="pg-sub">Your phone cannot reach your PC's localhost. The PC must start Ollama with OLLAMA_ORIGINS allowing this page's origin (${esc(location.origin||"")}).</p></div>` : "";
+  const mk = relay?"modelRelay":cloud?"modelCloud":"modelLocal";
+  const modelLine = c.mode!=="off" ? `<div class="field"><label for="cx-cfg-model">Model</label><input type="text" id="cx-cfg-model" data-cx-cfg="${mk}" value="${esc(c[mk])}"></div>
+    ${relay?"":`<div class="field"><label for="cx-cfg-style">Endpoint style</label><select id="cx-cfg-style" data-cx-cfg="style"><option value="openai" ${c.style==="openai"?"selected":""}>OpenAI-compatible (/v1)</option><option value="native" ${c.style==="native"?"selected":""}>Ollama native (/api)</option></select></div>`}
     <div class="pg-actions"><button type="button" class="btn btn-ghost" data-cx-test="1">Test connection</button></div>
     ${r?`<p class="${r.ok?"pg-sub":"pg-err"}" id="cx-test-res">${esc(r.message)}${r.models&&r.models.length?" Models: "+esc(r.models.slice(0,8).join(", "))+".":""}</p>`:""}
-    <p class="pg-sub">${cloud?"The training summary (numbers only) is sent to Ollama's cloud when AI wording is on.":"The training summary stays on your PC."} If the model is off or unreachable the coach silently uses its own wording.</p>` : "";
-  return `<div class="field wide"><label for="cx-cfg-mode">AI coach wording</label><select id="cx-cfg-mode" data-cx-cfg="mode"><option value="off" ${c.mode==="off"?"selected":""}>Off (rules only, offline)</option><option value="cloud" ${cloud?"selected":""}>Ollama cloud (direct, needs API key)</option><option value="local" ${local?"selected":""}>Ollama on my PC (free)</option></select></div>${keyLine}${urlLine}${modelLine}`;
+    <p class="pg-sub">${relay?"The training summary (numbers only) is sent through your relay to Ollama's cloud when AI wording is on.":cloud?"The training summary (numbers only) is sent to Ollama's cloud when AI wording is on.":"The training summary stays on your PC."} If the model is off or unreachable the coach silently uses its own wording.</p>` : "";
+  return `<div class="field wide"><label for="cx-cfg-mode">AI coach wording</label><select id="cx-cfg-mode" data-cx-cfg="mode"><option value="off" ${c.mode==="off"?"selected":""}>Off (rules only, offline)</option><option value="relay" ${relay?"selected":""}>Ollama cloud via relay (recommended)</option><option value="cloud" ${cloud?"selected":""}>Ollama cloud, direct (needs API key)</option><option value="local" ${local?"selected":""}>Ollama on my PC (free)</option></select></div>${relayLine}${keyLine}${urlLine}${modelLine}`;
 }
 async function cxSettingsCard(){ await cxLoad(); return `<div class="card" id="cx-settings-card"><div class="card-header"><h2>AI coach</h2><span class="meta">Optional · the coach works without it</span></div>${cxSettingsInner()}</div>`; }
 function cxReplaceSettings(){ const el = document.getElementById("cx-settings-card"); if(el) el.innerHTML = `<div class="card-header"><h2>AI coach</h2><span class="meta">Optional · the coach works without it</span></div>${cxSettingsInner()}`; }
 
 /* ----- events ----- */
 async function cxOnClick(e){
-  const t = e.target && e.target.closest ? e.target.closest("[data-cx-apply],[data-cx-dismiss],[data-cx-open],[data-cx-copy],[data-cx-undo],[data-cx-gundo],[data-cx-showdet],[data-cx-aioff],[data-cx-test],[data-cx-savekey],[data-cx-clearkey],[data-cx-gen-preview],[data-cx-gen-apply],[data-cx-gfp-start],[data-cx-gfp-now],[data-cx-pastesave],[data-cx-pasteclear],[data-cx-zwo]") : null;
+  const t = e.target && e.target.closest ? e.target.closest("[data-cx-apply],[data-cx-dismiss],[data-cx-open],[data-cx-copy],[data-cx-undo],[data-cx-gundo],[data-cx-showdet],[data-cx-aioff],[data-cx-test],[data-cx-savekey],[data-cx-clearkey],[data-cx-savetok],[data-cx-cleartok],[data-cx-gen-preview],[data-cx-gen-apply],[data-cx-gfp-start],[data-cx-gfp-now],[data-cx-pastesave],[data-cx-pasteclear],[data-cx-zwo]") : null;
   if(!t) return;
   try{
     if(!CX.loaded) await cxLoad();
@@ -4894,6 +4926,8 @@ async function cxOnClick(e){
     if(t.hasAttribute("data-cx-aioff")){ CX.cfg.mode = "off"; await cxSaveCfg(); cxRefreshViews(); if(State.tab!=="dashboard") renderTabContent(); return; }
     if(t.hasAttribute("data-cx-savekey")){ const el = document.getElementById("cx-key"); if(el && el.value.trim()){ await cxSaveKey(el.value); el.value = ""; CX.testRes = null; cxReplaceSettings(); cxToast("Key saved on this device."); } return; }
     if(t.hasAttribute("data-cx-clearkey")){ await cxSaveKey(""); CX.testRes = null; cxReplaceSettings(); cxToast("Key cleared."); return; }
+    if(t.hasAttribute("data-cx-savetok")){ const el = document.getElementById("cx-tok"); if(el && el.value.trim()){ await cxSaveTok(el.value); el.value = ""; CX.testRes = null; if(CX.cfg.mode==="cloud" && !CX.key && CX.cfg.relayUrl){ CX.cfg.mode = "relay"; await cxSaveCfg(); } cxReplaceSettings(); cxToast("Token saved on this device."); } return; }
+    if(t.hasAttribute("data-cx-cleartok")){ await cxSaveTok(""); CX.testRes = null; cxReplaceSettings(); cxToast("Token cleared."); return; }
     if(t.hasAttribute("data-cx-test")){ CX.testRes = {ok:false, message:"Testing…", models:[]}; cxReplaceSettings(); CX.testRes = await cxTestConn(); CX.failUntil = {}; CX.aiTried = ""; cxReplaceSettings(); return; }
     if(t.hasAttribute("data-cx-gen-preview")){ CX.prefs.form = CX.genForm; await cxSavePrefs(); CX.genPlan = await cxGenPlan(CX.genForm); const el = document.getElementById("cx-gen-prev"); if(el) el.innerHTML = cxPlanPreviewHtml(CX.genPlan); return; }
     if(t.hasAttribute("data-cx-gen-apply")){ if(!CX.genPlan || CX.genPlan.error) return; t.disabled = true; const ev = await cxApplyPlan(CX.genPlan); CX.genPlan = null; cxToast("Plan created: "+ev.name+". Find it on the Events tab."); State.tab = "events"; render(); return; }
@@ -4909,7 +4943,7 @@ async function cxOnChange(e){
   const el = e.target; if(!el || !el.getAttribute) return;
   try{
     const cfgK = el.getAttribute("data-cx-cfg"), fK = el.getAttribute("data-cx-f"), pinD = el.getAttribute("data-cx-pin");
-    if(cfgK){ if(!CX.loaded) await cxLoad(); CX.cfg[cfgK] = el.value.trim(); if(cfgK==="mode"){ CX.testRes = null; } await cxSaveCfg(); CX.failUntil = {}; CX.aiTried = ""; cxReplaceSettings(); if(cfgK==="mode" && CX.cfg.mode!=="off") setTimeout(()=>{ try{ cxAiRefresh(); }catch(x){} }, 0); return; }
+    if(cfgK){ if(!CX.loaded) await cxLoad(); CX.cfg[cfgK] = el.value.trim(); if(cfgK==="mode"){ CX.testRes = null; } if(cfgK==="relayUrl" && CX.cfg.relayUrl && CX.cfg.mode==="cloud" && !CX.key){ CX.cfg.mode = "relay"; } await cxSaveCfg(); CX.failUntil = {}; CX.aiTried = ""; cxReplaceSettings(); if(cfgK==="mode" && CX.cfg.mode!=="off") setTimeout(()=>{ try{ cxAiRefresh(); }catch(x){} }, 0); return; }
     if(pinD){ CX.prefs.gfp.pinned[pinD] = !!el.checked; if(!el.checked) delete CX.prefs.gfp.pinned[pinD]; await cxSavePrefs(); CX.tickSig = ""; return; }
     if(fK){ if(!CX.loaded) await cxLoad();
       if(fK.startsWith("gfp-")){ const k = fK.slice(4); CX.prefs.gfp[k] = k==="days" ? +el.value : !!el.checked; await cxSavePrefs(); CX.tickSig = ""; await cxGfpEnsure(false); renderTabContent(); return; }
@@ -9829,5 +9863,6 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
 
