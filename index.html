@@ -532,6 +532,40 @@ svg.sparkline{width:100%; height:110px;}
    Appended AFTER the existing stylesheet. Re-maps the app's existing colour tokens, so existing
    markup keeps working and every screen picks up the theme without touching feature code. */
 
+
+/* ---- Phase 6: period report, dashboard, progression bars ---- */
+.pg-toolbar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin:0 0 10px; flex-wrap:wrap;}
+.pg-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:16px; margin-bottom:16px; align-items:start;}
+.pg-grid > .card{margin-bottom:0;} .pg-grid > .pg-wide{grid-column:1/-1;}
+.pg-sub{font-size:11.5px; color:var(--grey-600); margin-top:4px;}
+.pg-empty{font-size:12.5px; color:var(--grey-600); margin:6px 0;}
+.pg-err{font-size:12.5px; color:var(--red); margin:6px 0;}
+.pg-big{font-size:42px; font-weight:800; line-height:1.1; color:var(--text);} .pg-big span{font-size:15px; font-weight:600; color:var(--grey-600);}
+.pg-bar{height:10px; border-radius:999px; background:var(--grey-100); overflow:hidden; margin:6px 0 2px;}
+.pg-bar-fill{height:100%; border-radius:999px; background:var(--emerald); min-width:0; transition:width .3s ease;}
+.pg-planbar,.pg-goal{margin:10px 0 14px;} .pg-planbar-head{display:flex; justify-content:space-between; gap:10px; font-size:13px; flex-wrap:wrap;} .pg-planbar-head span{color:var(--grey-600);}
+.pg-late{color:var(--amber) !important;}
+.pg-actions{display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;}
+.pg-goalform{padding:10px 12px; margin-top:8px; display:flex; flex-direction:column; gap:8px;} .pg-goalform h4{font-size:13px; margin:0;} .pg-goalform label{font-size:12.5px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;} .pg-goalform input[type=text]{width:100%;}
+.pg-picker{margin:4px 0 10px;} .pg-custom{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 0 10px; font-size:12.5px;}
+.pg-sections{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:14px; margin-top:6px;} .pg-sections h3{font-size:13px; margin:0 0 6px;}
+.pg-table{width:100%; font-size:12px; border-collapse:collapse;} .pg-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--grey-600); padding:4px 6px; border-bottom:1px solid var(--grey-200);} .pg-table td{padding:4px 6px; border-bottom:1px solid var(--grey-100);} .pg-table .pg-sum td{font-weight:700;}
+.pg-chartbar{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin:16px 0 6px; font-size:12.5px;}
+.pg-chart{width:100%; height:auto; display:block; margin-top:6px;}
+.pg-legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--grey-600); margin-top:4px;} .pg-leg i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px;} .pg-leg-note{margin-left:auto;}
+.pg-setrow{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--grey-100); font-size:13px;} .pg-setrow button{padding:0 10px; min-height:28px;}
+
+
+.cx-line{margin:6px 0; font-size:13.5px; line-height:1.5;}
+.cx-badge{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11.5px; font-weight:700; color:var(--callout-ink-strong,var(--ink-700)); margin:0 0 4px;} .cx-badge .btn{padding:0 8px; min-height:26px; font-size:11.5px;}
+.cx-sug{border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; margin:10px 0; background:var(--grey-50);} .cx-sug-t{font-size:13.5px; font-weight:700;}
+.cx-chk{display:flex; align-items:center; gap:6px; font-size:12.5px;} .cx-checks{display:flex; flex-wrap:wrap; gap:6px 16px; margin:8px 0;}
+.cx-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); gap:10px; align-items:end;} .cx-form .cx-checks,.cx-form .pg-actions,.cx-form .cx-pair{grid-column:1/-1;} .cx-pair{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr)); gap:10px;}
+.cx-prev{margin-top:14px;} .cx-paste{margin-top:10px;} .cx-pastebody{white-space:pre-wrap; font-size:13px; border:1px solid var(--grey-200); border-radius:var(--radius-sm); padding:10px 12px; background:var(--grey-50); margin-top:4px;}
+.cx-toast{position:fixed; left:50%; transform:translateX(-50%); bottom:84px; max-width:min(92vw,520px); background:#0E1B33; color:#fff; padding:10px 14px; border-radius:12px; font-size:13px; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,.3); display:none;}
+.cx-zwo-btn{padding:0 10px; min-height:28px; font-size:12px; margin-left:6px;}
+.cx-tab > .card{margin-bottom:16px;}
+
 /* ---- 1. Theme tokens ("Tracker" scheme) ---- */
 :root, body.theme-dark{
   color-scheme:dark;
@@ -2531,7 +2565,7 @@ async function exportAllData(){
   const keys = await listKeys("");
   const bundle = {};
   for(const k of keys){
-    if(k==="driveConfig" || k==="stravaConfig" || k==="gsyncConfig") continue;
+    if(k==="driveConfig" || k==="stravaConfig" || k==="gsyncConfig" || k==="coachApiKey") continue;
     bundle[k] = await loadJSON(k);
   }
   return {updatedAt: new Date().toISOString(), data: bundle};
@@ -2539,6 +2573,7 @@ async function exportAllData(){
 async function importAllData(payload){
   if(!payload || !payload.data) return;
   for(const [k,v] of Object.entries(payload.data)){
+    if(k==="coachApiKey") continue; /* on-device only */
     await saveJSONRaw(k, v);
   }
   State.logs = {}; // clear in-memory log cache so re-reads pick up imported data
@@ -3657,6 +3692,1234 @@ async function hbOnClick(e){
   else if(t.hasAttribute("data-hb-merge")){ const [a,b] = t.dataset.hbMerge.split("|"); hbManualMerge(a,b); }
   else if(t.hasAttribute("data-hb-delrule")){ HB.meta.rules.splice(+t.dataset.hbDelrule,1); await hbSaveMeta(); hbRefreshHub(); }
 }
+/* ============================================================
+   PHASE 6 - PERIOD REPORTS, CONFIGURABLE DASHBOARD, PROGRESSION BARS
+   Keys (all Drive-synced like every other key): reportPrefs, dashboardPrefs, goals
+   Reads only data KoT already stores: logs (log:YYYY-MM-DD), wellness:*, the activity ledger (HB.recs), the plans.
+   ============================================================ */
+const PG_CARDS = [["summary","Period report"],["streak","Workout streak"],["plans","Plan progress"],["goals","Goals"],["load","Training load"],["wellness","Wellness trend"],["weight","Weight metrics"],["nutrition","Nutrition averages"],["sleep","Sleep"],["hr","Heart rate"],["snapshot","Plan snapshot"],["coach","Coach"]];
+const PG_TYPES = [["ride","Rides"],["run","Runs"],["vr","VR cardio"],["strength","Strength / HIIT"],["flex","Flex / recovery"],["other","Other"]];
+const PG_CARDIO = ["ride","run","vr"];
+const PG_COL = ["var(--violet)","var(--emerald)","var(--amber)","#2563EB"];
+const PG_METRICS = [["load","Training load"],["sessions","Sessions: scheduled vs done"],["wellness","Mood / stress / energy"],["calories","Calories"],["weight","Weight"],["sleep","Sleep (hours)"]];
+const PG = { prefs:null, dash:null, goals:[], goalEdit:null, confirmGoalDel:null, err:"", seq:0, showCustom:false };
+window.PG = PG;
+
+function pgType(cat){ return (cat==="ride-out"||cat==="ride-in") ? "ride" : cat==="run" ? "run" : cat==="vr" ? "vr" : (cat==="strength"||cat==="hiit") ? "strength" : cat==="flex" ? "flex" : "other"; }
+function pgHM(min){ min = Math.round(min||0); return Math.floor(min/60)+"h "+String(min%60).padStart(2,"0")+"m"; }
+function pgNum(x){ const n = parseFloat(x); return isFinite(n) ? n : 0; }
+function pgAvg(a){ const v = a.filter(x=>x!=null&&isFinite(x)); return v.length ? v.reduce((p,c)=>p+c,0)/v.length : null; }
+function pgDates(from, to){ const out = []; let d = from, g = 0; while(d <= to && g < 400){ out.push(d); d = dateAdd(d,1); g++; } return out; }
+
+/* ---------- prefs ---------- */
+async function pgLoadPrefs(){
+  const r = (await loadJSON("reportPrefs")) || {};
+  PG.prefs = Object.assign({days:30, from:null, to:null, chart:"bar", metric:"load"}, r);
+  const d = (await loadJSON("dashboardPrefs")) || {}, known = PG_CARDS.map(c=>c[0]);
+  const cards = (Array.isArray(d.cards) ? d.cards : []).filter(c=>c && known.includes(c.id)).map(c=>({id:c.id, on:c.on!==false}));
+  known.forEach(id=>{ if(!cards.some(c=>c.id===id)) cards.push({id, on:true}); });
+  PG.dash = {cards};
+  const g = await loadJSON("goals"); PG.goals = g && Array.isArray(g.goals) ? g.goals : [];
+}
+async function pgSavePrefs(){ await saveJSON("reportPrefs", PG.prefs); }
+async function pgSaveDash(){ await saveJSON("dashboardPrefs", {v:1, cards:PG.dash.cards}); }
+async function pgSaveGoals(){ await saveJSON("goals", {v:1, goals:PG.goals}); }
+function pgRange(){
+  const t = todayISO(), p = PG.prefs;
+  if(p.days==="custom" && p.from && p.to && p.from <= p.to) return {from:p.from, to:p.to, custom:true};
+  const n = [7,14,30,90].includes(+p.days) ? +p.days : 30;
+  return {from:dateAdd(t,-(n-1)), to:t, custom:false, n};
+}
+
+/* ---------- sessions (KoT logs + activity ledger), same winners as the load calc ---------- */
+async function pgManual(date){
+  const out = [], log = await getLog(date); if(!log || !log.workouts) return out;
+  const day = getDayPlan(date);
+  for(const slotKey of Object.keys(log.workouts)){
+    const sw = log.workouts[slotKey]; if(!sw || sw.stravaId) continue;
+    const w = (day.workouts||[]).find(x=>x.slotKey===slotKey) || {kind:"strengthblock", name:""};
+    let durMin = durationTotalMinutes(sw) || (parseFloat(sw.actualLenOverride)||0);
+    const logged = sw.completed || (w.items ? workoutIsLogged(w, sw) : false);
+    if(!durMin && logged) durMin = w.timeMin || 0;
+    if(!(durMin > 0)) continue;
+    out.push({key:"kot:"+date+"|"+slotKey, slotKey, date, cat:hbCatFromKind(w.kind, w.name), durMin, avgHR:parseFloat(sw.avgHR)||0, rel:parseFloat(sw.relEffort)||0, name:w.name||"Workout", manual:true, distMi:parseFloat(sw.distance)||0, maxHR:parseFloat(sw.maxHR)||0});
+  }
+  return out;
+}
+async function pgSessions(date){
+  const manual = await pgManual(date), kot = {manual:{[date]:manual}, linked:{}};
+  return hbDaySessions(date, kot).map(s=>{
+    const rec = HB.recs[s.key], m = manual.find(x=>x.key===s.key);
+    return Object.assign({}, s, {distMi: rec ? (rec.distM||0)/1609.344 : (m ? m.distMi : 0), maxHR: rec ? (rec.maxHR||0) : (m ? m.maxHR : 0), date});
+  });
+}
+
+/* ---------- plans ---------- */
+function pgActivePlans(){
+  const real = Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e));
+  if(real.length) return real;
+  const g = activeGFP(); return g ? [g] : [];
+}
+async function pgPlanStats(e){
+  const P = PlanByEvent[e.id]; if(!P) return null;
+  const today = todayISO(), end = e.isGFP ? today : P.end, dates = allDatesInRange(P.start, end);
+  let total = 0, done = 0, due = 0, missed = 0;
+  for(const d of dates){
+    const dp = getEventDayPlan(e.id, d); if(!dp || !dp.workouts.length) continue;
+    const log = await getLog(d);
+    for(const w of dp.workouts){
+      total++; const ok = !!(log.workouts && log.workouts[w.slotKey] && log.workouts[w.slotKey].completed);
+      if(ok) done++; if(d <= today) due++; if(d < today && !ok) missed++;
+    }
+  }
+  return {id:e.id, name:e.name, color:e.color, total, done, due, missed, pct: total ? Math.round(done/total*100) : 0, isGFP:!!e.isGFP, start:P.start, end};
+}
+function pgBar(pct, label, color){
+  const p = Math.max(0, Math.min(100, pct));
+  return `<div class="pg-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p)}" aria-label="${esc(label||"")}"><div class="pg-bar-fill" style="width:${p}%; ${color?`background:${esc(color)};`:""}"></div></div>`;
+}
+function pgPlanBarHtml(s){
+  if(!s) return "";
+  if(!s.total) return `<div class="pg-planbar"><div class="pg-planbar-head"><b>${esc(s.name)}</b><span>No scheduled workouts yet</span></div></div>`;
+  return `<div class="pg-planbar"><div class="pg-planbar-head"><b>${esc(s.name)}</b><span>${s.done} of ${s.total} workouts · ${s.pct}%</span></div>${pgBar(s.pct, s.name+" progress", s.color)}
+    <div class="pg-sub">${s.due} due so far · ${s.missed} missed${s.isGFP?" · open-ended, counted to today":""}</div></div>`;
+}
+async function pgFillBars(){
+  const els = document.querySelectorAll("[data-pg-plan]"); if(!els.length) return;
+  try{
+    for(const el of els){
+      const id = el.getAttribute("data-pg-plan");
+      const list = id==="all" ? pgActivePlans() : Events.list.filter(e=>e.id===id);
+      const stats = []; for(const e of list){ stats.push(await pgPlanStats(e)); }
+      el.innerHTML = stats.map(pgPlanBarHtml).join("");
+    }
+  }catch(e){ /* bars are cosmetic */ }
+}
+
+/* ---------- report computation ---------- */
+async function pgCompute(from, to){
+  const today = todayISO(), dates = pgDates(from, to), R = {from, to, dates, today, days:dates.length};
+  R.types = {}; PG_TYPES.forEach(([k])=>{ R.types[k] = {sched:0, done:0, missed:0, pending:0, min:0, mi:0, n:0}; });
+  R.extras = {n:0, min:0}; R.day = {};
+  for(const d of dates){
+    const rec = R.day[d] = {sched:0, done:0, load:0, timeMin:0, distMi:0};
+    if(d > today) continue;
+    const dp = getDayPlan(d), log = await getLog(d), schedKeys = new Set();
+    for(const w of (dp.workouts||[])){
+      const t = pgType(hbCatFromKind(w.kind, w.name)), ok = !!(log.workouts && log.workouts[w.slotKey] && log.workouts[w.slotKey].completed);
+      schedKeys.add(w.slotKey); R.types[t].sched++; rec.sched++;
+      if(ok){ R.types[t].done++; rec.done++; } else if(d < today) R.types[t].missed++; else R.types[t].pending++;
+    }
+    const ss = await pgSessions(d);
+    ss.forEach(s=>{
+      const t = pgType(s.cat), X = R.types[t]; X.min += s.durMin||0; X.mi += s.distMi||0; X.n++;
+      rec.timeMin += s.durMin||0; rec.distMi += s.distMi||0; rec.load += hbScore(s).v;
+      const slot = s.manual || String(s.key).indexOf("kot:")===0 ? String(s.key).split("|")[1] : null;
+      if(!(slot && schedKeys.has(slot))){ R.extras.n++; R.extras.min += s.durMin||0; }
+    });
+  }
+  R.cardio = {sched:0, done:0, missed:0, pending:0, min:0, mi:0}; R.tot = {sched:0, done:0, missed:0, pending:0, min:0, mi:0};
+  Object.keys(R.types).forEach(k=>{ const X = R.types[k]; ["sched","done","missed","pending","min","mi"].forEach(f=>{ R.tot[f] += X[f]; if(PG_CARDIO.includes(k)) R.cardio[f] += X[f]; }); });
+  /* load + ramp: needs 27 days of history before the range */
+  const loadOn = {}; let first = null;
+  for(let d = dateAdd(from,-27); d <= (to < today ? to : today); d = dateAdd(d,1)){
+    let v; if(R.day[d]) v = R.day[d].load; else { v = 0; (await pgSessions(d)).forEach(s=>{ v += hbScore(s).v; }); }
+    loadOn[d] = v; if(v > 0 && (!first || d < first)) first = d;
+  }
+  R.loadTotal = dates.reduce((a,d)=>a+(R.day[d].load||0),0);
+  const ratios = []; let lastRatio = null;
+  dates.filter(d=>d<=today).forEach(d=>{
+    let a = 0, c = 0; for(let i=0;i<28;i++){ const v = loadOn[dateAdd(d,-i)] || 0; c += v; if(i<7) a += v; }
+    const chronic = c/4; if(first && daysBetween(first,d) >= 13 && chronic >= 50){ const r = a/chronic; ratios.push(r); lastRatio = r; }
+  });
+  R.ramp = ratios.length ? ratios.reduce((p,c)=>p+c,0)/ratios.length : null; R.rampDays = ratios.length; R.lastRatio = lastRatio;
+  R.coverageNote = from < dateAdd(today,-HB_LEDGER_DAYS) ? "Strava activity data covers the last "+HB_LEDGER_DAYS+" days; earlier days use your KoT logs only." : "";
+  /* wellness, sleep, weight, nutrition (days with entries only) */
+  R.well = {mood:[], stress:[], energy:[]}; R.sleep = []; R.weights = []; R.nut = {kcal:[], carbs:[], fat:[], protein:[]}; R.nutDays = 0;
+  for(const d of dates){
+    if(d > today){ continue; }
+    const w = await hbWellGet(d), log = await getLog(d), day = R.day[d];
+    ["mood","stress","energy"].forEach(f=>{ if(w && w[f]) R.well[f].push(w[f]); }); day.mood = w && w.mood || null; day.stress = w && w.stress || null; day.energy = w && w.energy || null;
+    const sl = pgSleepHours(log); day.sleep = sl; if(sl) R.sleep.push(sl);
+    const bw = pgNum(log.bodyweight); day.weight = bw > 0 ? bw : null; if(bw > 0) R.weights.push({d, w:bw});
+    const n = log.nutrition || {}; let any = false;
+    ["kcal","carbs","fat","protein"].forEach(k=>{ const v = pgNum(n[k]); if(v > 0){ R.nut[k].push(v); any = true; } });
+    day.kcal = pgNum(n.kcal) > 0 ? pgNum(n.kcal) : null; if(any) R.nutDays++;
+  }
+  R.past = dates.filter(d=>d<=today).length;
+  return R;
+}
+function pgSleepHours(log){ if(!log) return null; const h = pgNum(log.sleepH) + pgNum(log.sleepM)/60; return h > 0 ? Math.round(h*100)/100 : null; }
+
+/* ---------- chart ---------- */
+function pgSeries(R, metric){
+  const ds = R.dates.filter(d=>d<=R.today), get = (d,f)=>R.day[d][f];
+  let kind = "sum", series, yMin = 0, yMax = null, unit = "";
+  if(metric==="load"){ series = [{name:"Training load", color:PG_COL[0], vals:ds.map(d=>get(d,"load")||0)}]; }
+  else if(metric==="sessions"){ series = [{name:"Scheduled", color:PG_COL[0], vals:ds.map(d=>get(d,"sched")||0)}, {name:"Completed", color:PG_COL[1], vals:ds.map(d=>get(d,"done")||0)}]; }
+  else if(metric==="wellness"){ kind = "mean"; yMin = 1; yMax = 5; series = [{name:"Mood", color:PG_COL[1], vals:ds.map(d=>get(d,"mood"))}, {name:"Stress", color:PG_COL[2], vals:ds.map(d=>get(d,"stress"))}, {name:"Energy", color:PG_COL[0], vals:ds.map(d=>get(d,"energy"))}]; }
+  else if(metric==="calories"){ kind = "mean"; unit = " kcal"; series = [{name:"Calories", color:PG_COL[2], vals:ds.map(d=>get(d,"kcal"))}]; }
+  else if(metric==="weight"){ kind = "mean"; yMin = null; unit = " lb"; series = [{name:"Weight", color:PG_COL[3], vals:ds.map(d=>get(d,"weight"))}]; }
+  else { kind = "mean"; unit = " h"; series = [{name:"Sleep", color:PG_COL[0], vals:ds.map(d=>get(d,"sleep"))}]; }
+  let labels = ds.slice();
+  if(ds.length > 31){                                                       /* weekly buckets for long periods */
+    const nb = Math.ceil(ds.length/7), bl = [];
+    series = series.map(s=>{ const vals = []; for(let b=0;b<nb;b++){ const part = s.vals.slice(b*7,b*7+7); vals.push(kind==="sum" ? part.reduce((p,c)=>p+(c||0),0) : pgAvg(part)); } return Object.assign({}, s, {vals}); });
+    for(let b=0;b<nb;b++) bl.push(ds[b*7]); labels = bl;
+  }
+  return {series, labels, yMin, yMax, unit, weekly: ds.length > 31};
+}
+function pgChartSvg(R, metric, style){
+  const S = pgSeries(R, metric), W = 600, H = 190, L = 40, B = 24, T = 10, Rr = 8, pw = W-L-Rr, ph = H-B-T;
+  const all = S.series.flatMap(s=>s.vals.filter(v=>v!=null));
+  if(!all.length) return `<p class="pg-empty">No ${esc(PG_METRICS.find(m=>m[0]===metric)[1].toLowerCase())} data in this period.</p>`;
+  let lo = S.yMin, hi = S.yMax != null ? S.yMax : Math.max(...all);
+  if(lo == null){ const mn = Math.min(...all), mx = Math.max(...all), pad = Math.max(1,(mx-mn)*0.2); lo = Math.floor(mn-pad); hi = Math.ceil(mx+pad); }
+  if(hi <= lo) hi = lo + 1;
+  const n = S.labels.length, y = v=>T + ph - (v-lo)/(hi-lo)*ph, x = i=> L + (n===1 ? pw/2 : i/(n-1)*pw);
+  const fmt = v=>Math.abs(v)>=100 ? String(Math.round(v)) : String(Math.round(v*10)/10);
+  let g = "";
+  [0,.5,1].forEach(f=>{ const v = lo+(hi-lo)*f, yy = y(v); g += `<line x1="${L}" x2="${W-Rr}" y1="${yy}" y2="${yy}" stroke="var(--grey-200)" stroke-width="1"/><text x="${L-6}" y="${yy+4}" text-anchor="end" font-size="10" fill="var(--grey-600)">${fmt(v)}</text>`; });
+  const tipDate = i=>S.weekly ? "Week of "+fmtDate(S.labels[i]) : fmtDate(S.labels[i]);
+  if(style==="line"){
+    S.series.forEach(s=>{
+      let seg = [];
+      const flush = ()=>{ if(seg.length>1) g += `<polyline points="${seg.join(" ")}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`; seg = []; };
+      s.vals.forEach((v,i)=>{ if(v==null){ flush(); return; } seg.push(x(i)+","+y(v)); });
+      flush();
+      s.vals.forEach((v,i)=>{ if(v!=null) g += `<circle cx="${x(i)}" cy="${y(v)}" r="3.2" fill="${s.color}" stroke="var(--cards)" stroke-width="1"><title>${esc(tipDate(i)+" · "+s.name+": "+fmt(v)+S.unit)}</title></circle>`; });
+    });
+  } else {
+    const k = S.series.length, slot = pw/n, bw = Math.max(2, Math.min(26, slot*0.8/k));
+    S.series.forEach((s,si)=>{ s.vals.forEach((v,i)=>{ if(v==null) return; const cx = L + slot*(i+.5) - (k*bw)/2 + si*bw, yy = y(Math.max(v,lo)), h = Math.max(1, T+ph-yy);
+      g += `<rect x="${cx}" y="${yy}" width="${bw}" height="${h}" rx="2" fill="${s.color}"><title>${esc(tipDate(i)+" · "+s.name+": "+fmt(v)+S.unit)}</title></rect>`; }); });
+  }
+  const xl = [0, Math.floor((n-1)/2), n-1].filter((v,i,a)=>a.indexOf(v)===i);
+  xl.forEach(i=>{ const xx = style==="line" ? x(i) : L + (pw/n)*(i+.5); g += `<text x="${xx}" y="${H-6}" text-anchor="${i===0?"start":i===n-1?"end":"middle"}" font-size="10" fill="var(--grey-600)">${esc(fmtDate(S.labels[i]).replace(/^\w+, /,""))}</text>`; });
+  const legend = S.series.map(s=>`<span class="pg-leg"><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("");
+  return `<svg class="pg-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(PG_METRICS.find(m=>m[0]===metric)[1])}, ${style} chart, ${esc(fmtDate(R.from))} to ${esc(fmtDate(R.to))}">${g}</svg><div class="pg-legend">${legend}${S.weekly?`<span class="pg-leg-note">weekly totals/averages</span>`:""}</div>`;
+}
+
+/* ---------- report card ---------- */
+function pgReportHtml(R){
+  const p = PG.prefs, avg1 = a=>{ const v = pgAvg(a); return v==null ? null : (Math.round(v*10)/10); };
+  const cl = (l,v)=>`<div class="cline"><span>${l}</span><span>${v}</span></div>`;
+  const rows = PG_TYPES.filter(([k])=>R.types[k].sched || R.types[k].n).map(([k,label])=>{ const X = R.types[k];
+    return `<tr><td>${label}</td><td>${X.sched}</td><td>${X.done}</td><td>${X.missed}${X.pending?` <span class="pg-sub">(+${X.pending} today)</span>`:""}</td></tr>`; }).join("");
+  const sessions = R.tot.sched || R.extras.n ? `<table class="pg-table"><thead><tr><th>Type</th><th>Scheduled</th><th>Done</th><th>Missed</th></tr></thead><tbody>${rows}
+      <tr class="pg-sum"><td>Cardio (rides, runs, VR)</td><td>${R.cardio.sched}</td><td>${R.cardio.done}</td><td>${R.cardio.missed}</td></tr>
+      <tr class="pg-sum"><td>All workouts</td><td>${R.tot.sched}</td><td>${R.tot.done}</td><td>${R.tot.missed}</td></tr></tbody></table>
+      ${R.extras.n?`<p class="pg-sub">+ ${R.extras.n} session${R.extras.n===1?"":"s"} not on the plan (${pgHM(R.extras.min)}) counted in time, distance and load.</p>`:""}`
+    : `<p class="pg-empty">No scheduled workouts or sessions in this period.</p>`;
+  const byType = PG_TYPES.filter(([k])=>R.types[k].min>0).map(([k,l])=>`${l} ${pgHM(R.types[k].min)}${R.types[k].mi>0?" · "+R.types[k].mi.toFixed(1)+" mi":""}`).join("  |  ");
+  const cardioMin = PG_CARDIO.reduce((a,k)=>a+R.types[k].min,0), cardioMi = PG_CARDIO.reduce((a,k)=>a+R.types[k].mi,0);
+  const timeDist = R.tot.min > 0 ? cl("Total time",`<b>${pgHM(R.tot.min)}</b>`)+cl("Total distance",`<b>${R.tot.mi.toFixed(1)} mi</b>`)+cl("Cardio (rides, runs, VR)",`<b>${pgHM(cardioMin)}</b>${cardioMi>0?" · "+cardioMi.toFixed(1)+" mi":""}`)+(byType?`<div class="pg-sub">${esc(byType)}</div>`:"") : `<p class="pg-empty">No training time recorded in this period.</p>`;
+  const flag = R.lastRatio==null ? "" : R.lastRatio > 1.5 ? "high" : R.lastRatio >= 1.3 ? "rising" : "OK";
+  const load = R.loadTotal > 0 ? cl("Total load",`<b>${Math.round(R.loadTotal)}</b>`)+cl("Average per day",`<b>${Math.round(R.loadTotal/Math.max(1,R.past))}</b>`)+cl("Average ramp (7-day vs 28-day)", R.ramp==null ? "building baseline" : `<b>${R.ramp.toFixed(2)}</b> <span class="pg-sub">over ${R.rampDays} day${R.rampDays===1?"":"s"}${flag?" · now "+flag:""}</span>`)
+    : `<p class="pg-empty">No training load in this period.</p>`;
+  const wl = ["mood","stress","energy"].map(f=>R.well[f].length ? cl(f[0].toUpperCase()+f.slice(1), `<b>${avg1(R.well[f])}</b> / 5 <span class="pg-sub">${R.well[f].length} of ${R.past} days</span>`) : "").join("");
+  const sl = R.sleep.length ? cl("Sleep", `<b>${pgHM(pgAvg(R.sleep)*60)}</b> <span class="pg-sub">avg · ${R.sleep.length} of ${R.past} nights</span>`) : "";
+  const well = wl || sl ? wl+sl : `<p class="pg-empty">No check-ins in this period.</p>`;
+  const weight = R.weights.length >= 2 ? (()=>{ const a = R.weights[0], b = R.weights[R.weights.length-1], d = Math.round((b.w-a.w)*10)/10; return cl("Weight change", `<b>${d>0?"+":""}${d} lb</b> <span class="pg-sub">${a.w} → ${b.w} lb</span>`); })()
+    : R.weights.length === 1 ? `<p class="pg-empty">Only one weight entry (${R.weights[0].w} lb) in this period; two are needed for a change.</p>` : `<p class="pg-empty">No weight entries in this period.</p>`;
+  const nut = R.nutDays ? [["kcal","Calories"," kcal"],["carbs","Carbs"," g"],["fat","Fat"," g"],["protein","Protein"," g"]].map(([k,l,u])=>R.nut[k].length ? cl(l+` <span class="pg-sub">(${R.nut[k].length} day${R.nut[k].length===1?"":"s"})</span>`, `<b>${Math.round(pgAvg(R.nut[k]))}</b>${u}`) : "").join("") : `<p class="pg-empty">No nutrition entries in this period.</p>`;
+  const pre = [7,14,30,90].map(n=>`<button type="button" class="${!(R.custom)&&R.n===n?"active":""}" data-pg-days="${n}">${n} days</button>`).join("");
+  const showCustom = R.custom || PG.showCustom;
+  const label = R.custom ? "Custom" : "Last "+R.n+" days";
+  return `<div class="card pg-wide" id="pg-card-summary"><div class="card-header"><h2>Period report</h2><span class="meta">${esc(label)} · ${esc(fmtDate(R.from))} – ${esc(fmtDate(R.to))}</span></div>
+    <div class="pg-picker"><div class="pill-toggle" role="group" aria-label="Report period">${pre}<button type="button" class="${showCustom?"active":""}" data-pg-days="custom">Custom</button></div></div>
+    ${showCustom?`<div class="pg-custom"><label>From <input type="date" id="pg-from" value="${esc(R.from)}"></label><label>To <input type="date" id="pg-to" value="${esc(R.to)}"></label><button type="button" class="btn btn-ghost" data-pg-apply="1">Apply</button></div>`:""}
+    ${PG.err?`<p class="pg-err">${esc(PG.err)}</p>`:""}
+    ${R.to > R.today?`<p class="pg-sub">Days after today are not counted.</p>`:""}
+    <div class="pg-sections">
+      <div><h3>Sessions</h3>${sessions}</div>
+      <div><h3>Time &amp; distance</h3><div class="calc-box">${timeDist}</div></div>
+      <div><h3>Training load</h3><div class="calc-box">${load}</div>${R.coverageNote?`<p class="pg-sub">${esc(R.coverageNote)}</p>`:""}</div>
+      <div><h3>Wellness &amp; sleep</h3><div class="calc-box">${well}</div></div>
+      <div><h3>Weight</h3><div class="calc-box">${weight}</div></div>
+      <div><h3>Nutrition averages</h3><div class="calc-box">${nut}</div></div>
+    </div>
+    <div class="pg-chartbar"><label>Chart <select id="pg-metric" data-pg-metric="1">${PG_METRICS.map(([k,l])=>`<option value="${k}" ${p.metric===k?"selected":""}>${esc(l)}</option>`).join("")}</select></label>
+      <div class="pill-toggle" role="group" aria-label="Chart style"><button type="button" class="${p.chart!=="line"?"active":""}" data-pg-chart="bar">Bars</button><button type="button" class="${p.chart==="line"?"active":""}" data-pg-chart="line">Lines</button></div></div>
+    ${pgChartSvg(R, p.metric, p.chart==="line"?"line":"bar")}</div>`;
+}
+async function pgReportCard(){
+  const rg = pgRange(), R = await pgCompute(rg.from, rg.to); R.custom = rg.custom; R.n = rg.n; return pgReportHtml(R);
+}
+async function pgRefreshReport(){
+  const my = ++PG.seq, el = document.getElementById("pg-card-summary"); if(!el) return;
+  const html = await pgReportCard(); if(my !== PG.seq) return;
+  const cur = document.getElementById("pg-card-summary"); if(!cur) return;
+  const w = document.createElement("div"); w.innerHTML = html; cur.replaceWith(w.firstElementChild);
+}
+
+/* ---------- dashboard cards ---------- */
+async function pgStreak(){
+  const today = todayISO(); let d = today, streak = 0, seen = false;
+  const cal = allCalendarDates(), minD = cal.length ? cal[0] : dateAdd(today,-400);
+  for(let i=0;i<800 && d >= minD;i++){
+    const ws = (getDayPlan(d).workouts||[]);
+    if(ws.length){
+      seen = true; const log = await getLog(d);
+      const all = ws.every(w=>log.workouts && log.workouts[w.slotKey] && log.workouts[w.slotKey].completed);
+      if(all) streak++; else if(d !== today) break;
+    }
+    d = dateAdd(d,-1);
+  }
+  return {streak, seen};
+}
+function pgCardWrap(id, title, meta, body){ return `<div class="card" id="pg-card-${id}"><div class="card-header"><h2>${esc(title)}</h2>${meta?`<span class="meta">${esc(meta)}</span>`:""}</div>${body}</div>`; }
+const pgEmpty = t=>`<p class="pg-empty">${esc(t)}</p>`;
+function pgGoalHtml(g, plans){
+  const today = todayISO(), left = daysBetween(today, g.date);
+  const cd = left > 1 ? left+" days left" : left === 1 ? "1 day left" : left === 0 ? "Today" : Math.abs(left)+" day"+(Math.abs(left)===1?"":"s")+" ago";
+  let pct = 0, sub = "";
+  const ps = g.planId ? plans[g.planId] : null;
+  if(ps){ pct = ps.pct; sub = ps.total ? `${ps.done} of ${ps.total} workouts in ${esc(ps.name)}` : `${esc(ps.name)} has no scheduled workouts yet`; }
+  else { const c = g.created || today, span = Math.max(1, daysBetween(c, g.date)); pct = Math.max(0, Math.min(100, Math.round(daysBetween(c, today)/span*100))); sub = g.planId ? "Linked plan not found · time elapsed" : "Time elapsed since "+fmtDate(c); }
+  const conf = PG.confirmGoalDel === g.id;
+  return `<div class="pg-goal"><div class="pg-planbar-head"><b>${esc(g.name)}</b><span class="${left<0?"pg-late":""}">${esc(cd)}</span></div>${pgBar(pct, g.name+" progress")}
+    <div class="pg-sub">${pct}% · ${sub} · target ${esc(fmtDate(g.date))}${g.date.slice(0,4)!==today.slice(0,4)?", "+g.date.slice(0,4):""}</div>
+    <div class="pg-actions"><button type="button" class="btn btn-ghost" data-pg-goal-edit="${esc(g.id)}">Edit</button><button type="button" class="btn btn-ghost" data-pg-goal-del="${esc(g.id)}">${conf?"Confirm delete":"Delete"}</button></div></div>`;
+}
+function pgGoalForm(){
+  const e = PG.goalEdit; if(!e) return `<button type="button" class="btn btn-ghost" data-pg-goal-new="1">+ Add goal</button>`;
+  const g = e.id ? PG.goals.find(x=>x.id===e.id) : null, dr = e.draft || {};
+  const name = dr.name!=null ? dr.name : (g?g.name:""), date = dr.date!=null ? dr.date : (g?g.date:""), plan = dr.plan!=null ? dr.plan : (g?g.planId||"":"");
+  const evs = Events.list.filter(x=>!x.isAdhoc && !x.hidden);
+  return `<div class="tcx-panel pg-goalform"><h4>${g?"Edit goal":"New goal"}</h4>
+    <input type="text" id="pg-goal-name" placeholder="Goal (e.g. Fall century, Spring tennis season)" value="${esc(name)}">
+    <label>Target date <input type="date" id="pg-goal-date" value="${esc(date)}"></label>
+    <label>Linked plan <select id="pg-goal-plan"><option value="">None (track time elapsed)</option>${evs.map(x=>`<option value="${esc(x.id)}" ${plan===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label>
+    ${PG.err?`<p class="pg-err">${esc(PG.err)}</p>`:""}
+    <div class="pg-actions"><button type="button" class="btn btn-primary" data-pg-goal-save="${g?esc(g.id):""}">Save</button><button type="button" class="btn btn-ghost" data-pg-goal-cancel="1">Cancel</button></div></div>`;
+}
+async function pgGoalsCard(){
+  const plans = {}; for(const g of PG.goals){ if(g.planId && !plans[g.planId]){ const ev = Events.list.find(x=>x.id===g.planId); if(ev) plans[g.planId] = await pgPlanStats(ev); } }
+  const list = PG.goals.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(g=>pgGoalHtml(g, plans)).join("");
+  return pgCardWrap("goals","Goals","Target dates", (list || pgEmpty("No goals yet. Add one with a target date and, if you like, a plan to link."))+pgGoalForm());
+}
+async function pgCardHtml(id, ctx){
+  const today = todayISO();
+  if(id==="summary") return await pgReportCard();
+  if(id==="streak"){ const s = await pgStreak(); return pgCardWrap("streak","Workout streak","Consecutive days", s.seen ? `<div class="pg-big">${s.streak}<span> day${s.streak===1?"":"s"}</span></div><p class="pg-sub">Every scheduled workout completed. Rest days neither extend nor break it, and today only counts once done.</p>` : pgEmpty("No scheduled workouts yet to build a streak from.")); }
+  if(id==="plans"){ const ps = pgActivePlans(); const st = []; for(const e of ps){ st.push(await pgPlanStats(e)); } return pgCardWrap("plans","Plan progress","Completed workouts", ps.length ? st.map(pgPlanBarHtml).join("") : pgEmpty("No active plan. Create an Event or start a General Fitness Period on the Events tab.")); }
+  if(id==="goals") return await pgGoalsCard();
+  if(id==="coach") return await cxProgressCard();
+  if(id==="load"){
+    if(!HB.loadReady) await hbReadLoad();
+    const any = Object.values(HB.load||{}).some(d=>(d.s||0)>0);
+    if(!any) return pgCardWrap("load","Training Load","Effort points", pgEmpty("No training load yet. Log workouts or sync Strava to see it."));
+    const w = document.createElement("div"); w.innerHTML = await hbRenderToday(); const c = w.querySelector("#hb-load-card"); c.id = "pg-card-load"; return c.outerHTML;
+  }
+  if(id==="wellness"){
+    const rows = []; for(let i=13;i>=0;i--){ const d = dateAdd(today,-i); rows.push({d, rec: await hbWellGet(d)}); }
+    const have = rows.filter(r=>r.rec && (r.rec.mood||r.rec.stress||r.rec.energy));
+    if(!have.length) return pgCardWrap("wellness","Wellness trend","Last 14 days", pgEmpty("No check-ins yet. Tap how you feel on the Today tab."));
+    const last7 = rows.slice(7).map(r=>r.rec).filter(Boolean), av = f=>{ const v = pgAvg(last7.map(r=>r[f]).filter(Boolean)); return v==null ? "–" : (Math.round(v*10)/10); };
+    const strip = `<div class="hb-strip" style="display:flex; gap:4px; margin-top:10px;">${rows.map(r=>`<div title="${esc(fmtDate(r.d))}" style="flex:1; text-align:center; font-size:10px; color:var(--grey-600);">${["mood","stress","energy"].map(f=>`<div style="width:10px; height:10px; border-radius:50%; margin:3px auto; background:${hbDotColor(f, r.rec&&r.rec[f])};"></div>`).join("")}</div>`).join("")}</div><div class="pg-sub">Top mood, middle stress, bottom energy (green = better)</div>`;
+    return pgCardWrap("wellness","Wellness trend","Last 14 days", `<div class="calc-box"><div class="cline"><span>Mood (7-day avg)</span><span><b>${av("mood")}</b> / 5</span></div><div class="cline"><span>Stress (7-day avg)</span><span><b>${av("stress")}</b> / 5</span></div><div class="cline"><span>Energy (7-day avg)</span><span><b>${av("energy")}</b> / 5</span></div></div>${strip}`);
+  }
+  if(id==="weight"){
+    const logs = ctx.logs, latest = f=>{ for(let i=logs.length-1;i>=0;i--){ const v = pgNum(logs[i][f]); if(v > 0) return {v, d:logs[i].date}; } return null; };
+    const w = latest("bodyweight"), scale = latest("bmiReading"), fat = latest("fatMass"), mus = latest("muscleMass");
+    if(!w && !scale && !fat && !mus) return pgCardWrap("weight","Weight metrics","", ctx.sparkline + pgEmpty("No weight entries yet. Enter body weight on the Daily Check-In."));
+    const p = State.profile || {}, calc = w && pgNum(p.heightIn) > 0 ? bmi(w.v, pgNum(p.heightIn)) : null;
+    const line = (l,x,u)=>x ? `<div class="cline"><span>${l}</span><span><b>${Math.round(x.v*10)/10}</b>${u} <span class="pg-sub">${esc(fmtDate(x.d))}</span></span></div>` : "";
+    return pgCardWrap("weight","Weight metrics","Latest entries", `<div class="calc-box">${line("Weight",w," lb")}${calc ? `<div class="cline"><span>BMI (calculated, ${esc(String(p.heightIn))} in)</span><span><b>${calc.toFixed(1)}</b></span></div>` : ""}${line("BMI (scale reading)",scale,"")}${line("Body fat",fat,"%")}${line("Muscle",mus,"%")}</div>
+      ${p.set===false && calc ? `<p class="pg-sub">Calculated BMI uses the default height; set yours under Profile &amp; Zones.</p>` : ""}${!fat && !mus ? `<p class="pg-sub">Enter Fat Mass and Muscle Mass on the Daily Check-In to see them here.</p>` : ""}${ctx.sparkline}`);
+  }
+  if(id==="nutrition"){
+    const days = []; for(let i=6;i>=0;i--){ const d = dateAdd(today,-i); days.push(await getLog(d)); }
+    const f = k=>days.map(l=>pgNum((l.nutrition||{})[k])).filter(v=>v>0), n = days.filter(l=>["kcal","carbs","fat","protein"].some(k=>pgNum((l.nutrition||{})[k])>0)).length;
+    if(!n) return pgCardWrap("nutrition","Nutrition averages","Last 7 days", pgEmpty("No nutrition entries in the last 7 days."));
+    const row = (l,k,u)=>f(k).length ? `<div class="cline"><span>${l}</span><span><b>${Math.round(pgAvg(f(k)))}</b>${u}</span></div>` : "";
+    return pgCardWrap("nutrition","Nutrition averages","Last 7 days", `<div class="calc-box">${row("Calories","kcal"," kcal")}${row("Carbs","carbs"," g")}${row("Fat","fat"," g")}${row("Protein","protein"," g")}</div><p class="pg-sub">Averaged over the ${n} of 7 days with entries.</p>`);
+  }
+  if(id==="sleep"){
+    const days = []; for(let i=0;i<7;i++){ const d = dateAdd(today,-i); days.push({d, h:pgSleepHours(await getLog(d))}); }
+    const have = days.filter(x=>x.h), last = have[0];
+    if(!last) return pgCardWrap("sleep","Sleep","Daily Check-In", pgEmpty("No sleep logged yet. Enter hours on the Daily Check-In (Today tab)."));
+    return pgCardWrap("sleep","Sleep","From the Daily Check-In", `<div class="calc-box"><div class="cline"><span>Last night${last.d!==today?" ("+esc(fmtDate(last.d))+")":""}</span><span><b>${pgHM(last.h*60)}</b></span></div><div class="cline"><span>7-day average</span><span><b>${pgHM(pgAvg(have.map(x=>x.h))*60)}</b> <span class="pg-sub">${have.length} of 7 nights</span></span></div></div>`);
+  }
+  if(id==="hr"){
+    const from = dateAdd(today,-55), list = [];
+    for(const d of pgDates(from, today)){ (await pgSessions(d)).forEach(s=>{ if(s.avgHR > 0 || s.maxHR > 0) list.push(s); }); }
+    if(!list.length) return pgCardWrap("hr","Heart rate","Last 8 weeks", pgEmpty("No heart-rate data yet. It appears once sessions carry an average or max HR."));
+    const rows = list.slice(-6).reverse().map(s=>`<tr><td>${esc(fmtDate(s.date))}</td><td>${esc(s.name||"Session")}</td><td>${s.avgHR?Math.round(s.avgHR):"–"}</td><td>${s.maxHR?Math.round(s.maxHR):"–"}</td></tr>`).join("");
+    const wk = []; for(let b=7;b>=0;b--){ const a = dateAdd(today,-(b*7+6)), z = dateAdd(today,-b*7), part = list.filter(s=>s.date>=a && s.date<=z); wk.push({a, avg:pgAvg(part.map(s=>s.avgHR).filter(Boolean)), mx:part.length ? Math.max(...part.map(s=>s.maxHR||0)) : 0}); }
+    const pts = wk.map((w,i)=>({i, v:w.avg})).filter(p=>p.v!=null);
+    let trend = pgEmpty("Not enough weeks yet for a trend.");
+    if(pts.length >= 2){ const lo = Math.min(...pts.map(p=>p.v))-3, hi = Math.max(...pts.map(p=>p.v))+3, X = i=>20+i/7*560, Y = v=>70-(v-lo)/(hi-lo)*55;
+      trend = `<svg class="pg-chart" viewBox="0 0 600 90" role="img" aria-label="Weekly average heart rate, last 8 weeks"><polyline fill="none" stroke="${PG_COL[1]}" stroke-width="2.4" points="${pts.map(p=>X(p.i)+","+Y(p.v)).join(" ")}"/>${pts.map(p=>`<circle cx="${X(p.i)}" cy="${Y(p.v)}" r="3.2" fill="${PG_COL[1]}"><title>${esc("Week of "+fmtDate(wk[p.i].a)+": "+Math.round(p.v)+" bpm avg")}</title></circle>`).join("")}</svg><div class="pg-sub">Weekly average of session average HR (bpm), oldest to newest</div>`; }
+    return pgCardWrap("hr","Heart rate","Last 8 weeks", `<table class="pg-table"><thead><tr><th>Date</th><th>Session</th><th>Avg</th><th>Max</th></tr></thead><tbody>${rows}</tbody></table>${trend}`);
+  }
+  if(id==="snapshot") return `<div class="card" id="pg-card-snapshot">${ctx.snapshot}</div>`;
+  return "";
+}
+async function pgDashboardHtml(ctx){
+  await pgLoadPrefs();
+  const on = PG.dash.cards.filter(c=>c.on); let html = "";
+  for(const c of on){ try{ html += await pgCardHtml(c.id, ctx); }catch(e){ console.warn("dashboard card failed", c.id, e); } }
+  return `<div class="pg-toolbar"><span class="pg-sub">Choose and order these cards under Profile &amp; Zones.</span><button type="button" class="btn btn-ghost" data-pg-customize="1">Customize cards</button></div>
+    <div class="pg-grid" id="pg-dash">${html || `<p class="pg-empty">All dashboard cards are hidden. Turn some on under Profile &amp; Zones › Dashboard cards.</p>`}</div>`;
+}
+
+/* ---------- settings card (Profile) ---------- */
+async function pgSettingsCard(){
+  if(!PG.dash) await pgLoadPrefs();
+  const names = Object.fromEntries(PG_CARDS), n = PG.dash.cards.length;
+  const rows = PG.dash.cards.map((c,i)=>`<div class="pg-setrow"><label><input type="checkbox" data-pg-toggle="${c.id}" ${c.on?"checked":""}> ${esc(names[c.id])}</label>
+    <span><button type="button" class="btn btn-ghost" data-pg-move="${c.id}|-1" aria-label="Move ${esc(names[c.id])} up" ${i===0?"disabled":""}>↑</button><button type="button" class="btn btn-ghost" data-pg-move="${c.id}|1" aria-label="Move ${esc(names[c.id])} down" ${i===n-1?"disabled":""}>↓</button></span></div>`).join("");
+  return `<div class="card" id="pg-settings-card"><div class="card-header"><h2>Dashboard cards</h2><span class="meta">Progress tab</span></div>${rows}<div class="save-row"><button type="button" class="btn btn-ghost" data-pg-reset="1">Show all, default order</button></div></div>`;
+}
+async function pgRefreshSettings(){ const el = document.getElementById("pg-settings-card"); if(!el) return; const w = document.createElement("div"); w.innerHTML = await pgSettingsCard(); el.replaceWith(w.firstElementChild); }
+async function pgRefreshCard(id){
+  const el = document.getElementById("pg-card-"+id); if(!el) return;
+  const w = document.createElement("div"); w.innerHTML = await pgCardHtml(id, {}); const nu = w.firstElementChild; if(nu) el.replaceWith(nu);
+}
+
+/* ---------- events ---------- */
+async function pgOnClick(e){
+  const t = e.target.closest && e.target.closest("[data-pg-days],[data-pg-apply],[data-pg-chart],[data-pg-toggle],[data-pg-move],[data-pg-reset],[data-pg-customize],[data-pg-goal-new],[data-pg-goal-edit],[data-pg-goal-save],[data-pg-goal-cancel],[data-pg-goal-del]");
+  if(!t) return;
+  const d = t.dataset;
+  if(!PG.prefs) await pgLoadPrefs();
+  if("pgDays" in d){
+    PG.err = "";
+    if(d.pgDays==="custom"){ PG.showCustom = true; const r = pgRange(); PG.prefs.days = "custom"; if(!PG.prefs.from || !PG.prefs.to){ PG.prefs.from = r.from; PG.prefs.to = r.to; } }
+    else { PG.showCustom = false; PG.prefs.days = +d.pgDays; }
+    await pgSavePrefs(); await pgRefreshReport(); return;
+  }
+  if("pgApply" in d){
+    const f = document.getElementById("pg-from").value, to = document.getElementById("pg-to").value;
+    if(!f || !to) PG.err = "Pick both a start and an end date.";
+    else if(f > to) PG.err = "The start date must be on or before the end date.";
+    else if(daysBetween(f,to) > 365) PG.err = "Pick a range of one year or less.";
+    else { PG.err = ""; PG.prefs.days = "custom"; PG.prefs.from = f; PG.prefs.to = to; await pgSavePrefs(); }
+    await pgRefreshReport(); return;
+  }
+  if("pgChart" in d){ PG.prefs.chart = d.pgChart==="line" ? "line" : "bar"; await pgSavePrefs(); await pgRefreshReport(); return; }
+  if("pgCustomize" in d){ switchTab("profile"); return; }
+  if("pgToggle" in d){ const c = PG.dash.cards.find(x=>x.id===d.pgToggle); if(c){ c.on = t.checked; await pgSaveDash(); } return; }
+  if("pgMove" in d){ const [id,dir] = d.pgMove.split("|"), i = PG.dash.cards.findIndex(x=>x.id===id), j = i + (+dir); if(i<0 || j<0 || j>=PG.dash.cards.length) return;
+    const a = PG.dash.cards; [a[i],a[j]] = [a[j],a[i]]; await pgSaveDash(); await pgRefreshSettings(); return; }
+  if("pgReset" in d){ PG.dash = {cards:PG_CARDS.map(c=>({id:c[0], on:true}))}; await pgSaveDash(); await pgRefreshSettings(); return; }
+  if("pgGoalNew" in d){ PG.goalEdit = {id:null}; PG.err = ""; await pgRefreshCard("goals"); return; }
+  if("pgGoalEdit" in d){ PG.goalEdit = {id:d.pgGoalEdit}; PG.err = ""; PG.confirmGoalDel = null; await pgRefreshCard("goals"); return; }
+  if("pgGoalCancel" in d){ PG.goalEdit = null; PG.err = ""; await pgRefreshCard("goals"); return; }
+  if("pgGoalDel" in d){
+    if(PG.confirmGoalDel !== d.pgGoalDel){ PG.confirmGoalDel = d.pgGoalDel; await pgRefreshCard("goals"); return; }
+    PG.goals = PG.goals.filter(g=>g.id!==d.pgGoalDel); PG.confirmGoalDel = null; if(PG.goalEdit && PG.goalEdit.id===d.pgGoalDel) PG.goalEdit = null; await pgSaveGoals(); await pgRefreshCard("goals"); return;
+  }
+  if("pgGoalSave" in d){
+    const name = (document.getElementById("pg-goal-name").value||"").trim(), date = document.getElementById("pg-goal-date").value, plan = document.getElementById("pg-goal-plan").value;
+    PG.goalEdit.draft = {name, date, plan};
+    if(!name) PG.err = "Give the goal a name."; else if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) PG.err = "Pick a target date.";
+    else {
+      PG.err = "";
+      if(d.pgGoalSave){ const g = PG.goals.find(x=>x.id===d.pgGoalSave); if(g){ g.name = name; g.date = date; g.planId = plan || null; } }
+      else PG.goals.push({id:"g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), name, date, planId:plan||null, created:todayISO()});
+      PG.goalEdit = null; await pgSaveGoals();
+    }
+    await pgRefreshCard("goals"); return;
+  }
+}
+async function pgOnChange(e){
+  const t = e.target; if(!t || !t.hasAttribute || !t.hasAttribute("data-pg-metric")) return;
+  if(!PG.prefs) await pgLoadPrefs();
+  PG.prefs.metric = PG_METRICS.some(m=>m[0]===t.value) ? t.value : "load"; await pgSavePrefs(); await pgRefreshReport();
+}
+if(!window.__pgBound){ window.__pgBound = true; document.addEventListener("click", pgOnClick); document.addEventListener("change", pgOnChange); }
+
+/* ============================================================
+   PHASE 7 - COACH (deterministic engine, optional AI wording,
+   plan generation, rolling GFP schedule, .zwo export).
+   Everything numeric/functional comes from the rules below.
+   ============================================================ */
+const CX_KEY = "coachApiKey";              /* on-device only: excluded from export/Drive/backups, skipped on import */
+const CX_R = {
+  rampAmber:1.3, rampRed:1.5, sleepLow:6.5, sleepVeryLow:5.5, rhrUp:6, energyLow:2.5,
+  minCheckins:14, patDiff:0.7, patMin:4, shorten:0.7, startCap:1.10, rampCap:1.10,
+  runMin:45, runMax:60, rideMin:45, rideMax:60, vrMin:8, vrMax:14, windowDays:7, defaultDays:5, defaultMiles:50,
+  aiTimeoutMs:20000, reachMs:4000, failMemoMs:600000, aiMaxChars:900
+};
+const CX_AI_DEFAULT = {v:1, mode:"off", localUrl:"http://localhost:11434", cloudUrl:"https://ollama.com", style:"openai", modelLocal:"llama3.2:3b", modelCloud:"gpt-oss:20b"};
+const CX = { cfg:null, prefs:null, state:null, key:"", loaded:false, failUntil:{}, aiBusy:false, tickSig:"", ticking:false, msg:"", genForm:null, genPlan:null, testRes:null };
+window.CX = CX;
+
+const cxClamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+const cxR1 = x=>Math.round(x*10)/10;
+const cxR5 = m=>Math.round(m/5)*5;
+const cxHM = h=>{ if(h==null) return "–"; const m = Math.round(h*60); return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"; };
+const cxMean = a=>{ const v = a.filter(x=>x!=null && isFinite(x)); return v.length ? v.reduce((p,c)=>p+c,0)/v.length : null; };
+function cxScrub(s){ s = String(s==null?"":s); if(CX.key && CX.key.length>3) s = s.split(CX.key).join("[key]"); return s; }
+
+async function cxLoad(){
+  const c = (await loadJSON("coachAiConfig")) || {};
+  CX.cfg = Object.assign({}, CX_AI_DEFAULT, c);
+  if(!["off","local","cloud"].includes(CX.cfg.mode)) CX.cfg.mode = "off";
+  if(!["openai","native"].includes(CX.cfg.style)) CX.cfg.style = "openai";
+  const p = (await loadJSON("coachPrefs")) || {};
+  CX.prefs = Object.assign({v:1, showDet:false, form:null}, p);
+  CX.prefs.gfp = Object.assign({auto:true, days:CX_R.defaultDays, run:true, strength:true, vr:true, pinned:{}}, p.gfp||{});
+  const s = (await loadJSON("coachState")) || {};
+  CX.state = Object.assign({v:1, applied:[], dismissed:{}, paste:null, aiCache:null}, s);
+  CX.state.gfp = Object.assign({days:{}, changes:[], undone:{}}, s.gfp||{});
+  const k = await loadJSON(CX_KEY); CX.key = typeof k==="string" ? k : "";
+  CX.loaded = true;
+}
+async function cxSaveCfg(){ await saveJSON("coachAiConfig", CX.cfg); }
+async function cxSavePrefs(){ await saveJSON("coachPrefs", CX.prefs); }
+async function cxSaveState(){ await saveJSON("coachState", CX.state); }
+async function cxSaveKey(k){ CX.key = String(k||"").trim(); if(CX.key) await saveJSONRaw(CX_KEY, CX.key); else { try{ await window.storage.delete(CX_KEY, false); }catch(e){ await saveJSONRaw(CX_KEY, ""); } } }
+
+/* ---------- data summary: the one object every part of the coach reads ---------- */
+async function cxSummary(){
+  const today = todayISO();
+  if(!HB.loadReady){ try{ await hbReadLoad(); }catch(e){} }
+  if(!PG.prefs){ try{ await pgLoadPrefs(); }catch(e){} }
+  const r = hbRamp(), S = {date:today};
+  S.ramp = {flag:r.flag, ratio:cxR1(r.ratio*100)/100, acute:Math.round(r.acute), chronic:Math.round(r.chronic), today:Math.round(r.today), baseline:r.baseline};
+  const sl = [], rhr = [];
+  for(let i=0;i<14;i++){ const d = dateAdd(today,-i), lg = await getLog(d); if(i<7) sl.push({d, h:pgSleepHours(lg)}); const v = pgNum(lg.restingHR); if(v>0) rhr.push({d,v}); }
+  const ln = sl.find(x=>x.h!=null), s3 = sl.slice(0,3).map(x=>x.h), s7 = sl.map(x=>x.h);
+  S.sleep = {last:ln?ln.h:null, lastDate:ln?ln.d:null, avg3:cxMean(s3)!=null?cxR1(cxMean(s3)*10)/10:null, avg7:cxMean(s7)!=null?cxR1(cxMean(s7)*10)/10:null, n7:s7.filter(x=>x!=null).length, stale:!sl.slice(0,3).some(x=>x.h!=null)};
+  const rl = rhr[0], rb = cxMean(rhr.slice(1,11).map(x=>x.v));
+  S.rhr = {last:rl?rl.v:null, base:rb!=null && rhr.length>=6 ? Math.round(rb) : null}; S.rhr.delta = S.rhr.base!=null && rl ? Math.round(rl.v - S.rhr.base) : null;
+  const wr = []; for(let i=6;i>=0;i--){ wr.push(await hbWellGet(dateAdd(today,-i))); }
+  const av = f=>{ const v = cxMean(wr.map(x=>x&&x[f]).filter(Boolean)); return v==null?null:cxR1(v*10)/10; };
+  S.well = {mood:av("mood"), stress:av("stress"), energy:av("energy"), n:wr.filter(x=>x&&(x.mood||x.stress||x.energy)).length, today:wr[6]||null};
+  let sched = 0, done = 0, missed = 0, mins = 0;
+  for(let i=1;i<=7;i++){ const d = dateAdd(today,-i), ws = getDayPlan(d).workouts||[], lg = await getLog(d);
+    ws.forEach(w=>{ sched++; const e = lg.workouts && lg.workouts[w.slotKey]; if(e && e.completed){ done++; mins += pgNum(e.durationH)*60 + pgNum(e.durationM) + pgNum(e.durationS)/60; } else missed++; }); }
+  S.week = {sched, done, missed, minutes:Math.round(mins)};
+  const tp = getDayPlan(today), tlog = await getLog(today);
+  S.today = {title:tp.title, phase:tp.phaseLabel, weekNum:tp.weekNum, sessions:(tp.workouts||[]).map(w=>({slotKey:w.slotKey, id:w.id, name:w.name||w.title, kind:w.kind, min:Math.round(w.timeMin||0), zone:w.zoneText||"", platform:w.platform||"", eventId:w.eventId, done:!!(tlog.workouts&&tlog.workouts[w.slotKey]&&tlog.workouts[w.slotKey].completed), logged:!!(tlog.workouts&&tlog.workouts[w.slotKey]&&Object.keys(tlog.workouts[w.slotKey]).length)}))};
+  let nx = 0; for(let i=1;i<=7;i++) nx += (getDayPlan(dateAdd(today,i)).workouts||[]).length; S.nextWeekSessions = nx;
+  const ev = Events.list.filter(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e) && e.date).sort((a,b)=>a.date.localeCompare(b.date))[0];
+  const gfp = activeGFP();
+  S.plan = ev ? {name:ev.name, kind:"event", daysToEvent:daysBetween(today, ev.date), eventDate:ev.date} : gfp ? {name:gfp.name, kind:"gfp"} : {name:null, kind:"none"};
+  const g = (PG.goals||[]).map(x=>({name:x.name, left:daysBetween(today,x.date)})).filter(x=>x.left>=0).sort((a,b)=>a.left-b.left)[0];
+  S.goal = g || null;
+  const tm = Weather.data && Weather.data.days7 ? Weather.data.days7.find(z=>z.date===dateAdd(today,1)) : null;
+  S.weatherTomorrow = tm ? {hi:tm.hi, lo:tm.lo, p:tm.p} : null;
+  S.wxPrefs = {coldF:WxPrefs.coldF, heatF:WxPrefs.heatF, rainPct:WxPrefs.rainPct, windMph:WxPrefs.windMph};
+  S.ftp = (State.profile && +State.profile.ftp) || null;
+  /* flags */
+  const lowEnergy = S.well.energy!=null && S.well.energy <= CX_R.energyLow;
+  const poorSleep = (S.sleep.avg3!=null && S.sleep.avg3 < CX_R.sleepLow) || (S.sleep.last!=null && S.sleep.last < CX_R.sleepVeryLow);
+  const rhrHigh = S.rhr.delta!=null && S.rhr.delta >= CX_R.rhrUp;
+  const pts = (lowEnergy?1:0) + (poorSleep?1:0) + (rhrHigh?1:0) + (S.ramp.flag==="red"?2:S.ramp.flag==="amber"?1:0);
+  S.flags = {lowEnergy, poorSleep, rhrHigh, ramp:S.ramp.flag, points:pts, fatigue: pts>=3 ? "high" : pts>=1 ? "watch" : "ok"};
+  return S;
+}
+function cxSig(S){ return [S.date, S.flags.fatigue, S.flags.poorSleep?1:0, S.ramp.flag, S.flags.rhrHigh?1:0, S.today.sessions.map(x=>x.slotKey+(x.done?"d":"")).join(",")].join("|"); }
+
+/* ---------- commentary (templates + your numbers) ---------- */
+function cxCommentary(S){
+  const f = S.flags, daily = [], reasons = [];
+  if(S.ramp.flag==="red"||S.ramp.flag==="amber") reasons.push(`ramp ${S.ramp.ratio.toFixed(2)}x your 28-day average`);
+  if(f.poorSleep) reasons.push(S.sleep.last!=null ? `${cxHM(S.sleep.last)} of sleep last night` : `sleep averaging ${cxHM(S.sleep.avg3)}`);
+  if(f.lowEnergy) reasons.push(`energy ${S.well.energy} of 5`);
+  if(f.rhrHigh) reasons.push(`resting HR ${S.rhr.delta} bpm above your baseline`);
+  if(f.fatigue==="high") daily.push(`Several signals point the same way: ${reasons.join(", ")}. Keep today at Zone 1-2, or take it off.`);
+  else if(f.poorSleep) daily.push(`You logged ${cxHM(S.sleep.last)} last night${S.sleep.avg3!=null?` (3-night average ${cxHM(S.sleep.avg3)})`:""}. Skip intensity today; steady Zone 2 at most.`);
+  else if(S.ramp.flag==="amber"||S.ramp.flag==="red") daily.push(`Load is ${S.ramp.ratio.toFixed(2)}x your 28-day average. That's a quick climb: don't add volume this week.`);
+  else if(f.rhrHigh) daily.push(`Resting HR is ${S.rhr.delta} bpm above your recent baseline (${S.rhr.last} vs ${S.rhr.base}). Treat today as easy and see whether it settles.`);
+  else if(f.lowEnergy) daily.push(`Energy averaged ${S.well.energy} of 5 over the last 7 days. Check sleep and food before adding load.`);
+  const open = S.today.sessions.filter(x=>!x.done);
+  if(f.fatigue==="ok"){
+    if(open.length) daily.push(`Today: ${open.map(x=>`${x.name} (${x.min} min)`).join(" + ")}. Nothing in your numbers argues against it.`);
+    else if(S.today.sessions.length) daily.push(`Today's ${S.today.sessions.length} session${S.today.sessions.length===1?"":"s"} done.`);
+    else daily.push("Nothing scheduled today.");
+  }
+  if(S.week.missed>=2) daily.push(`You missed ${S.week.missed} of ${S.week.sched} scheduled sessions in the last 7 days. If the plan is too full, cut a session on purpose instead of skipping by default.`);
+  else if(S.week.sched>=3 && S.week.missed===0) daily.push(`${S.week.done} of ${S.week.sched} sessions done in the last 7 days.`);
+  if(S.plan.kind==="event" && S.plan.daysToEvent>=0) daily.push(`${S.plan.daysToEvent} day${S.plan.daysToEvent===1?"":"s"} to ${S.plan.name}${S.today.phase?`; this is ${S.today.phase}${S.today.weekNum!=null?" (week "+S.today.weekNum+")":""}`:""}.`);
+  else if(S.goal) daily.push(`Goal "${S.goal.name}": ${S.goal.left} day${S.goal.left===1?"":"s"} left.`);
+  if(S.sleep.stale) daily.push("No sleep logged in the last 3 days, so sleep isn't factored in.");
+  const weekly = [];
+  weekly.push(`Last 7 days: ${S.week.done} of ${S.week.sched} sessions done, ${cxHM(S.week.minutes/60)} logged.`);
+  if(S.ramp.chronic>0) weekly.push(`Load ${S.ramp.acute} this week vs a ${S.ramp.chronic} weekly average over 28 days: ramp ${S.ramp.ratio.toFixed(2)}x.`);
+  if(S.sleep.avg7!=null) weekly.push(`Sleep averaged ${cxHM(S.sleep.avg7)} across ${S.sleep.n7} logged night${S.sleep.n7===1?"":"s"}.`);
+  if(S.well.n) weekly.push(`Check-ins: mood ${S.well.mood??"-"}, stress ${S.well.stress??"-"}, energy ${S.well.energy??"-"} (of 5).`);
+  weekly.push(`Next 7 days: ${S.nextWeekSessions} session${S.nextWeekSessions===1?"":"s"} planned.`);
+  const thin = !S.week.sched && !S.sleep.n7 && !S.well.n && S.ramp.baseline;
+  if(thin) { daily.length = 0; daily.push("Not enough data yet. Log sleep, check-ins and a few sessions and this gets specific."); }
+  return {daily, weekly, text: daily.join(" ")};
+}
+
+/* ---------- one-tap adjustments ---------- */
+function cxIsHard(s){ return s.kind==="cycling" && (/Zone [45]|Sweet|VO2|threshold|1[0-9]{2}%/i.test(s.zone||"") || /Sweet Spot|VO2|Openers|Intervals|Race-Pace/i.test(s.name||"")); }
+function cxSplit(slotKey){ const i = String(slotKey).indexOf("|"); return [slotKey.slice(0,i), slotKey.slice(i+1)]; }
+function cxSnap(eventId, date){ const P = PlanByEvent[eventId]; const o = P && P.dayOverrides[date]; return o ? JSON.parse(JSON.stringify(o)) : null; }
+async function cxRestore(eventId, date, snap){ const P = PlanByEvent[eventId]; if(!P) return; if(snap) P.dayOverrides[date] = JSON.parse(JSON.stringify(snap)); else delete P.dayOverrides[date]; await saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides); }
+async function cxSetSlot(eventId, date, realKey, workoutId, overrides){ const P = PlanByEvent[eventId]; const ov = (P.dayOverrides[date] = P.dayOverrides[date] || {}); ov.slots = ov.slots || {}; ov.slots[realKey] = {workoutId, overrides:overrides||{}}; await saveJSON("event:"+eventId+":dayOverrides", P.dayOverrides); }
+async function cxRemoveSlot(date, slotKey){ const [,k] = cxSplit(slotKey); if(k[0]==="a") removeAddedWorkout(date, slotKey); else removeWorkoutFromDay(date, slotKey); }
+
+function cxSuggestions(S){
+  const out = [], today = S.date, f = S.flags, open = S.today.sessions.filter(x=>!x.done && !x.logged);
+  const add = (kind, s, title, why, extra)=>out.push(Object.assign({id:kind+"|"+today+"|"+(s?s.slotKey:"day"), kind, date:today, slotKey:s?s.slotKey:null, title, why}, extra||{}));
+  if(open.length && f.fatigue==="high") add("rest", null, "Take today off", `${f.points} warning signs (${[S.ramp.flag!=="green"&&S.ramp.flag!=="none"?"ramp":"",f.poorSleep?"sleep":"",f.lowEnergy?"energy":"",f.rhrHigh?"resting HR":""].filter(Boolean).join(", ")}). Removes today's ${open.length} unlogged session${open.length===1?"":"s"}.`, {slots:open.map(x=>x.slotKey)});
+  if(f.fatigue!=="ok" || f.poorSleep){
+    open.forEach(s=>{
+      if(cxIsHard(s)) add("swap", s, `Swap ${s.name} for an easy spin`, "Intensity isn't worth it on these numbers.", {to:"cy_indoor_recovery"});
+      else if((s.kind==="cycling"||s.kind==="run") && s.min>=40 && !/recovery|easy spin/i.test(s.name)) add("shorten", s, `Shorten ${s.name} to ${cxR5(s.min*CX_R.shorten)} min`, `Keeps the session, trims ${s.min-cxR5(s.min*CX_R.shorten)} min.`, {min:cxR5(s.min*CX_R.shorten)});
+    });
+    if(open.length && f.fatigue==="high" && !out.some(o=>o.kind==="rest")){ /* kept for completeness */ }
+    const tmr = getDayPlan(dateAdd(today,1)).workouts||[];
+    if(open.length===1 && !tmr.length && open[0].kind!=="strengthblock" && f.fatigue!=="ok") add("move", open[0], `Move ${open[0].name} to tomorrow`, "Tomorrow is empty, so nothing is lost.", {to:dateAdd(today,1)});
+  }
+  const st = CX.state, seen = o=>st.dismissed[o.id] || (st.applied||[]).some(a=>a.id===o.id && !a.undone);
+  return out.filter(o=>!seen(o)).slice(0,3);
+}
+async function cxApplySuggestion(sg){
+  const snaps = [], keepSnap = (eid,d)=>{ if(!snaps.some(x=>x.eventId===eid && x.date===d)) snaps.push({eventId:eid, date:d, snap:cxSnap(eid,d)}); };
+  const S = await cxSummary(), live = x=>S.today.sessions.find(s=>s.slotKey===x);
+  if(sg.kind==="rest"){ for(const k of sg.slots){ const s = live(k); if(!s) continue; keepSnap(s.eventId, sg.date); await cxRemoveSlot(sg.date, k); } }
+  else {
+    const s = live(sg.slotKey); if(!s) return false;
+    const [eid, rk] = cxSplit(s.slotKey); keepSnap(eid, sg.date);
+    if(sg.kind==="swap") await cxSetSlot(eid, sg.date, rk, sg.to, {});
+    else if(sg.kind==="shorten"){ const w = (getDayPlan(sg.date).workouts||[]).find(x=>x.slotKey===s.slotKey); const ov = {timeMin:sg.min}; if(w && w.estMiles) ov.estMiles = cxR1(w.estMiles*sg.min/Math.max(1,s.min)); await cxSetSlot(eid, sg.date, rk, s.id, ov); }
+    else if(sg.kind==="move"){ keepSnap(eid, sg.to); const w = (getDayPlan(sg.date).workouts||[]).find(x=>x.slotKey===s.slotKey); const P = PlanByEvent[eid]; if(!P || P.templateByDate[sg.to]===undefined) return false;
+      const nk = addWorkoutToDay(eid, sg.to, s.id); const ent = P.dayOverrides[sg.to].added.find(a=>a.slotKey===nk.split("|")[1]); if(w) ent.overrides = {timeMin:Math.round(w.timeMin||0), estMiles:w.estMiles}; await saveJSON("event:"+eid+":dayOverrides", P.dayOverrides); await cxRemoveSlot(sg.date, s.slotKey); }
+  }
+  CX.state.applied.unshift({id:sg.id, at:new Date().toISOString(), kind:sg.kind, title:sg.title, snaps});
+  CX.state.applied = CX.state.applied.slice(0,20); await cxSaveState(); return true;
+}
+async function cxUndoApplied(id){
+  const a = (CX.state.applied||[]).find(x=>x.id===id && !x.undone); if(!a) return;
+  for(const s of a.snaps) await cxRestore(s.eventId, s.date, s.snap);
+  a.undone = true; CX.state.dismissed[a.id] = todayISO(); await cxSaveState();
+}
+
+/* ---------- pattern callouts (own data, enough check-ins only) ---------- */
+async function cxPatterns(){
+  const today = todayISO(), rows = [];
+  if(!HB.loadReady){ try{ await hbReadLoad(); }catch(e){} }
+  for(let i=0;i<34;i++){ const d = dateAdd(today,-i), w = await hbWellGet(d); if(w && w.energy){ const lg = await getLog(d), pl = (HB.load||{})[dateAdd(d,-1)]; rows.push({d, e:w.energy, sleep:pgSleepHours(lg), prev:pl?pl.s||0:null}); } }
+  const out = [];
+  if(rows.length < CX_R.minCheckins) return {out, n:rows.length};
+  const loads = Object.values(HB.load||{}).map(x=>x.s||0).filter(x=>x>0).sort((a,b)=>a-b);
+  if(loads.length>=8){ const thr = loads[Math.floor(loads.length*0.75)], hi = rows.filter(r=>r.prev!=null && r.prev>=thr), lo = rows.filter(r=>r.prev!=null && r.prev<thr);
+    if(hi.length>=CX_R.patMin && lo.length>=CX_R.patMin){ const a = cxMean(hi.map(r=>r.e)), b = cxMean(lo.map(r=>r.e)); if(Math.abs(a-b)>=CX_R.patDiff) out.push(`After your heavier load days (${Math.round(thr)}+ points) next-day energy averaged ${cxR1(a)} vs ${cxR1(b)} otherwise (${hi.length} vs ${lo.length} days). ${a<b?"Plan an easier day after the big ones.":"Heavy days aren't costing you energy the next day."}`); } }
+  const sh = rows.filter(r=>r.sleep!=null && r.sleep<CX_R.sleepLow), lg = rows.filter(r=>r.sleep!=null && r.sleep>=7);
+  if(sh.length>=CX_R.patMin && lg.length>=CX_R.patMin){ const a = cxMean(sh.map(r=>r.e)), b = cxMean(lg.map(r=>r.e)); if(Math.abs(a-b)>=CX_R.patDiff) out.push(`On nights under ${CX_R.sleepLow} hours, that day's energy averaged ${cxR1(a)} vs ${cxR1(b)} after 7+ hours (${sh.length} vs ${lg.length} days).`); }
+  if(out.length) out.push("These come from your own entries; they show a pattern, not a cause.");
+  return {out, n:rows.length};
+}
+
+/* ---------- optional AI wording (never numbers, schedules or actions) ---------- */
+function cxAiTarget(){
+  const c = CX.cfg; if(!c || c.mode==="off") return null;
+  const base = String(c.mode==="local" ? c.localUrl : c.cloudUrl).replace(/\/+$/,"");
+  if(!/^https?:\/\//i.test(base)) return null;
+  if(c.mode==="cloud" && !CX.key) return null;
+  const model = c.mode==="local" ? c.modelLocal : c.modelCloud; if(!model) return null;
+  const openai = c.style==="openai";
+  return {mode:c.mode, base, model, openai, url: base + (openai ? "/v1/chat/completions" : "/api/chat"), modelsUrl: base + (openai ? "/v1/models" : "/api/tags"),
+    headers: Object.assign({"Content-Type":"application/json"}, c.mode==="cloud" ? {"Authorization":"Bearer "+CX.key} : {})};
+}
+async function cxFetch(url, opt, ms){
+  const ctl = typeof AbortController!=="undefined" ? new AbortController() : null; const t = setTimeout(()=>{ try{ ctl && ctl.abort(); }catch(e){} }, ms);
+  try{ return await fetch(url, Object.assign({}, opt, ctl?{signal:ctl.signal}:{})); } finally{ clearTimeout(t); }
+}
+function cxSysPrompt(){ return "You write a short daily training note for one athlete. Straight talk: honest, specific, constructive. No cheerleading, no medical claims or diagnoses, no emojis, no markdown. Use ONLY the numbers given; never invent or compute new numbers. Do not propose schedule changes beyond what the notes already say. Maximum 110 words, plain text."; }
+function cxExtractReply(j){ if(!j) return ""; if(j.choices && j.choices[0] && j.choices[0].message) return j.choices[0].message.content||""; if(j.message && j.message.content) return j.message.content; return ""; }
+/* every number in the reply must already appear in the data or the plain commentary */
+function cxNumberGuard(reply, allowedText){
+  const nums = s=>(String(s).match(/\d+(?:[.,:]\d+)?/g)||[]).map(x=>x.replace(",","."));
+  const ok = new Set(nums(allowedText)); return nums(reply).every(n=>ok.has(n) || ok.has(String(+n)));
+}
+async function cxAiText(S, det){
+  const tg = cxAiTarget(); if(!tg) return null;
+  if((CX.failUntil[tg.mode]||0) > Date.now()) return null;
+  const data = cxBriefData(S), user = `DATA\n${data}\n\nPLAIN NOTES (rewrite in your own words, keep every fact)\n${det.daily.join(" ")}\n\nWrite today's note.`;
+  const body = tg.openai ? {model:tg.model, messages:[{role:"system",content:cxSysPrompt()},{role:"user",content:user}], stream:false, temperature:0.4, max_tokens:260}
+    : {model:tg.model, messages:[{role:"system",content:cxSysPrompt()},{role:"user",content:user}], stream:false, options:{temperature:0.4}};
+  try{
+    const resp = await cxFetch(tg.url, {method:"POST", headers:tg.headers, body:JSON.stringify(body)}, CX_R.aiTimeoutMs);
+    if(!resp.ok){ CX.failUntil[tg.mode] = Date.now() + CX_R.failMemoMs; return null; }
+    let txt = cxExtractReply(await resp.json()).replace(/<think>[\s\S]*?<\/think>/g,"").trim();
+    if(!txt || txt.length > CX_R.aiMaxChars) return null;
+    if(!cxNumberGuard(txt, data+" "+det.daily.join(" "))) return null;
+    return {text:txt, model:tg.model, mode:tg.mode};
+  }catch(e){ CX.failUntil[tg.mode] = Date.now() + CX_R.failMemoMs; return null; }
+}
+async function cxAiRefresh(){
+  if(CX.aiBusy || !cxAiTarget()) return; CX.aiBusy = true; let changed = false;
+  try{
+    const S = await cxSummary(), sig = cxSig(S)+"|"+CX.cfg.mode+"|"+CX.cfg.style, c = CX.state.aiCache;
+    if(c && c.sig===cxSig(S) && c.mode===CX.cfg.mode) return;
+    if(CX.aiTried===sig) return;              /* one attempt per situation: a rejected or failed reply never loops */
+    CX.aiTried = sig;
+    const r = await cxAiText(S, cxCommentary(S));
+    if(r){ CX.state.aiCache = {sig:cxSig(S), text:r.text, model:r.model, mode:r.mode, at:new Date().toISOString()}; await cxSaveState(); changed = true; }
+  }catch(e){} finally{ CX.aiBusy = false; }
+  if(changed && typeof cxRefreshViews==="function") cxRefreshViews();
+}
+/* settings gate: plain reachability / key / CORS verdicts */
+async function cxTestConn(){
+  const tg = cxAiTarget(); const res = {ok:false, code:"config", message:"", models:[]};
+  if(!tg){ res.message = CX.cfg.mode==="cloud" && !CX.key ? "Paste your Ollama API key first." : CX.cfg.mode==="off" ? "AI coach is off." : "Check the URL and model name."; return res; }
+  try{
+    const r = await cxFetch(tg.modelsUrl, {method:"GET", headers:tg.mode==="cloud"?{"Authorization":"Bearer "+CX.key}:{}}, CX_R.reachMs*2);
+    if(r.status===401||r.status===403){ res.code="key"; res.message = "The server answered, but rejected the API key."; return res; }
+    if(r.ok){ try{ const j = await r.json(); res.models = (j.data||j.models||[]).map(m=>m.id||m.name).filter(Boolean).slice(0,50); }catch(e){} }
+  }catch(e){
+    let reach = false; try{ await cxFetch(tg.base, {mode:"no-cors"}, CX_R.reachMs); reach = true; }catch(e2){}
+    res.code = reach ? "cors" : "unreachable";
+    res.message = reach ? "The server is reachable but the browser blocked the request (CORS). "+(tg.mode==="local" ? "Start Ollama with OLLAMA_ORIGINS set to this page's origin." : "Ollama cloud does not allow direct browser calls from here; use the relay option.") : "Could not reach "+tg.base+". "+(tg.mode==="local" ? "Is Ollama running? A phone cannot reach your PC's localhost." : "Check your connection.");
+    return res;
+  }
+  try{
+    const body = tg.openai ? {model:tg.model, messages:[{role:"user",content:"Reply with: ok"}], stream:false, max_tokens:8} : {model:tg.model, messages:[{role:"user",content:"Reply with: ok"}], stream:false};
+    const r = await cxFetch(tg.url, {method:"POST", headers:tg.headers, body:JSON.stringify(body)}, CX_R.aiTimeoutMs);
+    if(r.status===401||r.status===403){ res.code="key"; res.message="The server rejected the API key."; return res; }
+    if(r.status===404){ res.code="model"; res.message="The server answered, but not for model \""+tg.model+"\"."+(res.models.length?" Available: "+res.models.slice(0,6).join(", ")+".":""); return res; }
+    if(!r.ok){ res.code="http"; res.message="The server answered with HTTP "+r.status+"."; return res; }
+    res.ok = true; res.code = "ok"; res.message = "Connected. Model \""+tg.model+"\" answered."; return res;
+  }catch(e){ res.code="timeout"; res.message="The server did not answer in time."; return res; }
+}
+
+/* ---------- coach brief (data summary + analysis prompt). Never contains the API key. ---------- */
+function cxBriefData(S){
+  const L = [];
+  L.push(`Date: ${S.date}`);
+  L.push(`Plan: ${S.plan.name||"none"}${S.plan.kind==="event"?` (event in ${S.plan.daysToEvent} days; ${S.today.phase||"phase n/a"}${S.today.weekNum!=null?", week "+S.today.weekNum:""})`:S.plan.kind==="gfp"?" (general fitness period, no end date)":""}`);
+  L.push(`Load: this week ${S.ramp.acute}, 28-day weekly average ${S.ramp.chronic}, ramp ${S.ramp.ratio.toFixed(2)}x (${S.ramp.flag})`);
+  L.push(`Sleep: last night ${S.sleep.last!=null?cxHM(S.sleep.last):"not logged"}; 3-night average ${S.sleep.avg3!=null?cxHM(S.sleep.avg3):"n/a"}; 7-night average ${S.sleep.avg7!=null?cxHM(S.sleep.avg7):"n/a"}`);
+  L.push(`Resting HR: ${S.rhr.last!=null?S.rhr.last+" bpm":"n/a"}${S.rhr.base!=null?` (baseline ${S.rhr.base}, ${S.rhr.delta>=0?"+":""}${S.rhr.delta})`:""}`);
+  L.push(`Check-ins (7-day avg, 1-5): mood ${S.well.mood??"n/a"}, stress ${S.well.stress??"n/a"}, energy ${S.well.energy??"n/a"}`);
+  L.push(`Last 7 days: ${S.week.done} of ${S.week.sched} sessions done, ${S.week.missed} missed, ${S.week.minutes} minutes logged`);
+  L.push(`Today's sessions: ${S.today.sessions.length ? S.today.sessions.map(x=>`${x.name} ${x.min} min${x.done?" (done)":""}`).join("; ") : "none"}`);
+  L.push(`Next 7 days: ${S.nextWeekSessions} sessions planned`);
+  if(S.goal) L.push(`Nearest goal: ${S.goal.name}, ${S.goal.left} days left`);
+  if(S.weatherTomorrow) L.push(`Tomorrow's forecast: ${S.weatherTomorrow.lo}-${S.weatherTomorrow.hi} F, ${S.weatherTomorrow.p}% precipitation`);
+  L.push(`Flags: fatigue ${S.flags.fatigue}${S.flags.poorSleep?", poor sleep":""}${S.flags.rhrHigh?", resting HR up":""}${S.flags.lowEnergy?", low energy":""}`);
+  return L.join("\n");
+}
+const CX_ANALYSIS_PROMPT = "You are my endurance coach. Using only the data above, give me straight talk: what the numbers say about how I'm tracking, the one or two things that matter most this week, and what I should protect or cut. No cheerleading, no medical advice or diagnoses. Be specific and brief (under 200 words). If something is missing, say what to log.";
+async function cxBrief(){ const S = await cxSummary(); return cxScrub("TRAINING DATA SUMMARY\n"+cxBriefData(S)+"\n\n"+CX_ANALYSIS_PROMPT); }
+async function cxCopyText(t){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(t); return true; } }catch(e){}
+  try{ const ta = document.createElement("textarea"); ta.value = t; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); document.body.removeChild(ta); return ok; }catch(e){ return false; }
+}
+
+/* ---------- plan generation (dated events; periodized from the form) ---------- */
+const CX_PAT = {
+  3:{tue:"quality", thu:"run", sat:"long"},
+  4:{tue:"quality", wed:"run", fri:"strength", sat:"long"},
+  5:{mon:"run", tue:"quality", thu:"endur", fri:"strength", sat:"long"},
+  6:{mon:"run", tue:"quality", wed:"endur", thu:"q2", fri:"strength", sat:"long"},
+  7:{mon:"run", tue:"quality", wed:"endur", thu:"q2", fri:"strength", sat:"long", sun:"rec"}
+};
+const CX_PH_LABEL = {prep:"Getting Started", foundation:"Foundation", build:"Build", recovery:"Recovery Week", peak:"Peak Week", taper:"Taper & Race"};
+function cxHasFitxr(){ return wxFitxrSessions().length>0; }
+function cxDefaultForm(){
+  return {goal:"event", name:"", date:"", distance:"", unit:"mi", primary:"cycling", run:true, strength:true, vr:cxHasFitxr(), days:CX_R.defaultDays,
+    runMin:CX_R.runMin, runMax:CX_R.runMax, rideMin:CX_R.rideMin, rideMax:CX_R.rideMax,
+    rouvy:Object.values(Lib.workouts).some(w=>/rouvy/i.test(w.platform||"")), outdoor:true, fitxr:cxHasFitxr(), start:""};
+}
+async function cxBaseline(){
+  const today = todayISO(); let tot = 0, longest = 0;
+  for(let i=1;i<=28;i++){ const d = dateAdd(today,-i), lg = await getLog(d), ws = getDayPlan(d).workouts||[];
+    for(const w of ws){ const e = lg.workouts && lg.workouts[w.slotKey]; if(!e || !e.completed) continue; const m = pgNum(e.durationH)*60 + pgNum(e.durationM) + pgNum(e.durationS)/60; tot += m; if(w.kind==="cycling" && m>longest) longest = m; } }
+  return {weeklyMin:tot/4, longMin:longest};
+}
+function cxPhasePlan(N, miles){
+  if(N<=1) return ["taper"];
+  if(N===2) return ["prep","taper"];
+  const taper = (miles>=60 && N>=6) ? 2 : 1, R = N - 1 - taper, out = ["prep"];
+  for(let k=1;k<=R;k++){ const last = k===R; out.push((k%4===0 && !last) ? "recovery" : (last && R>=3) ? "peak" : (k <= Math.ceil(R*0.4) ? "foundation" : "build")); }
+  for(let i=0;i<taper;i++) out.push("taper");
+  return out;
+}
+function cxSlotFor(dow, D, o, wi){
+  let slot = (CX_PAT[D]||CX_PAT[5])[dow]; if(!slot) return null;
+  if(slot==="run" && !o.run) slot = (o.vr && D>=4) ? "vr" : "endur";
+  if(slot==="strength" && !o.strength) slot = "flex";
+  if(slot==="endur" && o.mixed && wi%2===0) slot = "run";
+  if(slot==="endur" && o.vr && D>=5 && wi%2===1) slot = "vr";
+  return slot;
+}
+function cxVrPlanned(ph){ return ({prep:16, foundation:24, build:28, peak:28, recovery:16, taper:16})[ph] || 24; }
+function cxSlotRefs(slot, W, o){
+  const ph = W.phase, ex = id=>Lib.workouts[id] ? id : null;
+  const plat = (indoor)=> indoor ? (o.rouvy ? {} : {platform:"Outdoor"}) : (o.outdoor ? {} : {platform:"Rouvy (Indoor)"});
+  const nm = id=>Lib.workouts[id] ? Lib.workouts[id].name : id;
+  if(slot==="quality" || slot==="q2"){
+    const m = ph==="prep" ? "recovery" : ph;
+    const id = ex((slot==="quality" ? "cy_tue_" : "cy_thu_")+m); if(!id) return {title:"Rest Day", type:"rest", refs:[]};
+    if(slot==="q2" && ph==="taper") return {title:"Rest Day", type:"rest", refs:[]};
+    return {title:nm(id), type:"indoor", refs:[{workoutId:id, overrides:plat(true)}]};
+  }
+  if(slot==="endur"){
+    const easy = ["prep","recovery","taper"].includes(ph), r = o.rideRange;
+    const min = easy ? cxClamp(cxR5(r[0]*0.8),30,r[1]) : cxClamp(cxR5(r[0] + (r[1]-r[0])*W.p), r[0], r[1]);
+    return {title:"Endurance Ride", type:o.outdoor?"outdoor":"indoor", refs:[{workoutId:"cy_outdoor_endurance", overrides:Object.assign({timeMin:min, estMiles:Math.round(min/60*13)}, plat(false))}]};
+  }
+  if(slot==="run"){
+    const min = ["prep","recovery","taper"].includes(ph) ? o.runRange[0] : cxClamp(cxR5(o.runRange[0] + (o.runRange[1]-o.runRange[0])*W.p), o.runRange[0], o.runRange[1]);
+    return {title:"Outdoor Run", type:"run", refs:[{workoutId:"run_easy", overrides:{timeMin:min, estMiles:cxR1(min/11)}}]};
+  }
+  if(slot==="strength"){
+    const m = ph; const id = ex("sb_full_"+m) || ex("sb_full_foundation");
+    return {title:nm(id), type:"strength", refs:[{workoutId:id}]};
+  }
+  if(slot==="long"){
+    const min = W.longMin; return {title:"Long Ride", type:o.outdoor?"outdoor":"indoor", refs:[{workoutId:"cy_long_ride", overrides:Object.assign({timeMin:min, estMiles:Math.round(min/60*13.3)}, plat(false))}]};
+  }
+  if(slot==="vr"){
+    const planned = cxVrPlanned(ph), sp = wxFitxrBlockSpec(planned), id = "fitxr_block_"+planned;
+    o.defs[id] = {name:sp.name, kind:"other", platform:"VR (FitXR)", timeMin:planned, desc:sp.desc, exercises:[], bodyGroup:"Cardio"};
+    return {title:sp.name, type:"indoor", refs:[{workoutId:id}]};
+  }
+  if(slot==="rec") return {title:"Recovery Spin + Mobility", type:"recovery", refs:[{workoutId:"cy_indoor_recovery", overrides:plat(true)}, {workoutId:ex("sb_flex_flow")||"sb_flex_flow"}]};
+  if(slot==="flex") return {title:nm("sb_flex_flow"), type:"recovery", refs:[{workoutId:"sb_flex_flow"}]};
+  return {title:"Rest Day", type:"rest", refs:[]};
+}
+async function cxGenPlan(f){
+  const today = todayISO(), start = f.start || dateAdd(today,1), warnings = [], notes = [];
+  if(!f.date || !/^\d{4}-\d{2}-\d{2}$/.test(f.date)) return {error:"Pick the event date."};
+  if(f.date <= start) return {error:"The event date has to be after the start date ("+fmtDate(start)+")."};
+  const D = cxClamp(Math.round(+f.days||CX_R.defaultDays), 3, 7);
+  let miles = +f.distance>0 ? +f.distance : CX_R.defaultMiles; if(!(+f.distance>0)) notes.push(`No distance given: assumed ${CX_R.defaultMiles} mi.`); if(f.unit==="km") miles = miles*0.621371;
+  const o = {mixed:f.primary==="mixed", run:!!f.run || f.primary==="mixed", strength:!!f.strength, vr:!!f.vr && !!f.fitxr, rouvy:f.rouvy!==false, outdoor:f.outdoor!==false, defs:{},
+    runRange:[cxClamp(+f.runMin||CX_R.runMin,30,90), cxClamp(+f.runMax||CX_R.runMax,30,120)], rideRange:[cxClamp(+f.rideMin||CX_R.rideMin,20,180), cxClamp(+f.rideMax||CX_R.rideMax,20,240)]};
+  if(o.runRange[1]<o.runRange[0]) o.runRange[1] = o.runRange[0]; if(o.rideRange[1]<o.rideRange[0]) o.rideRange[1] = o.rideRange[0];
+  const days = daysBetween(start, f.date), N = Math.floor(days/7) + 1, phases = cxPhasePlan(N, miles);
+  if(N<3) notes.push(`Only ${N} week${N===1?"":"s"} to the event: compressed to ${N===1?"a taper week":"prep + taper"} (no build phase).`);
+  const base = await cxBaseline(), isRun = false;
+  const peakLongMin = cxR5(cxClamp(0.62*miles/14, 1.25, 4.5)*60), loadWeeks = phases.map((p,i)=>({p,i})).filter(x=>["prep","foundation","build","peak"].includes(x.p));
+  let startLong = base.longMin>0 ? Math.min(cxR5(base.longMin*CX_R.startCap), peakLongMin) : 60; startLong = Math.max(45, startLong);
+  if(base.weeklyMin>0) notes.push(`Starting from your last 4 weeks (${Math.round(base.weeklyMin/60*10)/10} h/week, longest ride ${Math.round(base.longMin)} min), capped at +10%.`); else notes.push("No logged training in the last 4 weeks: starting from a 60-minute long ride.");
+  const wk = [], M = Math.max(1, loadWeeks.length-1); let prevLoadLong = null, lastLoadIdx = 0, peakReached = 0;
+  phases.forEach((ph,i)=>{
+    const j = loadWeeks.findIndex(x=>x.i===i), p = j>=0 ? (M>0 ? j/M : 1) : 0.4; let longMin;
+    if(ph==="prep") longMin = cxR5(startLong*0.85);
+    else if(ph==="recovery") longMin = cxR5((prevLoadLong||startLong)*0.65);
+    else if(ph==="taper") longMin = cxR5(peakReached*(i===phases.length-1 ? 0.35 : 0.6)) || 45;
+    else { longMin = cxR5(startLong + (peakLongMin-startLong)*p); longMin = prevLoadLong ? Math.min(longMin, cxR5(prevLoadLong*CX_R.rampCap)) : startLong; }
+    longMin = Math.max(45, longMin);
+    if(["foundation","build","peak"].includes(ph)){ prevLoadLong = longMin; peakReached = Math.max(peakReached, longMin); }
+    wk.push({n:i, phase:ph, label:CX_PH_LABEL[ph], p, longMin, vf:1});
+  });
+  const templates = [], weekTotals = wk.map(()=>0), endDay = dateAdd(f.date,1);
+  const eventId = "gen_event_"+f.date;
+  const estMin = isRun ? Math.round(miles*10) : cxR5(miles/14*60);
+  o.defs[eventId] = {name:f.name||"Event", kind:isRun?"run":"cycling", platform:"Outdoor", zoneText:"Event pace", timeMin:estMin, estMiles:cxR1(miles), isRace:!isRun, desc:`Event day: ${f.name||"your event"}${f.distance?` (${f.distance} ${f.unit||"mi"})`:""}. Start conservatively, fuel early, and ride or run your own pace.`, exercises:[]};
+  for(let d=start; d<=endDay; d=dateAdd(d,1)){
+    const wi = Math.min(Math.floor(daysBetween(start,d)/7), N-1), W = wk[wi], dow = dowKey(d); let t;
+    if(d===f.date) t = {title:(f.name||"Event")+" 🏆", type:"race", refs:[{workoutId:eventId}]};
+    else if(d===endDay) t = {title:"Full Rest — Recover", type:"recovery", refs:[]};
+    else if(daysBetween(d,f.date)===1) t = {title:"Rest Day", type:"rest", refs:[]};
+    else if(daysBetween(d,f.date)===2 && W.phase==="taper") t = {title:"Easy Spin", type:"indoor", refs:[{workoutId:"cy_indoor_recovery", overrides:o.rouvy?{}:{platform:"Outdoor"}}]};
+    else { const slot = cxSlotFor(dow, D, o, wi); t = slot ? cxSlotRefs(slot, W, o) : {title:"Rest Day", type:"rest", refs:[]}; }
+    const mins = t.refs.reduce((a,r)=>{ const b = (r.overrides&&r.overrides.timeMin) || (o.defs[r.workoutId]&&o.defs[r.workoutId].timeMin) || (Lib.workouts[r.workoutId]&&Lib.workouts[r.workoutId].timeMin) || 0; return a + (b||0); }, 0);
+    if(d!==f.date) weekTotals[wi] += mins;
+    templates.push({date:d, dow, dowLabel:dowShort(d), weekNum:wi, phase:W.phase, phaseLabel:W.label, title:t.title, type:t.type, refs:t.refs});
+  }
+  /* weekly-total ramp cap: trim the long ride (never below last load week's) when a load week would jump >10% */
+  let prevT = base.weeklyMin>0 ? base.weeklyMin : null, prevLong = cxR5(startLong*0.85), trimmedEndur = 0;
+  wk.forEach((W,i)=>{
+    W.totalMin = Math.round(weekTotals[i]);
+    if(!["prep","foundation","build","peak"].includes(W.phase)) return;
+    const isBuild = ["foundation","build","peak"].includes(W.phase), find = id=>{ const tpl = templates.find(t=>t.weekNum===i && t.refs.some(r=>r.workoutId===id)); return tpl ? tpl.refs.find(r=>r.workoutId===id) : null; };
+    const setMin = (r,nm,mph)=>{ if(nm < r.overrides.timeMin){ W.totalMin -= (r.overrides.timeMin - nm); r.overrides.timeMin = nm; r.overrides.estMiles = Math.round(nm/60*mph); return true; } return false; };
+    const lr = find("cy_long_ride"), er = find("cy_outdoor_endurance");
+    if(lr && isBuild) setMin(lr, Math.max(45, cxR5(prevLong*CX_R.rampCap)), 13.3);           /* long ride grows at most 10% on the last load week's actual ride */
+    if(prevT && W.totalMin > prevT*CX_R.rampCap + 0.5){
+      let over = W.totalMin - Math.round(prevT*CX_R.rampCap);
+      if(er && setMin(er, Math.max(30, cxR5(er.overrides.timeMin - over - 2)), 13)) trimmedEndur++;
+      over = W.totalMin - Math.round(prevT*CX_R.rampCap);
+      if(over>0){ const vt = templates.find(t=>t.weekNum===i && t.refs.some(r=>/^fitxr_block_/.test(r.workoutId)));
+        if(vt){ const vr = vt.refs.find(r=>/^fitxr_block_/.test(r.workoutId)), cur = o.defs[vr.workoutId] ? o.defs[vr.workoutId].timeMin : 0, np = Math.max(16, cxR5(cur - over - 2));
+          if(cur && np < cur){ const sp = wxFitxrBlockSpec(np), id = "fitxr_block_"+np; o.defs[id] = {name:sp.name, kind:"other", platform:"VR (FitXR)", timeMin:np, desc:sp.desc, exercises:[], bodyGroup:"Cardio"}; vr.workoutId = id; W.totalMin -= (cur - np); } } }
+      over = W.totalMin - Math.round(prevT*CX_R.rampCap);
+      if(over>0 && lr) setMin(lr, Math.max(isBuild ? prevLong : 45, 45, lr.overrides.timeMin - over), 13.3);
+      if(W.totalMin > prevT*CX_R.rampCap + 0.5) warnings.push(`Week ${i+1} (${W.label}) is ${Math.round((W.totalMin/prevT-1)*100)}% above the week before: the phase's session lengths can't be trimmed further without dropping sessions.`);
+    }
+    if(lr) W.longMin = lr.overrides.timeMin;
+    prevT = Math.max(prevT||0, W.totalMin); if(isBuild && lr) prevLong = W.longMin;   /* cap is against the highest load week so far, so a lighter week doesn't hide a jump */
+  });
+  if(trimmedEndur) notes.push(`To hold the 10% weekly cap, the midweek endurance ride was shortened in ${trimmedEndur} week${trimmedEndur===1?"":"s"}.`);
+  const finalPeak = Math.max(...wk.filter(x=>["foundation","build","peak"].includes(x.phase)).map(x=>x.longMin), 0);
+  if(finalPeak < peakLongMin*0.95) warnings.push(`The 10%/week ramp cap keeps your longest ride at ${cxHM(finalPeak/60)}; an event this size usually wants about ${cxHM(peakLongMin/60)}. Start earlier, log longer rides first, or edit the plan if you want to go further.`);
+  const ev = {name:f.name||"Event", date:f.date, type:isRun?"running":"cycling", typeOther:"", location:"", locationMapUrl:"", website:"", distance:f.distance?String(f.distance):String(miles), distanceUnit:f.distance?(f.unit||"mi"):"mi", description:"Generated by the Coach. Edit any day like any other plan.", trainingStart:start, trainingEndMode:"event", trainingEndDate:"", generated:{by:"coach", at:new Date().toISOString()}};
+  return {ev, templates, defs:o.defs, weeks:wk.map(w=>({n:w.n, phase:w.phase, label:w.label, start:dateAdd(start,w.n*7), longMin:w.longMin, totalMin:w.totalMin})), warnings, notes, D, N, start};
+}
+async function cxApplyPlan(plan){
+  for(const [id,def] of Object.entries(plan.defs)){ if(!Lib.workouts[id] || /^gen_event_/.test(id) || /^fitxr_block_/.test(id)) await saveWorkout(id, def); }
+  const ev = await createEvent(plan.ev);
+  await saveJSON("event:"+ev.id+":templates", plan.templates);
+  await saveJSON("event:"+ev.id+":templatesStart", plan.start);
+  await saveJSON("event:"+ev.id+":planStart", plan.start);
+  await initEventPlan(ev);
+  return ev;
+}
+async function cxStartGfp(form){
+  const g = CX.prefs.gfp; g.days = cxClamp(Math.round(+form.days||CX_R.defaultDays),3,7); g.run = !!form.run; g.strength = !!form.strength; g.vr = !!form.vr && cxHasFitxr(); g.auto = true;
+  await cxSavePrefs();
+  let gfp = activeGFP();
+  if(!gfp){ gfp = await createEvent({name:"General Fitness Period"+(form.name?" - "+form.name:""), isGFP:true, trainingStart:todayISO()}); }
+  await cxGfpEnsure(true); return gfp;
+}
+
+/* ---------- rolling GFP schedule: tomorrow..+7, rewritten only when its inputs change ---------- */
+function cxGfpOpts(){ const g = CX.prefs.gfp; return {mixed:false, run:!!g.run, strength:!!g.strength, vr:!!g.vr && cxHasFitxr(), outdoor:true, rouvy:true, defs:{}, runRange:[CX_R.runMin, CX_R.runMax], rideRange:[CX_R.rideMin, CX_R.rideMax]}; }
+function cxWxBad(date){
+  const x = Weather.data && Weather.data.days7 ? Weather.data.days7.find(z=>z.date===date) : null; if(!x) return false;
+  return x.p >= WxPrefs.rainPct || x.lo < WxPrefs.coldF || x.hi >= WxPrefs.heatF;
+}
+async function cxGfpDesired(date, S, ctx){
+  const g = CX.prefs.gfp, weekN = Math.max(0, Math.floor(daysBetween(ctx.start, date)/7)), cyc = weekN%4;
+  const W = {phase:["foundation","foundation","build","recovery"][cyc], p:[0.3,0.5,0.7,0.2][cyc], longMin:0};
+  const baseLong = cxClamp(Math.round((ctx.base.longMin||75)/15)*15, 60, 150); W.longMin = cyc===3 ? cxR5(baseLong*0.7) : baseLong;
+  let slot = cxSlotFor(dowKey(date), g.days, ctx.o, weekN);
+  const dd = daysBetween(S.date, date), f = S.flags;
+  const hard = (f.fatigue==="high" && dd<=3) || (f.poorSleep && dd<=2), soft = (f.ramp==="amber" || f.ramp==="red" || f.fatigue==="watch") && dd<=3;
+  if((slot==="quality"||slot==="q2") && (hard||soft)) W.phase = "recovery";
+  if(slot==="run" && hard) slot = "flex";
+  if(slot==="long" && (hard||soft)) W.longMin = cxR5(W.longMin*CX_R.shorten);
+  const t = slot ? cxSlotRefs(slot, W, ctx.o) : {title:"Rest Day", type:"rest", refs:[]};
+  let items = t.refs.map(r=>({workoutId:r.workoutId, overrides:r.overrides||{}})), wx = false;
+  if(cxWxBad(date)){
+    items = items.map(it=>{ const w = Lib.workouts[it.workoutId] || ctx.o.defs[it.workoutId]; if(!w) return it;
+      const outdoor = w.kind==="run" || (w.kind==="cycling" && (it.overrides.platform||w.platform)==="Outdoor");
+      if(!outdoor) return it; const planned = Math.round(it.overrides.timeMin || w.timeMin || 45);
+      if(w.kind==="run"){ const sp = wxFitxrBlockSpec(planned), id = "fitxr_block_"+planned; if(cxHasFitxr()){ ctx.o.defs[id] = {name:sp.name, kind:"other", platform:"VR (FitXR)", timeMin:planned, desc:sp.desc, exercises:[], bodyGroup:"Cardio"}; wx = true; return {workoutId:id, overrides:{}}; } return it; }
+      const r = wxRouvyFor(planned, true); if(r){ wx = true; return {workoutId:r.id, overrides:{}}; } return it; });
+  }
+  return {items, title:t.title, wx};
+}
+function cxIsEdited(ov){ ov = ov||{}; return !!((ov.removed&&ov.removed.length)||(ov.slots&&Object.keys(ov.slots).length)||(ov.order&&ov.order.length)||(ov.exAdd&&Object.keys(ov.exAdd).length)||(ov.exRemove&&Object.keys(ov.exRemove).length)||(ov.added||[]).some(a=>!a.gen)); }
+function cxNames(items){ return items.map(i=>{ const w = Lib.workouts[i.workoutId]; return w ? w.name : i.workoutId; }); }
+async function cxGfpEnsure(manual){
+  if(!CX.loaded) await cxLoad();
+  const gfp = activeGFP(); if(!gfp) return {n:0, why:"no GFP"};
+  if(!CX.prefs.gfp.auto && !manual) return {n:0, why:"off"};
+  if(Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e))) return {n:0, why:"event"};
+  const P = PlanByEvent[gfp.id]; if(!P) return {n:0, why:"no plan"};
+  const S = await cxSummary(), ctx = {o:cxGfpOpts(), start:P.start, base:await cxBaseline()}; let n = 0; const st = CX.state.gfp;
+  for(let i=1;i<=CX_R.windowDays;i++){
+    const d = dateAdd(S.date,i); if(P.templateByDate[d]===undefined) continue;
+    if(CX.prefs.gfp.pinned[d]) continue;
+    const lg = await getLog(d); if(lg.workouts && Object.keys(lg.workouts).length) continue;
+    const ov0 = P.dayOverrides[d]; if(cxIsEdited(ov0)) continue;
+    const des = await cxGfpDesired(d, S, ctx), sig = JSON.stringify(des.items), cur = ((ov0&&ov0.added)||[]).filter(a=>a.gen), curSig = cur.length ? cur[0].gen.sig : "[]";
+    if(curSig===sig) continue;
+    if(st.undone[d]===sig) continue;
+    const snap = cxSnap(gfp.id, d), before = cur.map(a=>a.workoutId);
+    for(const [id,def] of Object.entries(ctx.o.defs)){ if(!Lib.workouts[id]) await saveWorkout(id, def); }
+    const ov = (P.dayOverrides[d] = P.dayOverrides[d] || {}); ov.added = (ov.added||[]).filter(a=>!a.gen);
+    des.items.forEach((it,k)=>ov.added.push({slotKey:"a"+k+"_c"+Math.random().toString(36).slice(2,5), workoutId:it.workoutId, overrides:it.overrides, gen:{by:"coach", sig, at:new Date().toISOString()}}));
+    await saveJSON("event:"+gfp.id+":dayOverrides", P.dayOverrides);
+    st.changes.unshift({id:uid("chg"), at:new Date().toISOString(), date:d, eventId:gfp.id, before:cxNames(before.map(w=>({workoutId:w}))), after:cxNames(des.items), snap, sig, wx:des.wx});
+    st.changes = st.changes.slice(0,30); n++;
+  }
+  if(n) await cxSaveState();
+  return {n};
+}
+async function cxGfpUndo(id){
+  const c = CX.state.gfp.changes.find(x=>x.id===id && !x.undone); if(!c) return;
+  await cxRestore(c.eventId, c.date, c.snap); c.undone = true; CX.state.gfp.undone[c.date] = c.sig; await cxSaveState();
+}
+async function cxGfpTodayAdd(S){
+  const gfp = activeGFP(); if(!gfp || Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e))) return null;
+  if(S.today.sessions.length) return null; const lg = await getLog(S.date); if(lg.workouts && Object.keys(lg.workouts).length) return null;
+  const P = PlanByEvent[gfp.id]; if(!P) return null; const ctx = {o:cxGfpOpts(), start:P.start, base:await cxBaseline()}, des = await cxGfpDesired(S.date, S, ctx);
+  if(!des.items.length) return null;
+  return {id:"add|"+S.date+"|day", kind:"add", date:S.date, slotKey:null, title:"Add today's session: "+cxNames(des.items).join(" + "), why:"Your schedule for today is empty and your numbers allow it.", items:des.items, defs:ctx.o.defs, eventId:gfp.id};
+}
+async function cxApplyAdd(sg){
+  const P = PlanByEvent[sg.eventId]; if(!P) return false; const snaps = [{eventId:sg.eventId, date:sg.date, snap:cxSnap(sg.eventId, sg.date)}];
+  for(const [id,def] of Object.entries(sg.defs||{})){ if(!Lib.workouts[id]) await saveWorkout(id, def); }
+  for(const it of sg.items){ const k = addWorkoutToDay(sg.eventId, sg.date, it.workoutId); const ent = P.dayOverrides[sg.date].added.find(a=>a.slotKey===k.split("|")[1]); if(it.overrides && Object.keys(it.overrides).length) ent.overrides = it.overrides; }
+  await saveJSON("event:"+sg.eventId+":dayOverrides", P.dayOverrides);
+  CX.state.applied.unshift({id:sg.id, at:new Date().toISOString(), kind:"add", title:sg.title, snaps}); CX.state.applied = CX.state.applied.slice(0,20); await cxSaveState(); return true;
+}
+async function cxAllSuggestions(S){
+  const list = cxSuggestions(S); const add = await cxGfpTodayAdd(S).catch(()=>null);
+  if(add && !CX.state.dismissed[add.id] && !(CX.state.applied||[]).some(a=>a.id===add.id && !a.undone) && S.flags.fatigue==="ok") list.push(add);
+  return list.slice(0,3);
+}
+async function cxTick(){
+  if(CX.ticking) return; const gfp = typeof activeGFP==="function" ? activeGFP() : null; if(!gfp) return;
+  CX.ticking = true;
+  try{
+    if(!CX.loaded) await cxLoad(); if(!CX.prefs.gfp.auto) return;
+    const S = await cxSummary(), sig = [S.date, gfp.id, S.flags.fatigue, S.flags.poorSleep?1:0, S.ramp.flag, CX.prefs.gfp.days, CX.prefs.gfp.run?1:0, CX.prefs.gfp.strength?1:0, CX.prefs.gfp.vr?1:0, Object.keys(CX.prefs.gfp.pinned).length, S.weatherTomorrow?S.weatherTomorrow.p:""].join("|");
+    if(sig===CX.tickSig) return; CX.tickSig = sig;
+    const r = await cxGfpEnsure(false); if(r && r.n && typeof cxRefreshViews==="function") cxRefreshViews();
+  }catch(e){} finally{ CX.ticking = false; }
+}
+if(!window.__cxTimer){ window.__cxTimer = setInterval(()=>{ try{ cxTick(); }catch(e){} }, 600000); document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") try{ cxTick(); }catch(e){} }); }
+
+/* ---------- Rouvy .zwo export (FTP-fraction ERG workouts) ---------- */
+const cxWu=(s,a,b)=>({t:"wu",s,a,b}), cxSt=(s,p,cad)=>({t:"st",s,p,cad}), cxIv=(reps,on,off,onP,offP,cad,cadOff)=>({t:"iv",reps,on,off,onP,offP,cad,cadOff}), cxCd=(s,a,b)=>({t:"cd",s,a,b});
+const CX_SEED_STRUCT = {
+  cy_tue_foundation:[cxWu(600,.45,.65), cxSt(600,.83,90), cxSt(300,.5), cxSt(600,.83,90), cxCd(600,.6,.4)],
+  cy_thu_foundation:[cxWu(600,.45,.65), cxIv(3,300,180,.65,.5,90,85), cxSt(300,.65,90), cxCd(600,.6,.4)],
+  cy_tue_build:[cxWu(900,.45,.7), cxIv(3,720,360,.91,.5,90,85), cxCd(600,.6,.4)],
+  cy_thu_build:[cxWu(900,.45,.7), cxIv(6,180,180,1.13,.5,95,90), cxCd(600,.6,.4)],
+  cy_tue_recovery:[cxWu(300,.4,.5), cxSt(1800,.5,90)],
+  cy_thu_recovery:[cxWu(300,.4,.5), cxSt(1500,.5,90)],
+  cy_tue_peak:[cxWu(900,.45,.7), cxSt(900,.83,90), cxSt(600,.5), cxSt(900,.83,90), cxCd(600,.6,.4)],
+  cy_thu_peak:[cxWu(900,.45,.7), cxIv(4,60,180,1.13,.5,95,90), cxCd(600,.6,.4)],
+  cy_tue_taper:[cxSt(1200,.55,90), cxIv(2,30,120,1.0,.5,95,90), cxSt(30,1.0,95), cxCd(300,.5,.4)],
+  cy_outdoor_endurance:[cxWu(600,.45,.65), cxSt(2700,.65,90), cxCd(300,.6,.4)],
+  cy_outdoor_recovery:[cxWu(300,.4,.5), cxSt(2400,.5,90), cxCd(300,.5,.4)],
+  cy_indoor_recovery:[cxWu(300,.4,.5), cxSt(1200,.5,90)],
+  cy_long_ride:[cxWu(600,.45,.65), cxSt(4500,.65,88), cxCd(300,.6,.4)]
+};
+const CX_ZONE_MID = {1:0.5, 2:0.65, 3:0.83, 4:0.98, 5:1.13, 6:1.35};
+function cxSegSec(g){ return g.t==="iv" ? g.reps*(g.on+g.off) : g.s; }
+function cxTotalSec(st){ return st.reduce((a,g)=>a+cxSegSec(g),0); }
+/* stretch/shrink the longest steady (or longest) block so the file matches the planned minutes */
+function cxFit(st, sec){
+  const out = st.map(g=>Object.assign({}, g)); let diff = sec - cxTotalSec(out); if(!diff) return out;
+  let idx = -1, best = -1; out.forEach((g,i)=>{ if(g.t==="st" && g.s>best){ best = g.s; idx = i; } });
+  if(idx<0) out.forEach((g,i)=>{ if(g.t!=="iv" && g.s>best){ best = g.s; idx = i; } });
+  if(idx<0) return null; out[idx].s += diff; return out[idx].s >= 60 ? out : null;
+}
+function cxApproxStruct(w, sec){
+  const z = String(w.zoneText||""); let p = null;
+  let m = z.match(/(\d{2,3})\s*[–-]\s*(\d{2,3})\s*%/); if(m) p = (+m[1] + +m[2])/200;
+  if(p==null){ m = z.match(/[≤<]\s*(\d{2,3})\s*%/); if(m) p = Math.min(+m[1],55)/100 - 0.05; }
+  if(p==null){ m = z.match(/Zone\s*(\d)/i); if(m && CX_ZONE_MID[+m[1]]) p = CX_ZONE_MID[+m[1]]; }
+  if(p==null) return null; p = cxClamp(p, 0.4, 1.3);
+  const wu = cxClamp(Math.round(sec*0.12/60)*60, 300, 900), cd = 300, mid = sec - wu - cd; if(mid < 120) return null;
+  return [cxWu(wu,.45,Math.min(.7,p)), cxSt(mid,p,p<0.8?90:null), cxCd(cd,Math.min(.6,p),.4)];
+}
+function cxStructFor(w){
+  const sec = Math.round((w.timeMin||0)*60); if(sec < 300) return null;
+  const lib = Lib.workouts[w.id] || {};
+  const raw = CX_SEED_STRUCT[w.id] || (Array.isArray(lib.structure) && lib.structure.length ? lib.structure : null);
+  if(raw){ const fit = cxFit(raw, sec); if(fit) return {segs:fit, approx:false}; }
+  const ap = cxApproxStruct(w, sec); return ap ? {segs:ap, approx:true} : null;
+}
+function cxZwoEligible(w){ return !!w && w.kind==="cycling" && !w.isRace && !(w.source==="rouvy" && !(Array.isArray((Lib.workouts[w.id]||{}).structure))) && !/\(Rouvy Route\)/.test(w.name||"") && (w.timeMin||0)>=5; }
+const cxX = s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cxP = p=>String(Math.round(p*1000)/1000);
+function cxWatts(p, ftp){ return ftp ? Math.round(p*ftp)+" W" : ""; }
+function cxMS(s){ return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function cxZwoBuild(w, ftp, dateISO){
+  const fit = cxStructFor(w); if(!fit) return null; const segs = fit.segs, ev = [];
+  let x = "";
+  const te = (off,msg)=>`<textevent timeoffset="${Math.max(0,Math.round(off))}" message="${cxX(msg)}"/>`;
+  const fuel = (s)=>{ const a = []; if((w.timeMin||0)>=90){ for(let t=1200; t<s-300; t+=1200) a.push(te(t, "Eat and drink now (aim 60-100 g carbs per hour)")); } return a; };
+  segs.forEach((g,i)=>{
+    if(g.t==="wu"||g.t==="cd"){
+      const tag = g.t==="wu" ? "Warmup" : "Cooldown";
+      x += `    <${tag} Duration="${g.s}" PowerLow="${cxP(g.a)}" PowerHigh="${cxP(g.b)}">${te(0, (g.t==="wu"?"Warm up: ":"Cool down: ")+Math.round(g.a*100)+" to "+Math.round(g.b*100)+"% FTP")}</${tag}>\n`;
+    } else if(g.t==="st"){
+      const msg = `${Math.round(g.p*100)}% FTP${ftp?" ("+cxWatts(g.p,ftp)+")":""}${g.cad?" · "+g.cad+" rpm":""} for ${cxMS(g.s)}`;
+      x += `    <SteadyState Duration="${g.s}" Power="${cxP(g.p)}"${g.cad?` Cadence="${g.cad}"`:""}>${te(0,msg)}${fuel(g.s).join("")}</SteadyState>\n`;
+    } else if(g.t==="iv"){
+      const evs = [te(0, `${g.reps} x ${cxMS(g.on)} at ${Math.round(g.onP*100)}% FTP${ftp?" ("+cxWatts(g.onP,ftp)+")":""}, ${cxMS(g.off)} easy`)];
+      for(let r=0; r<g.reps && evs.length<12; r++){ if(r>0) evs.push(te(r*(g.on+g.off), `Effort ${r+1} of ${g.reps}`)); if(g.on>=90) evs.push(te(r*(g.on+g.off)+g.on-30, "30 seconds to go")); }
+      x += `    <IntervalsT Repeat="${g.reps}" OnDuration="${g.on}" OffDuration="${g.off}" OnPower="${cxP(g.onP)}" OffPower="${cxP(g.offP)}"${g.cad?` Cadence="${g.cad}"`:""}${g.cadOff?` CadenceResting="${g.cadOff}"`:""}>${evs.slice(0,12).join("")}</IntervalsT>\n`;
+    }
+  });
+  const desc = `${w.name} - ${Math.round(w.timeMin)} min. ${String(w.desc||"").slice(0,400)}${fit.approx?" (Approximate structure built from the zone text.)":""}`;
+  return {xml:`<?xml version="1.0" encoding="UTF-8"?>\n<workout_file>\n  <author>Keep on Training</author>\n  <name>${cxX(w.name)}${dateISO?" - "+cxX(dateISO):""}</name>\n  <description>${cxX(desc)}</description>\n  <sportType>bike</sportType>\n  <tags><tag name="KeepOnTraining"/></tags>\n  <workout>\n${x}  </workout>\n</workout_file>\n`, approx:fit.approx, totalSec:cxTotalSec(segs)};
+}
+function cxZwoValidate(xml, expectedSec){
+  const errs = []; let doc;
+  try{ doc = new DOMParser().parseFromString(xml, "application/xml"); }catch(e){ return {ok:false, errors:["XML did not parse"], totalSec:0}; }
+  if(doc.getElementsByTagName("parsererror").length) return {ok:false, errors:["XML did not parse"], totalSec:0};
+  const root = doc.documentElement; if(!root || root.nodeName!=="workout_file") errs.push("Root element must be workout_file");
+  const wk = root && [...root.children].find(c=>c.nodeName==="workout"); if(!wk) errs.push("Missing workout element");
+  const ALLOWED = ["Warmup","Cooldown","SteadyState","IntervalsT","Ramp","FreeRide"]; let total = 0;
+  const num = (el,a,min,max,int)=>{ const v = el.getAttribute(a); if(v==null || v==="" || !isFinite(+v)){ errs.push(`${el.nodeName}: ${a} missing or not a number`); return null; } const n = +v; if(n<min||n>max||(int&&!Number.isInteger(n))) errs.push(`${el.nodeName}: ${a}=${v} out of range`); return n; };
+  if(wk) [...wk.children].forEach(el=>{
+    if(!ALLOWED.includes(el.nodeName)){ errs.push("Unexpected element "+el.nodeName); return; }
+    let dur = 0;
+    if(el.nodeName==="IntervalsT"){ const r = num(el,"Repeat",1,100,true), on = num(el,"OnDuration",1,36000,true), off = num(el,"OffDuration",0,36000,true); num(el,"OnPower",0.2,2.0); num(el,"OffPower",0.2,2.0); dur = (r||0)*((on||0)+(off||0)); }
+    else { dur = num(el,"Duration",1,36000,true)||0; if(el.nodeName==="SteadyState") num(el,"Power",0.2,2.0); else if(el.nodeName!=="FreeRide"){ num(el,"PowerLow",0.2,2.0); num(el,"PowerHigh",0.2,2.0); } }
+    ["Cadence","CadenceResting"].forEach(a=>{ if(el.hasAttribute(a)) num(el,a,30,150,true); });
+    [...el.children].forEach(te=>{ if(te.nodeName!=="textevent"){ errs.push("Unexpected child "+te.nodeName); return; } const o = num(te,"timeoffset",0,36000,true); if(o!=null && o>dur) errs.push("textevent offset beyond its segment"); if(!(te.getAttribute("message")||"").trim()) errs.push("textevent without message"); });
+    total += dur;
+  });
+  if(wk && ![...wk.children].length) errs.push("Workout has no segments");
+  if(expectedSec!=null && Math.abs(total-expectedSec) > 60) errs.push(`Segments add up to ${Math.round(total/60)} min, planned ${Math.round(expectedSec/60)} min`);
+  return {ok:!errs.length, errors:errs, totalSec:total};
+}
+function cxSafeName(s){ return String(s).replace(/[\\/:*?"<>|]+/g,"").replace(/\s+/g," ").trim().slice(0,80) || "workout"; }
+function triggerTextDownload(filename, text, mime){
+  const blob = new Blob([text], {type:mime||"text/plain"}), url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function cxToast(msg){ try{ let t = document.getElementById("cx-toast"); if(!t){ t = document.createElement("div"); t.id = "cx-toast"; t.className = "cx-toast"; t.setAttribute("role","status"); document.body.appendChild(t); } t.textContent = msg; t.style.display = "block"; clearTimeout(cxToast._t); cxToast._t = setTimeout(()=>{ t.style.display = "none"; }, 6000); }catch(e){} }
+function cxZwoExport(w, dateISO){
+  const ftp = State.profile && +State.profile.ftp || null, b = cxZwoBuild(w, ftp, dateISO||todayISO());
+  if(!b){ cxToast("This workout has no power target to build a file from. Add a zone or % FTP in its Target line."); return false; }
+  const v = cxZwoValidate(b.xml, Math.round(w.timeMin*60));
+  if(!v.ok){ cxToast("Export blocked: "+v.errors[0]); return false; }
+  const fn = cxSafeName(w.name)+" - "+(dateISO||todayISO())+".zwo"; triggerTextDownload(fn, b.xml, "application/xml");
+  cxToast("Saved "+fn+(b.approx?" (approximate: built from the zone text)":"")+". Import it in Rouvy's workout upload."); return true;
+}
+function cxZwoBtn(w, date, lib){
+  if(!cxZwoEligible(w)) return "";
+  return `<button type="button" class="btn btn-ghost cx-zwo-btn" data-cx-zwo="${esc(w.id)}" data-date="${esc(date||"")}" data-slot="${esc(lib?"":(w.slotKey||""))}" title="Download a Rouvy/Zwift .zwo workout file">⬇ .zwo</button>`;
+}
+
+/* ---------- UI: Today card, Coach tab, settings, Progress card ---------- */
+const cxPara = lines=>lines.map(l=>`<p class="cx-line">${esc(l)}</p>`).join("");
+function cxAiView(S, det){
+  const c = CX.state.aiCache, on = CX.cfg.mode!=="off" && !!cxAiTarget();
+  if(!on || !c || c.sig!==cxSig(S) || c.mode!==CX.cfg.mode) return null;
+  return c;
+}
+async function cxCardInner(S, full){
+  const det = cxCommentary(S), sg = await cxAllSuggestions(S); CX._sugg = sg;
+  const ai = cxAiView(S, det), showAi = ai && !CX.prefs.showDet;
+  const head = showAi ? `<div class="cx-badge">AI-written · ${esc(ai.model)} <button type="button" class="btn btn-ghost" data-cx-showdet="1">Plain version</button> <button type="button" class="btn btn-ghost" data-cx-aioff="1">Turn AI off</button></div>${cxPara([ai.text])}`
+    : `${ai ? `<div class="cx-badge">Plain version <button type="button" class="btn btn-ghost" data-cx-showdet="1">Show AI-written</button> <button type="button" class="btn btn-ghost" data-cx-aioff="1">Turn AI off</button></div>` : ""}${cxPara(det.daily)}`;
+  const sgHtml = sg.map(o=>`<div class="cx-sug"><div class="cx-sug-t">${esc(o.title)}</div><div class="pg-sub">${esc(o.why)}</div><div class="pg-actions"><button type="button" class="btn btn-primary" data-cx-apply="${esc(o.id)}">Apply</button><button type="button" class="btn btn-ghost" data-cx-dismiss="${esc(o.id)}">Not now</button></div></div>`).join("");
+  const foot = `<div class="pg-actions">${full?"":`<button type="button" class="btn btn-ghost" data-cx-open="1">Open coach</button>`}<button type="button" class="btn btn-ghost" data-cx-copy="1">Copy coach brief</button></div>`;
+  return head + sgHtml + foot;
+}
+async function cxCard(){
+  try{
+    if(!CX.loaded || true) await cxLoad();
+    const S = await cxSummary(); const inner = await cxCardInner(S, false);
+    if(cxAiTarget()) setTimeout(()=>{ cxAiRefresh(); }, 0);
+    return `<div class="card cx-card" id="cx-card"><div class="card-header"><h2>Coach</h2><span class="meta">${cxAiTarget()?"Rules + optional AI wording":"Rules-based · offline"}</span></div>${inner}</div>`;
+  }catch(e){ return ""; }
+}
+async function cxProgressCard(){
+  await cxLoad(); const S = await cxSummary(), det = cxCommentary(S);
+  return pgCardWrap("coach","Coach","Rules-based", cxPara(det.daily.slice(0,3)) + `<div class="pg-actions"><button type="button" class="btn btn-ghost" data-cx-open="1">Open coach</button></div>`);
+}
+function cxRefreshViews(){
+  try{
+    if(State.tab==="dashboard" && document.getElementById("cx-card")){ cxCard().then(h=>{ const el = document.getElementById("cx-card"); if(el && h){ const w = document.createElement("div"); w.innerHTML = h; el.replaceWith(w.firstElementChild); } }); }
+    else if(State.tab==="coach" || State.tab==="progress") renderTabContent();
+  }catch(e){}
+}
+
+/* ----- Coach tab ----- */
+function cxFld(label, id, val, type, extra){ return `<div class="field"><label for="${id}">${label}</label><input type="${type||"text"}" id="${id}" data-cx-f="${id.replace("cx-f-","")}" value="${esc(val==null?"":val)}" ${extra||""}></div>`; }
+function cxChk(label, key, on){ return `<label class="cx-chk"><input type="checkbox" data-cx-f="${key}" ${on?"checked":""}> ${label}</label>`; }
+function cxGenFormHtml(){
+  const f = CX.genForm, ev = f.goal==="event";
+  return `<div class="cx-form"><div class="field"><label for="cx-f-goal">Goal</label><select id="cx-f-goal" data-cx-f="goal"><option value="event" ${ev?"selected":""}>Event with a date</option><option value="gfp" ${!ev?"selected":""}>General fitness period</option></select></div>
+  ${ev?`${cxFld("Event name","cx-f-name",f.name,"text",'placeholder="e.g. Spring Century"')}${cxFld("Event date","cx-f-date",f.date,"date")}${cxFld("Distance (optional)","cx-f-distance",f.distance,"number",'min="0" step="1" placeholder="default 50"')}
+  <div class="field"><label for="cx-f-unit">Unit</label><select id="cx-f-unit" data-cx-f="unit"><option value="mi" ${f.unit!=="km"?"selected":""}>miles</option><option value="km" ${f.unit==="km"?"selected":""}>km</option></select></div>${cxFld("Start date (default: tomorrow)","cx-f-start",f.start,"date")}`:`${cxFld("Name suffix (optional)","cx-f-name",f.name,"text")}`}
+  <div class="field"><label for="cx-f-primary">Sport focus</label><select id="cx-f-primary" data-cx-f="primary"><option value="cycling" ${f.primary!=="mixed"?"selected":""}>Cycling first</option><option value="mixed" ${f.primary==="mixed"?"selected":""}>Cycling + running evenly</option></select></div>
+  <div class="field"><label for="cx-f-days">Days per week</label><select id="cx-f-days" data-cx-f="days">${[3,4,5,6,7].map(n=>`<option value="${n}" ${+f.days===n?"selected":""}>${n}</option>`).join("")}</select></div>
+  <div class="cx-checks">${cxChk("Include running","run",f.run)}${cxChk("Include strength","strength",f.strength)}${cxChk("Include FitXR VR blocks","vr",f.vr)}</div>
+  ${ev?`<div class="cx-pair">${cxFld("Run min (min)","cx-f-runMin",f.runMin,"number",'min="30" max="90"')}${cxFld("Run max (min)","cx-f-runMax",f.runMax,"number",'min="30" max="120"')}${cxFld("Ride min (min)","cx-f-rideMin",f.rideMin,"number",'min="20" max="180"')}${cxFld("Ride max (min)","cx-f-rideMax",f.rideMax,"number",'min="20" max="240"')}</div>
+  <div class="cx-checks">${cxChk("Indoor trainer (Rouvy)","rouvy",f.rouvy)}${cxChk("Outdoor bike","outdoor",f.outdoor)}${cxChk("FitXR / VR","fitxr",f.fitxr)}</div>`:""}
+  <div class="pg-actions">${ev?`<button type="button" class="btn btn-primary" data-cx-gen-preview="1">Preview plan</button>`:`<button type="button" class="btn btn-primary" data-cx-gfp-start="1">Start General Fitness Period + schedule</button>`}</div></div>`;
+}
+function cxPlanPreviewHtml(p){
+  if(!p) return "";
+  if(p.error) return `<p class="pg-err">${esc(p.error)}</p>`;
+  const rows = p.weeks.map(w=>`<tr><td>${w.n+1}</td><td>${esc(fmtDate(w.start))}</td><td>${esc(w.label)}</td><td>${cxHM(w.longMin/60)}</td><td>${cxHM(w.totalMin/60)}</td></tr>`).join("");
+  return `<div class="cx-prev"><div class="pg-sub">${p.N} weeks · ${p.D} days/week · ${esc(fmtDate(p.start))} → ${esc(fmtDate(p.ev.date))}</div>
+  <table class="pg-table"><thead><tr><th>Wk</th><th>Starts</th><th>Phase</th><th>Long ride</th><th>Week total</th></tr></thead><tbody>${rows}</tbody></table>
+  ${[...p.notes, ...p.warnings].map(n=>`<p class="pg-sub">${esc(n)}</p>`).join("")}
+  <div class="pg-actions"><button type="button" class="btn btn-primary" data-cx-gen-apply="1">Create this plan</button></div></div>`;
+}
+function cxFmtChange(c){ return `${esc(fmtDate(c.date))}: ${esc(c.before.join(" + ")||"nothing")} → ${esc(c.after.join(" + ")||"rest")}${c.wx?" (weather)":""}`; }
+async function cxGfpPanel(){
+  const gfp = activeGFP(), g = CX.prefs.gfp, real = Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e));
+  if(!gfp) return `<p class="pg-empty">No General Fitness Period is active. Start one from the form above (choose "General fitness period").</p>`;
+  const today = todayISO(), P = PlanByEvent[gfp.id]; let rows = "";
+  for(let i=1;i<=CX_R.windowDays;i++){ const d = dateAdd(today,i), ov = P && P.dayOverrides[d], ws = ((getDayPlan(d).workouts)||[]).map(w=>w.name||w.title), lg = await getLog(d);
+    const lock = g.pinned[d] ? "pinned" : (lg.workouts && Object.keys(lg.workouts).length) ? "logged" : cxIsEdited(ov) ? "edited" : ((ov&&ov.added||[]).some(a=>a.gen) ? "coach" : "");
+    rows += `<div class="pg-setrow"><span>${esc(fmtDate(d))}: ${esc(ws.join(" + ")||"Rest")} ${lock?`<span class="pg-sub">(${lock})</span>`:""}</span><label class="cx-chk"><input type="checkbox" data-cx-pin="${d}" ${g.pinned[d]?"checked":""}> Pin</label></div>`; }
+  return `${real?`<p class="pg-sub">A dated Event is active, so the rolling schedule is paused until it ends.</p>`:""}
+  <div class="cx-checks">${cxChk("Keep the next 7 days filled automatically","gfp-auto",g.auto)}${cxChk("Running","gfp-run",g.run)}${cxChk("Strength","gfp-strength",g.strength)}${cxChk("FitXR VR blocks","gfp-vr",g.vr)}</div>
+  <div class="field"><label for="cx-f-gdays">Days per week</label><select id="cx-f-gdays" data-cx-f="gfp-days">${[3,4,5,6,7].map(n=>`<option value="${n}" ${+g.days===n?"selected":""}>${n}</option>`).join("")}</select></div>
+  <p class="pg-sub">Tomorrow and later are rewritten only when your load, sleep or fatigue changes, or a new week starts. Today is never changed automatically; logged, edited and pinned days are never touched.</p>${rows}
+  <div class="pg-actions"><button type="button" class="btn btn-ghost" data-cx-gfp-now="1">Refresh schedule now</button></div>`;
+}
+async function renderCoachTab(){
+  await cxLoad(); const S = await cxSummary(), det = cxCommentary(S); if(!CX.genForm) CX.genForm = Object.assign(cxDefaultForm(), CX.prefs.form||{});
+  const inner = await cxCardInner(S, true), pat = await cxPatterns(), g = CX.state.gfp.changes.filter(c=>!c.undone).slice(0,5), ap = (CX.state.applied||[]).filter(a=>!a.undone).slice(0,5);
+  const chg = (ap.length||g.length) ? `<div class="card"><div class="card-header"><h2>Coach changes</h2><span class="meta">Undo restores the day exactly</span></div>
+    ${ap.map(a=>`<div class="pg-setrow"><span>${esc(a.title)}</span><button type="button" class="btn btn-ghost" data-cx-undo="${esc(a.id)}">Undo</button></div>`).join("")}
+    ${g.map(c=>`<div class="pg-setrow"><span>${cxFmtChange(c)}</span><button type="button" class="btn btn-ghost" data-cx-gundo="${esc(c.id)}">Undo</button></div>`).join("")}</div>` : "";
+  const ai = cxAiTarget() ? `AI wording is on (${CX.cfg.mode==="cloud"?"Ollama cloud":"Ollama on this PC"}, ${esc(CX.cfg.mode==="cloud"?CX.cfg.modelCloud:CX.cfg.modelLocal)}). Numbers and actions always come from the rules.` : `AI wording is off. Everything here works offline from your own numbers. Turn it on under Profile &amp; Zones &rarr; AI coach.`;
+  const paste = CX.state.paste;
+  return `<div class="cx-tab">
+  <div class="card cx-card" id="cx-card"><div class="card-header"><h2>Today</h2><span class="meta">${esc(fmtDateLong(S.date))}</span></div>${inner}<p class="pg-sub">${ai}</p></div>
+  <div class="card"><div class="card-header"><h2>This week</h2><span class="meta">Last 7 days and next 7</span></div>${cxPara(det.weekly)}</div>
+  <div class="card"><div class="card-header"><h2>Patterns</h2><span class="meta">${pat.n} check-ins</span></div>${pat.out.length ? cxPara(pat.out) : `<p class="pg-empty">${pat.n < CX_R.minCheckins ? `Needs about ${CX_R.minCheckins} days of mood/energy check-ins (you have ${pat.n}). Nothing to call out yet.` : "No clear pattern in your numbers right now."}</p>`}</div>
+  ${chg}
+  <div class="card"><div class="card-header"><h2>Generate a plan</h2><span class="meta">Becomes a normal, editable plan</span></div>${cxGenFormHtml()}<div id="cx-gen-prev">${cxPlanPreviewHtml(CX.genPlan)}</div></div>
+  <div class="card"><div class="card-header"><h2>General Fitness schedule</h2><span class="meta">Rolling next 7 days</span></div>${await cxGfpPanel()}</div>
+  <div class="card"><div class="card-header"><h2>Brief for Claude / ChatGPT</h2><span class="meta">Copy, paste, and read the answer here</span></div>
+    <p class="pg-sub">Copies a data summary plus an analysis prompt. It never contains your API key. Pasting a reply below only shows it as advice; nothing is imported.</p>
+    <div class="pg-actions"><button type="button" class="btn btn-primary" data-cx-copy="1">Copy coach brief</button></div>
+    <div class="field wide"><label for="cx-paste">Paste the reply (optional)</label><textarea id="cx-paste" rows="5" placeholder="Paste a reply here to keep it next to your data">${esc(paste?paste.text:"")}</textarea></div>
+    <div class="pg-actions"><button type="button" class="btn btn-ghost" data-cx-pastesave="1">Save as advisory text</button><button type="button" class="btn btn-ghost" data-cx-pasteclear="1">Clear</button></div>
+    ${paste&&paste.text?`<div class="cx-paste"><div class="cx-badge">Advisory text you pasted · ${esc(fmtDate(paste.at.slice(0,10)))}</div><div class="cx-pastebody">${esc(paste.text)}</div></div>`:""}</div></div>`;
+}
+
+/* ----- settings card (Profile & Zones) ----- */
+function cxSettingsInner(){
+  const c = CX.cfg, r = CX.testRes, cloud = c.mode==="cloud", local = c.mode==="local";
+  const keyLine = cloud ? `<div class="field wide"><label for="cx-key">Ollama API key</label><input type="password" id="cx-key" autocomplete="off" spellcheck="false" placeholder="${CX.key?"Saved on this device. Paste a new key to replace it.":"Paste your key once"}"><div class="pg-actions"><button type="button" class="btn btn-primary" data-cx-savekey="1">Save key</button>${CX.key?`<button type="button" class="btn btn-ghost" data-cx-clearkey="1">Clear key</button>`:""}</div><p class="pg-sub">Stored on this device only. It is never synced to Drive, never included in backups or exports, and never put in the coach brief. Paste it again on each device you use.</p></div>` : "";
+  const urlLine = cloud ? `<div class="field wide"><label for="cx-cfg-cloudUrl">Cloud URL</label><input type="text" id="cx-cfg-cloudUrl" data-cx-cfg="cloudUrl" value="${esc(c.cloudUrl)}"></div>` : local ? `<div class="field wide"><label for="cx-cfg-localUrl">Local Ollama URL</label><input type="text" id="cx-cfg-localUrl" data-cx-cfg="localUrl" value="${esc(c.localUrl)}"><p class="pg-sub">Your phone cannot reach your PC's localhost. The PC must start Ollama with OLLAMA_ORIGINS allowing this page's origin (${esc(location.origin||"")}).</p></div>` : "";
+  const modelLine = c.mode!=="off" ? `<div class="field"><label for="cx-cfg-model">Model</label><input type="text" id="cx-cfg-model" data-cx-cfg="${cloud?"modelCloud":"modelLocal"}" value="${esc(cloud?c.modelCloud:c.modelLocal)}"></div>
+    <div class="field"><label for="cx-cfg-style">Endpoint style</label><select id="cx-cfg-style" data-cx-cfg="style"><option value="openai" ${c.style==="openai"?"selected":""}>OpenAI-compatible (/v1)</option><option value="native" ${c.style==="native"?"selected":""}>Ollama native (/api)</option></select></div>
+    <div class="pg-actions"><button type="button" class="btn btn-ghost" data-cx-test="1">Test connection</button></div>
+    ${r?`<p class="${r.ok?"pg-sub":"pg-err"}" id="cx-test-res">${esc(r.message)}${r.models&&r.models.length?" Models: "+esc(r.models.slice(0,8).join(", "))+".":""}</p>`:""}
+    <p class="pg-sub">${cloud?"The training summary (numbers only) is sent to Ollama's cloud when AI wording is on.":"The training summary stays on your PC."} If the model is off or unreachable the coach silently uses its own wording.</p>` : "";
+  return `<div class="field wide"><label for="cx-cfg-mode">AI coach wording</label><select id="cx-cfg-mode" data-cx-cfg="mode"><option value="off" ${c.mode==="off"?"selected":""}>Off (rules only, offline)</option><option value="cloud" ${cloud?"selected":""}>Ollama cloud (direct, needs API key)</option><option value="local" ${local?"selected":""}>Ollama on my PC (free)</option></select></div>${keyLine}${urlLine}${modelLine}`;
+}
+async function cxSettingsCard(){ await cxLoad(); return `<div class="card" id="cx-settings-card"><div class="card-header"><h2>AI coach</h2><span class="meta">Optional · the coach works without it</span></div>${cxSettingsInner()}</div>`; }
+function cxReplaceSettings(){ const el = document.getElementById("cx-settings-card"); if(el) el.innerHTML = `<div class="card-header"><h2>AI coach</h2><span class="meta">Optional · the coach works without it</span></div>${cxSettingsInner()}`; }
+
+/* ----- events ----- */
+async function cxOnClick(e){
+  const t = e.target && e.target.closest ? e.target.closest("[data-cx-apply],[data-cx-dismiss],[data-cx-open],[data-cx-copy],[data-cx-undo],[data-cx-gundo],[data-cx-showdet],[data-cx-aioff],[data-cx-test],[data-cx-savekey],[data-cx-clearkey],[data-cx-gen-preview],[data-cx-gen-apply],[data-cx-gfp-start],[data-cx-gfp-now],[data-cx-pastesave],[data-cx-pasteclear],[data-cx-zwo]") : null;
+  if(!t) return;
+  try{
+    if(!CX.loaded) await cxLoad();
+    if(t.hasAttribute("data-cx-open")){ switchTab("coach"); return; }
+    if(t.hasAttribute("data-cx-apply")){ const id = t.getAttribute("data-cx-apply"), sg = (CX._sugg||[]).find(x=>x.id===id); if(!sg) return; t.disabled = true; const ok = sg.kind==="add" ? await cxApplyAdd(sg) : await cxApplySuggestion(sg); cxToast(ok ? "Applied. You can undo it in Coach changes." : "That session changed; refresh and try again."); if(State.tab==="coach") renderTabContent(); else renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-dismiss")){ CX.state.dismissed[t.getAttribute("data-cx-dismiss")] = todayISO(); await cxSaveState(); cxRefreshViews(); if(State.tab!=="dashboard") renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-undo")){ await cxUndoApplied(t.getAttribute("data-cx-undo")); renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-gundo")){ await cxGfpUndo(t.getAttribute("data-cx-gundo")); renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-copy")){ const ok = await cxCopyText(await cxBrief()); cxToast(ok ? "Coach brief copied. Paste it into Claude or ChatGPT." : "Could not copy. Select and copy manually."); return; }
+    if(t.hasAttribute("data-cx-showdet")){ CX.prefs.showDet = !CX.prefs.showDet; await cxSavePrefs(); cxRefreshViews(); if(State.tab!=="dashboard") renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-aioff")){ CX.cfg.mode = "off"; await cxSaveCfg(); cxRefreshViews(); if(State.tab!=="dashboard") renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-savekey")){ const el = document.getElementById("cx-key"); if(el && el.value.trim()){ await cxSaveKey(el.value); el.value = ""; CX.testRes = null; cxReplaceSettings(); cxToast("Key saved on this device."); } return; }
+    if(t.hasAttribute("data-cx-clearkey")){ await cxSaveKey(""); CX.testRes = null; cxReplaceSettings(); cxToast("Key cleared."); return; }
+    if(t.hasAttribute("data-cx-test")){ CX.testRes = {ok:false, message:"Testing…", models:[]}; cxReplaceSettings(); CX.testRes = await cxTestConn(); CX.failUntil = {}; CX.aiTried = ""; cxReplaceSettings(); return; }
+    if(t.hasAttribute("data-cx-gen-preview")){ CX.prefs.form = CX.genForm; await cxSavePrefs(); CX.genPlan = await cxGenPlan(CX.genForm); const el = document.getElementById("cx-gen-prev"); if(el) el.innerHTML = cxPlanPreviewHtml(CX.genPlan); return; }
+    if(t.hasAttribute("data-cx-gen-apply")){ if(!CX.genPlan || CX.genPlan.error) return; t.disabled = true; const ev = await cxApplyPlan(CX.genPlan); CX.genPlan = null; cxToast("Plan created: "+ev.name+". Find it on the Events tab."); State.tab = "events"; render(); return; }
+    if(t.hasAttribute("data-cx-gfp-start")){ CX.prefs.form = CX.genForm; await cxStartGfp(CX.genForm); cxToast("General Fitness Period is active; the next 7 days are scheduled."); renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-gfp-now")){ const r = await cxGfpEnsure(true); cxToast(r && r.n ? "Updated "+r.n+" day"+(r.n===1?"":"s")+"." : "Nothing needed to change."); renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-pastesave")){ const v = (document.getElementById("cx-paste")||{}).value||""; CX.state.paste = v.trim() ? {text:cxScrub(v.trim()).slice(0,6000), at:new Date().toISOString()} : null; await cxSaveState(); renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-pasteclear")){ CX.state.paste = null; await cxSaveState(); renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-zwo")){ const id = t.getAttribute("data-cx-zwo"), date = t.getAttribute("data-date"), slot = t.getAttribute("data-slot"); let w = null;
+      if(slot && date) w = (getDayPlan(date).workouts||[]).find(x=>x.slotKey===slot); if(!w) w = resolveWorkout(id); if(w){ w.id = w.id||id; cxZwoExport(w, date||todayISO()); } return; }
+  }catch(err){ try{ console.error("coach action failed", cxScrub(err && err.message)); }catch(e2){} }
+}
+async function cxOnChange(e){
+  const el = e.target; if(!el || !el.getAttribute) return;
+  try{
+    const cfgK = el.getAttribute("data-cx-cfg"), fK = el.getAttribute("data-cx-f"), pinD = el.getAttribute("data-cx-pin");
+    if(cfgK){ if(!CX.loaded) await cxLoad(); CX.cfg[cfgK] = el.value.trim(); if(cfgK==="mode"){ CX.testRes = null; } await cxSaveCfg(); CX.failUntil = {}; CX.aiTried = ""; cxReplaceSettings(); if(cfgK==="mode" && CX.cfg.mode!=="off") setTimeout(()=>{ try{ cxAiRefresh(); }catch(x){} }, 0); return; }
+    if(pinD){ CX.prefs.gfp.pinned[pinD] = !!el.checked; if(!el.checked) delete CX.prefs.gfp.pinned[pinD]; await cxSavePrefs(); CX.tickSig = ""; return; }
+    if(fK){ if(!CX.loaded) await cxLoad();
+      if(fK.startsWith("gfp-")){ const k = fK.slice(4); CX.prefs.gfp[k] = k==="days" ? +el.value : !!el.checked; await cxSavePrefs(); CX.tickSig = ""; await cxGfpEnsure(false); renderTabContent(); return; }
+      if(!CX.genForm) CX.genForm = Object.assign(cxDefaultForm(), CX.prefs.form||{}); CX.genForm[fK] = el.type==="checkbox" ? !!el.checked : el.value;
+      if(fK==="goal") renderTabContent(); }
+  }catch(err){}
+}
+function cxOnInput(e){ const el = e.target; if(!el || !el.getAttribute) return; const fK = el.getAttribute("data-cx-f"); if(fK && !fK.startsWith("gfp-") && el.type!=="checkbox" && el.tagName!=="SELECT" && CX.genForm) CX.genForm[fK] = el.value; }
+if(!window.__cxBound){ window.__cxBound = true; document.addEventListener("click", cxOnClick); document.addEventListener("change", cxOnChange); document.addEventListener("input", cxOnInput); }
+
 async function hbInit(){
   await hbLoadLedger();
   try{ await hbReadLoad(); }catch(e){}
@@ -4199,7 +5462,7 @@ function totalDayMinutes(day, log){
 }
 function daysUntilEvent(){ return daysBetween(todayISO(), EVENT.date); }
 function daysUntilNearestEvent(){
-  const upcoming = Events.list.filter(e=>!e.hidden && !isEventCompleted(e)).sort((a,b)=>a.date.localeCompare(b.date));
+  const upcoming = Events.list.filter(e=>!e.hidden && e.date && !isEventCompleted(e)).sort((a,b)=>a.date.localeCompare(b.date));
   return upcoming.length ? daysBetween(todayISO(), upcoming[0].date) : null;
 }
 function parseUid(u){ return {date:u.slice(0,10), slotKey:u.slice(12)}; }
@@ -5780,7 +7043,7 @@ if(!window._clockInterval){
 
 function renderTabs(){
   /* Workouts and Exercises both open the existing editor (each on its own editor sub-tab); Events keeps its own entry */
-  const tabs = [["dashboard","","🏠","Today"],["schedule","","📅","Schedule"],["editor","workouts","🏋️","Workouts"],["editor","exercises","🧩","Exercises"],["events","","🎯","Events"],["progress","","📈","Progress"],["profile","","⚙️","Profile & Zones"]];
+  const tabs = [["dashboard","","🏠","Today"],["schedule","","📅","Schedule"],["editor","workouts","🏋️","Workouts"],["editor","exercises","🧩","Exercises"],["events","","🎯","Events"],["progress","","📈","Progress"],["coach","","🧭","Coach"],["profile","","⚙️","Profile & Zones"]];
   const on = (id,et)=> State.tab===id && (id!=="editor" || State.editorTab===et);
   return `<div class="tabnav">${tabs.map(([id,et,ico,label])=>`<button data-tab="${id}" ${et?`data-etab="${et}"`:""} class="${on(id,et)?'active':''}"><span class="kot-nav-ico">${ico}</span>${label}</button>`).join("")}</div>`;
 }
@@ -5800,6 +7063,7 @@ async function renderTabContent(){
   else if(State.tab==="events") html = renderEvents();
   else if(State.tab==="profile") html = await renderProfile();
   else if(State.tab==="progress") html = await renderProgress();
+  else if(State.tab==="coach") html = await renderCoachTab();
   else if(State.tab==="editor") html = renderEditor();
   if(seq!==State._rseq) return;
   el.innerHTML = html;
@@ -5816,6 +7080,8 @@ async function renderTabContent(){
     }
   }
   kotMarkCurrent();
+  if(typeof pgFillBars==="function") pgFillBars();
+  if(typeof cxTick==="function") cxTick();
 }
 
 document.addEventListener("keydown", (e)=>{
@@ -6037,7 +7303,7 @@ function renderWorkoutItem(dayPlan, wIndex, w, log, exRecent){
         </div>
       </div>
       <div class="wi-body ${isOpen?'open':''}">
-        <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${w.targetTSS?` · TSS ~${w.targetTSS}`:""} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Open Rouvy Workout ↗</a>`:""}</div>
+        <div class="wi-target"><b>Target:</b> ${esc(w.zoneText||"")} ${w.targetTSS?` · TSS ~${w.targetTSS}`:""} ${platBadge?(" · "+platBadge):""} ${w.url?` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--blue);">Open Rouvy Workout ↗</a>`:""} ${cxZwoBtn(w, date)}</div>
         ${stravaImportBlock(uidStr, date, slotKey, w)}
         <div class="field-grid">
           ${durationDropdowns(uidStr, savedW)}
@@ -6485,6 +7751,7 @@ async function renderDashboard(){
   return `
   ${rtBrief}
   ${hbToday}
+  ${isToday && typeof cxCard==="function" ? await cxCard() : ""}
   ${wxAlert ? renderWeatherAlertBanner(day, wxAlert) : ""}
   <div class="card">
     <div class="today-banner">
@@ -6629,6 +7896,7 @@ async function renderSchedule(){
       </div>
       </div>
     </div>
+    <div data-pg-plan="all" style="margin-top:10px;"></div>
   </div>`;
 
   if(view==="calendar") return html + await renderCalendarView();
@@ -6987,6 +8255,7 @@ function renderEventsList(){
           </div>
           <span class="meta">Started ${esc(fmtDateLong(start))}</span>
         </div>
+        <div data-pg-plan="${e.id}" style="margin:8px 0;"></div>
         ${renderPhotoGallery(e)}
         <div class="save-row" style="margin-top:12px;">
           <button class="btn btn-ghost" data-hide-event="${e.id}">${e.hidden?'Unhide':'Hide'}</button>
@@ -7007,6 +8276,7 @@ function renderEventsList(){
         <span class="meta">${esc(fmtDateLong(e.date))}</span>
       </div>
       ${e.description?`<p style="font-size:13px; color:var(--ink-600); margin-bottom:8px;">${esc(e.description)}</p>`:''}
+      <div data-pg-plan="${e.id}" style="margin:8px 0 12px;"></div>
       <div class="calc-box">
         <div class="cline"><span>Type</span><span>${esc(e.type==='other'?(e.typeOther||'Other'):(e.type==='cycling'?'Cycling':'Running'))}</span></div>
         ${e.location?`<div class="cline"><span>Location</span><span>${esc(e.location)}</span></div>`:''}
@@ -7206,6 +8476,8 @@ async function renderProfile(){
   ${renderWxRulesCard()}
   ${renderCloudSyncCard()}
   ${renderGSCard()}
+  ${await pgSettingsCard()}
+  ${typeof cxSettingsCard==="function" ? await cxSettingsCard() : ""}
   ${renderHubCard()}
   ${renderStravaCard()}
   ${await renderDataDiagnosticsCard()}
@@ -7364,10 +8636,7 @@ async function renderProgress(){
   const loggedYears = [...new Set(complianceRows.map(l=>l.date.slice(0,4)))].sort((a,b)=>b-a);
   const logDaysSection = view==='list' ? renderLoggedDaysSection(complianceRows) : await renderProgressCalendar(loggedDateSet);
 
-  return `
-  <div class="two-col">
-    <div class="card"><div class="card-header"><h2>Body Weight Trend</h2><span class="meta">Last 14 logged entries</span></div>${sparkline}</div>
-    <div class="card"><div class="card-header"><h2>Plan Snapshot</h2></div>
+  const snapshot = `<div class="card-header"><h2>Plan Snapshot</h2></div>
       ${(()=>{ const info = getCurrentPlanInfo();
         const thisYear = todayISO().slice(0,4);
         const loggedUnderPlan = complianceRows.filter(l=>info.dates.has(l.date)).length;
@@ -7380,9 +8649,9 @@ async function renderProgress(){
         <div class="cline"><span>Days logged this year</span><span>${loggedThisYear}</span></div>
         <div class="cline"><span>Total days tracked</span><span>${allCalendarDates().length}</span></div>
         <div class="cline"><span>Days to next Event</span><span>${daysUntilNearestEvent()!==null?daysUntilNearestEvent():'—'}</span></div>
-      </div>`; })()}
-    </div>
-  </div>
+      </div>`; })()}`;
+  const dash = await pgDashboardHtml({logs, sparkline, snapshot});
+  return `${dash}
   <div class="card">
     <div class="card-header">
       <h2>Logged Days</h2>
@@ -8049,7 +9318,7 @@ function renderWorkoutForm(id, w, isNew){
   const liveTime = isRideOrRun ? w.timeMin : estimateStrengthMinutes(w.exercises||[], Lib.exercises);
   return `
   <div class="card">
-    <div class="card-header"><h2>${isNew?'New Workout':'Edit Workout'}</h2>${!isNew?`<button class="btn btn-ghost" data-delete-workout="${id}" style="color:var(--red); border-color:var(--red-pale);">Delete</button>`:''}</div>
+    <div class="card-header"><h2>${isNew?'New Workout':'Edit Workout'}</h2>${!isNew&&isCycling?cxZwoBtn(Object.assign({id},w),"",true):""}${!isNew?`<button class="btn btn-ghost" data-delete-workout="${id}" style="color:var(--red); border-color:var(--red-pale);">Delete</button>`:''}</div>
     <div class="field-grid">
       <div class="field wide"><label>Name</label><input type="text" id="wf-name" value="${esc(w.name)}"></div>
       <div class="field wide"><label>Type</label>
@@ -8560,7 +9829,5 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
-
-
 
 
