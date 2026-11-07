@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2805,15 +2806,20 @@ async function gsApi(method, url, body, retry){
 
 /* ---------- containers: calendar + task list ---------- */
 async function gsEnsureContainers(){
+  /* calendarList is not allowed with calendar.app.created, so there is no search: validate the stored id, else create */
+  if(GS.meta.calId && !GS.calChecked){
+    const r = await gsApi("GET", GS_CAL_API+"/calendars/"+gsEnc(GS.meta.calId));
+    if(r.status === 404 || r.status === 410){ GS.meta.calId = null; GS.meta.calToken = null; GS.map.ev = {}; }
+    else if(!r.ok) throw gsErr("Calendar check failed (HTTP "+r.status+").", "api", r.status);
+    else GS.calChecked = true;
+  }
   if(!GS.meta.calId){
-    let found = [], page = null;
-    do{ const r = await gsApi("GET", GS_CAL_API+"/users/me/calendarList?minAccessRole=owner&maxResults=250"+(page?"&pageToken="+gsEnc(page):""));
-        found = found.concat(((r.json&&r.json.items)||[]).filter(c=>c.summary===GS_CAL_NAME && !c.deleted)); page = r.json && r.json.nextPageToken; }while(page);
-    if(found.length) GS.meta.calId = found.map(c=>c.id).sort()[0];
-    else{ const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone)||"UTC";
-      const r = await gsApi("POST", GS_CAL_API+"/calendars", {summary:GS_CAL_NAME, description:"Planned workouts from Keep on Training", timeZone:tz});
-      GS.meta.calId = r.json.id; }
-    GS.meta.calToken = null;
+    const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone)||"UTC";
+    const r = await gsApi("POST", GS_CAL_API+"/calendars", {summary:GS_CAL_NAME, description:"Planned workouts from Keep on Training", timeZone:tz});
+    if(!r.ok || !r.json || !r.json.id) throw gsErr("Couldn't create the KoT Training calendar (HTTP "+r.status+").", "api", r.status);
+    GS.meta.calId = r.json.id; GS.meta.calToken = null; GS.calChecked = true;
+    await gsSaveState(true);                                          /* share the new id with the other device right away */
+    if(typeof Drive!=="undefined" && Drive.connected){ try{ await pushToDrive(); }catch(e){} }
   }
   if(!GS.meta.listId){
     let found = [], page = null;
@@ -2853,7 +2859,7 @@ async function gsDesired(){
 }
 
 /* ---------- pull: Google -> KoT ---------- */
-async function gsPullEvents(D){
+async function gsPullEvents(D, again){
   const base = GS_CAL_API+"/calendars/"+gsEnc(GS.meta.calId)+"/events";
   let items = [], page = null, next = null, reset = false;
   for(;;){
@@ -2862,7 +2868,11 @@ async function gsPullEvents(D){
     if(page) q.set("pageToken", page);
     const r = await gsApi("GET", base+"?"+q.toString());
     if(r.status === 410 && GS.meta.calToken && !reset){ GS.meta.calToken = null; items = []; page = null; reset = true; continue; }
-    if(r.status === 404){ GS.meta.calId = null; GS.meta.calToken = null; GS.map.ev = {}; throw gsErr("The KoT Training calendar was removed in Google - it will be recreated on the next sync.", "retry"); }
+    if(r.status === 404){
+      GS.meta.calId = null; GS.meta.calToken = null; GS.map.ev = {}; GS.calChecked = false;
+      if(again) throw gsErr("The KoT Training calendar keeps disappearing in Google.", "api", 404);
+      await gsEnsureContainers(); return gsPullEvents(D, true);      /* deleted in Google: recreate now */
+    }
     if(!r.ok) throw gsErr("Calendar pull failed (HTTP "+r.status+").", "api", r.status);
     items = items.concat((r.json&&r.json.items)||[]);
     if(r.json.nextPageToken){ page = r.json.nextPageToken; continue; }
@@ -3073,7 +3083,7 @@ async function gsInit(){
 
 /* ---------- connect / disconnect ---------- */
 async function gsConnect(){
-  GS.lastError = null; GS.errCode = null; GS.blocked = false;
+  GS.lastError = null; GS.errCode = null; GS.blocked = false; GS.calChecked = false;
   const inp = document.getElementById("gs-hint-input");
   try{
     await gsLoadState();
