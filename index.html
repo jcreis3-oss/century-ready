@@ -2080,12 +2080,13 @@ const Weather = {
 const WEATHER_REFRESH_MS = 30*60*1000; // 30 minutes minimum, per spec
 
 async function initWeather(){
+  await wxLoadPrefs();
   Weather.location = await loadJSON("weatherLocation");
   const cached = await loadJSON("weatherCache");
   if(cached){ Weather.data = cached.data; Weather.fetchedAt = cached.fetchedAt; }
   if(Weather.location){
     const age = cached ? (Date.now() - new Date(cached.fetchedAt).getTime()) : Infinity;
-    if(age > WEATHER_REFRESH_MS || !cached) refreshWeather();
+    if(age > WEATHER_REFRESH_MS || !cached || !(cached.data && cached.data.days7)) refreshWeather();
   }
   if(Weather.timer) clearInterval(Weather.timer);
   Weather.timer = setInterval(()=>{ if(Weather.location) refreshWeather(); }, WEATHER_REFRESH_MS);
@@ -2201,7 +2202,7 @@ async function fetchWeatherViaOpenMeteo(label){
     `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m`+
     `&daily=sunset,temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code`+
     `&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m`+
-    `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1`;
+    `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=7`;
   const resp = await fetch(url);
   if(!resp.ok) throw new Error("Forecast request failed");
   const j = await resp.json();
@@ -2221,9 +2222,10 @@ async function fetchWeatherViaOpenMeteo(label){
     severeText: wmo.severe ? wmo.condition+" in the forecast" : "",
     precipChancePct: precip,
     windMph: Math.round(j.current.wind_speed_10m),
+    days7: (j.daily.time||[]).map((d,i)=>({date:d, icon:(WMO_ICON_MAP[j.daily.weather_code[i]]||{}).icon||"partly-cloudy", hi:Math.round(j.daily.temperature_2m_max[i]), lo:Math.round(j.daily.temperature_2m_min[i]), p:j.daily.precipitation_probability_max[i]||0})),
     hourly: j.hourly && j.hourly.time ? {date: String(j.hourly.time[0]).slice(0,10),
-      t: j.hourly.temperature_2m.map(v=>v==null?null:Math.round(v)), p: j.hourly.precipitation_probability.map(v=>v||0),
-      w: j.hourly.wind_speed_10m.map(v=>v==null?null:Math.round(v)), c: j.hourly.weather_code} : null
+      t: j.hourly.temperature_2m.slice(0,24).map(v=>v==null?null:Math.round(v)), p: j.hourly.precipitation_probability.slice(0,24).map(v=>v||0),
+      w: j.hourly.wind_speed_10m.slice(0,24).map(v=>v==null?null:Math.round(v)), c: j.hourly.weather_code.slice(0,24)} : null
   };
 }
 
@@ -2251,13 +2253,6 @@ function weatherIconSVG(icon, size){
   return map[icon] || map["partly-cloudy"];
 }
 
-function isUnsuitableWeather(data){
-  if(!data) return null;
-  if(data.severeAlert) return data.severeText || "Severe weather in the forecast.";
-  if(["rain","thunderstorm"].includes(data.icon)) return "Rain or thunderstorms in the forecast.";
-  if(data.tempF!=null && data.tempF>=95) return `Forecast high near ${data.tempF}°F — heat risk for a long outdoor ride.`;
-  return null;
-}
 function minutesUntilSunset(sunsetLocal){
   if(!sunsetLocal) return null;
   const m = sunsetLocal.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -3578,6 +3573,221 @@ async function hbInit(){
     setTimeout(async ()=>{ try{ await loadStravaConfig(); if(stravaConfigured() && (!HB.meta.lastSync || Date.now()-new Date(HB.meta.lastSync).getTime() > HB_SYNC_EVERY_MS) && document.visibilityState!=="hidden") hbSync(false); else hbScheduleLoad(); }catch(e){} }, 4000);
   }
 }
+
+/* ============================================================
+   PHASE 5 - WEATHER UPGRADES  (namespace wx* / Wx*)
+   Your thresholds (Drive-synced weatherPrefs) drive ONE evaluator used by the
+   swap banner and the Morning Brief. Start-time suggestions (heat, daylight),
+   preference-ordered indoor swaps, illustrated icons, 7-day mini forecast.
+   ============================================================ */
+const WX_DEFAULTS = {coldF:50, windMph:15, rainPct:35, heatF:90, order:{ride:["rouvy","mobility"], run:["fitxr","mobility"]}};
+let WxPrefs = JSON.parse(JSON.stringify(WX_DEFAULTS));
+const WX_SUN_BUFFER = 15, WX_MATCH = 0.20;
+async function wxLoadPrefs(){
+  const p = (await loadJSON("weatherPrefs")) || {};
+  WxPrefs = {coldF: p.coldF!=null?+p.coldF:WX_DEFAULTS.coldF, windMph: p.windMph!=null?+p.windMph:WX_DEFAULTS.windMph, rainPct: p.rainPct!=null?+p.rainPct:WX_DEFAULTS.rainPct, heatF: p.heatF!=null?+p.heatF:WX_DEFAULTS.heatF,
+    order:{ride:(p.order&&p.order.ride)||WX_DEFAULTS.order.ride.slice(), run:(p.order&&p.order.run)||WX_DEFAULTS.order.run.slice()}};
+}
+(function wxStyle(){ if(typeof document==="undefined"||document.getElementById("wx-style")) return; const s=document.createElement("style"); s.id="wx-style";
+  s.textContent=".wx-ic{width:22px;height:22px;border-radius:7px;object-fit:cover;vertical-align:middle;margin-right:6px;box-shadow:0 2px 6px rgba(0,0,0,.25)}.wx-ic-lg{width:30px;height:30px;border-radius:9px;object-fit:cover;vertical-align:middle;margin-right:8px;box-shadow:0 3px 8px rgba(0,0,0,.28)}.kot-wx-mini{width:18px;height:18px;border-radius:6px;object-fit:cover;vertical-align:middle}.dp-wx{margin-top:3px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:3px;opacity:.9}.cal-wx{float:right;display:flex;align-items:center;gap:2px;font-size:9px;font-weight:700}.wx-swapbtn{margin:4px 6px 0 0}";
+  document.head.appendChild(s); })();
+function wxIcon(key, cls){ return typeof kotImg==="function" ? kotImg(key, cls||"wx-ic", "") : ""; }
+const WX_ISSUE_ICON = {rain:"wx-rain", wind:"wx-wind", heat:"wx-sunny", daylight:"wx-sunset", cold:null, severe:"wx-storm"};
+
+/* ---------- evaluator ---------- */
+function wxHourly(a, b){
+  const d = Weather.data, h = d && d.hourly;
+  if(h && h.date===todayISO()){
+    const lo = Math.max(0, Math.floor(a/60)), hi = Math.min(24, Math.max(lo+1, Math.ceil(b/60)));
+    const idx = []; for(let i=lo;i<hi;i++) idx.push(i);
+    const pick = arr=>idx.map(i=>arr[i]).filter(v=>v!=null);
+    const t = pick(h.t), p = pick(h.p), wd = pick(h.w), c = pick(h.c);
+    if(t.length) return {minT:Math.min(...t), maxT:Math.max(...t), maxP:Math.max(0,...p), maxW:Math.max(0,...wd), maxC:Math.max(0,...c), src:"hourly"};
+  }
+  if(!d) return null;
+  const cur = d.tempF!=null ? d.tempF : null;
+  return {minT:cur!=null?Math.min(cur, d.lowF!=null?Math.max(d.lowF,cur):cur):d.lowF, maxT:d.highF!=null?d.highF:cur, maxP:d.precipChancePct||0, maxW:d.windMph||0, maxC:0, src:"daily"};
+}
+function wxEval(a, b){
+  const d = Weather.data; if(!d) return [];
+  const s = wxHourly(a, b), win = `${rtFmt(a)} – ${rtFmt(b)}`, issues = [], P = WxPrefs;
+  if(d.severeAlert) issues.push({type:"severe", text:d.severeText||"Severe weather in the forecast."});
+  if(!s) return issues;
+  if(s.maxC>=95 && !d.severeAlert) issues.push({type:"severe", text:`Thunderstorms in the forecast during ${win}.`});
+  if(s.minT!=null && s.minT < P.coldF) issues.push({type:"cold", text:`${Math.round(s.minT)}°F during ${win} is below your ${P.coldF}°F cold limit.`});
+  if(s.maxW >= P.windMph) issues.push({type:"wind", text:`Wind up to ${Math.round(s.maxW)} mph during ${win} (your limit is ${P.windMph} mph).`});
+  if(s.maxP >= P.rainPct) issues.push({type:"rain", text:`${Math.round(s.maxP)}% chance of precipitation during ${win} (your limit is ${P.rainPct}%).`});
+  if(s.maxT!=null && s.maxT >= P.heatF) issues.push({type:"heat", text:`Up to ${Math.round(s.maxT)}°F during ${win} (your heat limit is ${P.heatF}°F).`});
+  return issues;
+}
+/* summary line used wherever one verdict string is needed (default daytime window) */
+function isUnsuitableWeather(data){
+  if(!data) return null;
+  const was = Weather.data; try{ if(data!==Weather.data) Weather.data = data; const iss = wxEval(8*60, 18*60); return iss.length ? iss.map(i=>i.text).join(" ") : null; } finally{ Weather.data = was; }
+}
+function wxFindHeatStart(total, now, sun){
+  const lo = Math.max(Math.ceil((now+5)/5)*5, 6*60), hi = sun!=null ? sun-WX_SUN_BUFFER-total : 21*60-total;
+  for(let s=lo; s<=hi; s+=5){ const st = wxHourly(s, s+total); if(st && st.maxT!=null && st.maxT < WxPrefs.heatF) return s; }
+  return null;
+}
+function wxPlanFor(outdoor, starts){
+  const total = outdoor.reduce((s,x)=>s+(x.timeMin||0),0), st = Math.min(...outdoor.map(x=>starts[x.slotKey])), en = st+total, now = rtNowMin(), sun = rtSunsetMin();
+  const issues = wxEval(st, en), plan = {issues, move:null, swapNeeded:false, st, en, total, outdoor};
+  issues.forEach(i=>{ if(i.type!=="heat") plan.swapNeeded = true; });
+  const heat = issues.find(i=>i.type==="heat");
+  if(heat){
+    const s = wxFindHeatStart(total, now, sun);
+    if(s!=null && s!==st) plan.move = {kind:"heat", start:s, text:`${heat.text} Starting at ${rtFmt(s)} keeps the whole workout under your heat limit.`};
+    else { heat.unresolved = true; plan.swapNeeded = true; }
+  }
+  if(sun!=null && en > sun - WX_SUN_BUFFER){
+    const dl = {type:"daylight", text:`Planned ${rtFmt(st)} – ${rtFmt(en)}, but sunset is ${rtFmt(sun)} and you want to finish ${WX_SUN_BUFFER} min before it.`};
+    issues.push(dl);
+    if(!plan.move){
+      const latest = Math.floor((sun - WX_SUN_BUFFER - total)/5)*5;
+      if(latest >= now+5 && latest < st) plan.move = {kind:"daylight", start:latest, text:`${dl.text} Starting at ${rtFmt(latest)} finishes ${rtFmt(latest+total)}.`};
+      else { dl.unresolved = true; plan.swapNeeded = true; }
+    } else { dl.unresolved = false; }
+  }
+  return plan;
+}
+
+/* ---------- indoor swap picks ---------- */
+function wxRouvyFor(planned, relaxed){
+  const c = Object.entries(Lib.workouts).filter(([id,w])=>w.kind==="cycling" && (w.source==="rouvy" || /rouvy/i.test(w.platform||"")) && (w.timeMin||0)>0)
+    .map(([id,w])=>({id, name:w.name, min:w.timeMin, diff:Math.abs(w.timeMin-planned)})).sort((a,b)=>a.diff-b.diff || a.name.localeCompare(b.name));
+  const best = c[0]; if(!best) return null;
+  if(!relaxed && best.diff > WX_MATCH*planned + 0.001) return null;
+  return {kind:"rouvy", id:best.id, name:best.name, min:best.min, off:best.diff>WX_MATCH*planned+0.001};
+}
+function wxFitxrSessions(){ return Object.values(Lib.workouts).filter(w=>/fitxr/i.test(w.name||"") && !/block - /i.test(w.name||"") && (w.timeMin||0)>0); }
+function wxFitxrBlockSpec(planned){
+  const n = Math.max(1, Math.ceil(planned/14)), per = Math.round(planned/n), real = wxFitxrSessions().sort((a,b)=>Math.abs(a.timeMin-per)-Math.abs(b.timeMin-per));
+  let desc = `${planned} minutes of FitXR VR cardio as ${n} session${n===1?"":"s"} back to back (${n} × ~${per} min). FitXR sessions run 8–14 min each.`;
+  if(real.length){ const seq = []; for(let i=0;i<n;i++) seq.push(real[i%real.length]); desc += " Your sessions as building blocks: "+seq.map(s=>`${s.name} (${s.timeMin} min)`).join(", ")+"."; }
+  else desc += " Pick any FitXR workouts of about that length.";
+  return {n, per, name:`FitXR VR Cardio block - ${planned} min`, desc, real};
+}
+function wxFitxrFor(planned){ const sp = wxFitxrBlockSpec(planned); return {kind:"fitxr", id:"fitxr_block_"+planned, name:sp.name, min:planned, block:true, n:sp.n, per:sp.per}; }
+function wxMobilityFor(planned){
+  const target = Math.min(planned||30, 30);
+  const c = Object.entries(Lib.workouts).filter(([id,w])=>w.kind==="flexrecovery").map(([id,w])=>{ let m = w.timeMin||0; try{ const r = resolveWorkout(id); if(r && r.timeMin) m = r.timeMin; }catch(e){} return {id, name:w.name, min:m||20, mob:/mobility/i.test(w.name||"")?0:1}; })
+    .sort((a,b)=>a.mob-b.mob || Math.abs(a.min-target)-Math.abs(b.min-target) || a.name.localeCompare(b.name));
+  return c[0] ? {kind:"mobility", id:c[0].id, name:c[0].name, min:c[0].min} : null;
+}
+function wxPickSwap(w){
+  const planned = Math.round(w.timeMin||0), order = (w.kind==="run" ? WxPrefs.order.run : WxPrefs.order.ride).filter(x=>x!=="none");
+  const out = {primary:null, alt:null};
+  for(const c of order){
+    const r = c==="rouvy" ? wxRouvyFor(planned) : c==="fitxr" ? wxFitxrFor(planned) : c==="mobility" ? wxMobilityFor(planned) : null;
+    if(r){ out.primary = r; break; }
+  }
+  if(out.primary && out.primary.kind==="mobility" && order.includes("rouvy")){ const r = wxRouvyFor(planned, true); if(r && r.off) out.alt = r; }
+  return out;
+}
+function wxSwapLabel(r, planned){
+  if(r.kind==="fitxr") return `Swap to "${r.name}" (${r.n} × ~${r.per} min)`;
+  if(r.kind==="rouvy") return `Swap to "${r.name}" (${r.min} min, Rouvy${r.off?`, planned ${planned}`:""})`;
+  return `Swap to "${r.name}" (${r.min} min mobility)`;
+}
+function wxSwapButtons(date, outdoor, primaryCls){
+  return outdoor.map(w=>{
+    const pk = wxPickSwap(w), planned = Math.round(w.timeMin||0); let h = "";
+    if(pk.primary) h += `<button class="btn ${primaryCls||"btn-primary"} wx-swapbtn" data-wx-swap="${esc(date)}" data-slot="${esc(w.slotKey)}" data-wid="${esc(pk.primary.id)}" data-block="${pk.primary.block?planned:""}">${esc(wxSwapLabel(pk.primary, planned))}</button>`;
+    if(pk.alt) h += `<button class="btn btn-ghost wx-swapbtn" data-wx-swap="${esc(date)}" data-slot="${esc(w.slotKey)}" data-wid="${esc(pk.alt.id)}" data-block="">${esc("Closest Rouvy anyway: "+pk.alt.name+" ("+pk.alt.min+" min vs "+planned+" planned)")}</button>`;
+    return h;
+  }).join("");
+}
+async function wxEnsureFitxrBlock(planned){
+  const sp = wxFitxrBlockSpec(planned), id = "fitxr_block_"+planned, cur = Lib.workouts[id];
+  if(!cur || cur.desc!==sp.desc || cur.timeMin!==planned) await saveWorkout(id, {name:sp.name, kind:"other", platform:"VR (FitXR)", timeMin:planned, desc:sp.desc, exercises:[], bodyGroup:"Cardio"});
+  return id;
+}
+
+/* ---------- banner + brief rendering ---------- */
+function wxMoveButton(plan, date){
+  const first = plan.outdoor[0].slotKey;
+  return `<button class="btn btn-primary" data-rt="shiftwk" data-start="${plan.move.start}" data-first="${esc(first)}">Move to ${rtFmt(plan.move.start)}</button>`;
+}
+function wxIssueIcon(i){ return WX_ISSUE_ICON[i.type] || (typeof kotWeatherKey==="function" && Weather.data ? kotWeatherKey(Weather.data) : null); }
+async function wxAlertFor(day, log){
+  if(!day || day.date!==todayISO() || !Weather.data || State._dismissWeatherAlert) return null;
+  const outdoor = day.workouts.filter(w=>(w.kind==="cycling"||w.kind==="run") && w.platform==="Outdoor" && !(log.workouts && log.workouts[w.slotKey] && durationLogged(log.workouts[w.slotKey])));
+  if(!outdoor.length) return null;
+  const w = await rtPrepare(day.date), plan = wxPlanFor(outdoor, w.starts);
+  if(!plan.issues.length) return null;
+  return {plan, outdoorWorkouts:outdoor};
+}
+function renderWeatherAlertBanner(day, wxAlert){
+  const plan = wxAlert.plan, runsOnly = wxAlert.outdoorWorkouts.every(w=>w.kind==="run");
+  return `
+  <div class="card" style="border-color:var(--orange); background:var(--orange-pale);" id="wx-banner">
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <div>${wxIcon(wxIssueIcon(plan.issues[0]) || "wx-cloudy", "wx-ic-lg")}</div>
+      <div style="flex:1;">
+        <h3 style="font-size:15px; color:#7a4622;">Today's outdoor ${runsOnly?"run":"ride"} may not be a good idea</h3>
+        <ul style="margin:8px 0 0; padding-left:18px; font-size:13px; color:#5c3517; line-height:1.6;">
+          ${plan.issues.map(i=>`<li>${esc(i.text)}${i.unresolved?" A start-time change can't fix this.":""}</li>`).join("")}
+        </ul>
+        ${plan.move ? `<p style="font-size:12.5px; color:#7a4622; margin-top:8px;">${esc(plan.move.text)}</p>` : ""}
+        <div class="save-row" style="margin-top:10px;">
+          ${plan.move ? wxMoveButton(plan, day.date) : ""}
+          ${wxSwapButtons(day.date, wxAlert.outdoorWorkouts, plan.move ? "btn-ghost" : "btn-primary")}
+          <button class="btn btn-ghost" data-dismiss-weather-alert="1">Dismiss for now</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function wxBriefRows(plan, date, outdoor, subBtn){
+  const rows = [];
+  if(plan.move) rows.push({ic:plan.move.kind==="heat"?"wx-sunny":"wx-sunset", t:esc(plan.move.text), b:wxMoveButton(plan, date)});
+  const swapIssues = plan.issues.filter(i=>i.type!=="daylight" && !(i.type==="heat" && !i.unresolved)), swapBtns = wxSwapButtons(date, outdoor, "btn-ghost");
+  if(swapIssues.length || plan.swapNeeded) rows.push({ic:wxIssueIcon(swapIssues[0]||plan.issues[0]), t:esc((swapIssues.length?swapIssues:plan.issues).map(i=>i.text).join(" "))+" Consider the indoor alternative.", b:swapBtns+subBtn});
+  else if(plan.move && swapBtns) rows[rows.length-1].b += swapBtns;
+  return rows;
+}
+
+/* ---------- settings card (Profile & Zones) ---------- */
+function renderWxRulesCard(){
+  const P = WxPrefs, opt = (v,cur)=>[["rouvy","Rouvy indoor ride"],["fitxr","FitXR VR cardio block"],["mobility","Mobility"],["none","None"]].map(([k,l])=>`<option value="${k}" ${k===cur?"selected":""}>${l}</option>`).join("");
+  const num = (id,label,val,unit)=>`<div class="field"><label>${label}</label><div style="display:flex; align-items:center; gap:6px;"><input type="number" id="${id}" value="${val}" style="max-width:90px;"><span style="font-size:12px; color:var(--grey-600);">${unit}</span></div></div>`;
+  return `<div class="card" id="wx-rules-card"><div class="card-header"><h2>Weather rules</h2><span class="meta">Used by the swap banner and the Morning Brief</span></div>
+    <div class="field-grid">${num("wx-cold","Cold below",P.coldF,"°F")}${num("wx-wind","Wind at or above",P.windMph,"mph")}${num("wx-rain","Rain chance at or above",P.rainPct,"%")}${num("wx-heat","Heat at or above",P.heatF,"°F")}</div>
+    <h3 style="font-size:13px; margin:14px 0 4px;">Indoor swap order</h3>
+    <div class="field-grid">
+      <div class="field"><label>Outdoor ride - first</label><select id="wx-ride-1">${opt("",P.order.ride[0])}</select></div><div class="field"><label>then</label><select id="wx-ride-2">${opt("",P.order.ride[1]||"none")}</select></div>
+      <div class="field"><label>Outdoor run - first</label><select id="wx-run-1">${opt("",P.order.run[0])}</select></div><div class="field"><label>then</label><select id="wx-run-2">${opt("",P.order.run[1]||"none")}</select></div>
+    </div>
+    <div class="save-row"><button class="btn btn-primary" data-wx-save="1">Save weather rules</button> <button class="btn btn-ghost" data-wx-reset="1">Reset to defaults</button> <span id="wx-saved" style="font-size:12px; color:var(--teal-dark);"></span></div></div>`;
+}
+async function wxOnClick(e){
+  const t = e.target.closest && e.target.closest("[data-wx-swap],[data-wx-save],[data-wx-reset]"); if(!t) return;
+  if(t.hasAttribute("data-wx-save") || t.hasAttribute("data-wx-reset")){
+    const g = id=>document.getElementById(id), n = (id,lo,hi,def)=>{ const v = parseFloat(g(id).value); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : def; };
+    const next = t.hasAttribute("data-wx-reset") ? JSON.parse(JSON.stringify(WX_DEFAULTS)) : {coldF:n("wx-cold",0,80,WX_DEFAULTS.coldF), windMph:n("wx-wind",3,60,WX_DEFAULTS.windMph), rainPct:n("wx-rain",5,100,WX_DEFAULTS.rainPct), heatF:n("wx-heat",70,120,WX_DEFAULTS.heatF),
+      order:{ride:[g("wx-ride-1").value,g("wx-ride-2").value], run:[g("wx-run-1").value,g("wx-run-2").value]}};
+    await saveJSON("weatherPrefs", next); await wxLoadPrefs();
+    const el = document.getElementById("wx-rules-card"); if(el){ const w = document.createElement("div"); w.innerHTML = renderWxRulesCard(); el.replaceWith(w.firstElementChild); const s = document.getElementById("wx-saved"); if(s) s.textContent = "Saved."; }
+  } else {
+    const date = t.dataset.wxSwap, slot = t.dataset.slot; let id = t.dataset.wid;
+    if(t.dataset.block) id = await wxEnsureFitxrBlock(parseInt(t.dataset.block));
+    substituteWorkout(date, slot, id);
+    State._dismissWeatherAlert = false; await renderTabContent();
+  }
+}
+document.addEventListener("click", wxOnClick);
+
+/* ---------- 7-day mini forecast (day pills + calendar cells) ---------- */
+function wxMini(iso, withTemp){
+  const d = Weather.data; if(!d || !d.days7) return "";
+  const x = d.days7.find(z=>z.date===iso); if(!x) return "";
+  const key = iso===todayISO() ? kotWeatherKey(d) : kotWeatherKey({icon:x.icon});
+  const tip = `${x.hi}° / ${x.lo}° · ${x.p}% precipitation`;
+  return `${kotImg(key,"kot-wx-mini",esc(tip))}${withTemp?`<span>${x.hi}°</span>`:""}`;
+}
+function wxPill(iso){ const m = wxMini(iso,true); return m ? `<div class="dp-wx" title="forecast">${m}</div>` : ""; }
+function wxCell(iso){ const m = wxMini(iso,true); return m ? `<span class="cal-wx">${m}</span>` : ""; }
 
 /* ============================================================
    CENTURY READY — ICON SYSTEM
@@ -5010,36 +5220,20 @@ async function rtMorningBrief(day, log){
   let wx;
   const wd = Weather.data;
   if(wd){
-    const bad = isUnsuitableWeather(wd);
-    wx = `${esc(wd.condition||"")}, ${wd.tempF!=null?wd.tempF+"°F now":""}${wd.highF!=null?` (high ${wd.highF}° / low ${wd.lowF}°)`:""}${wd.precipChancePct!=null?`, ${wd.precipChancePct}% precipitation`:""}${wd.sunsetLocal?`, sunset ${esc(wd.sunsetLocal)}`:""}. <strong>${bad?"⚠️ "+esc(bad):"✅ Looks fine for outdoor training."}</strong>`;
+    const bad = null;
+    wx = `${esc(wd.condition||"")}, ${wd.tempF!=null?wd.tempF+"°F now":""}${wd.highF!=null?` (high ${wd.highF}° / low ${wd.lowF}°)`:""}${wd.precipChancePct!=null?`, ${wd.precipChancePct}% precipitation`:""}${wd.sunsetLocal?`, sunset ${esc(wd.sunsetLocal)}`:""}. <strong>__WXVERDICT__</strong>`;
   } else wx = "No weather yet — set a location in the weather tile in the header.";
   const wkLine = wks.length ? wks.map(x=>{ const sw = (w.log.workouts||{})[x.slotKey]; const dn = sw && (sw.completed||workoutIsLogged(x,sw)); return `${kotWorkoutEmoji(x)} ${esc(x.name)} · ${rtFmt(w.starts[x.slotKey])}${dn?" ✓":""}`; }).join(" &nbsp;|&nbsp; ") : "No workout planned — rest day.";
   const sugg = [];
   const outdoor = wks.filter(x=>(x.kind==="cycling"||x.kind==="run") && x.platform==="Outdoor" && !(w.log.workouts&&w.log.workouts[x.slotKey]&&(w.log.workouts[x.slotKey].completed||workoutIsLogged(x,w.log.workouts[x.slotKey]))));
-  if(outdoor.length && wd){
-    const total = outdoor.reduce((s,x)=>s+(x.timeMin||0),0), st = Math.min(...outdoor.map(x=>w.starts[x.slotKey])), en = st+total;
-    const sun = rtSunsetMin(); const slots = outdoor.map(x=>x.slotKey).join(",");
-    let subDone = false;
-    const subBtn = `<button class="btn btn-ghost" data-rt="opensub" data-uid="${esc(date+"::"+outdoor[0].slotKey)}">Open Substitute workout</button>`;
-    if(sun!=null && en>sun){
-      const latest = sun - total - 30;
-      if(latest>now+5) sugg.push({t:`Your outdoor ${esc(outdoor[0].name)} is planned ${rtFmt(st)} – ${rtFmt(en)}, but sunset is ${rtFmt(sun)}. Starting earlier keeps you ahead of dusk (30 min buffer).`, b:`<button class="btn btn-primary" data-rt="shiftwk" data-start="${latest}" data-first="${esc(outdoor[0].slotKey)}">Move to ${rtFmt(latest)}</button>`});
-      else { sugg.push({t:`Not enough daylight left to finish the outdoor ride before sunset (${rtFmt(sun)}). Consider the indoor alternative.`, b:subBtn}); subDone = true; }
-    }
-    const bad = isUnsuitableWeather(wd);
-    const hw = rtHourlyWindow(st, en);
-    const hwBad = hw && (hw.minT<RT_WX.minTempF || hw.maxP>=RT_WX.precipPct || hw.maxW>=RT_WX.windMph || hw.bad);
-    if(!subDone && (bad || hwBad)){
-      sugg.push({t: bad ? `${esc(bad)} Consider the indoor alternative.` : `During ${rtFmt(st)} – ${rtFmt(en)} the forecast shows ${Math.round(hw.minT)}°F minimum, ${Math.round(hw.maxW)} mph wind and ${Math.round(hw.maxP)}% precipitation risk. Consider the indoor alternative.`, b:subBtn});
-    }
-    const hot = (wd.highF!=null && wd.highF>=85);
-    if(hot){
-      let early = null;
-      const h = wd.hourly && wd.hourly.date===date ? wd.hourly : null;
-      if(h){ for(let i=6;i<24;i++){ if(h.t[i]!=null && h.t[i]<80){ early = i*60; break; } } }
-      if(early===null) early = Math.max(6*60, st-120);
-      if(early+30 < st && early > now) sugg.push({t:`It is going to be hot (high ${wd.highF}°F). An earlier start is more comfortable.`, b:`<button class="btn btn-primary" data-rt="shiftwk" data-start="${early}" data-first="${esc(outdoor[0].slotKey)}">Move to ${rtFmt(early)}</button>`});
-    }
+  const subBtn = outdoor.length ? `<button class="btn btn-ghost" data-rt="opensub" data-uid="${esc(date+"::"+outdoor[0].slotKey)}">Pick another substitute</button>` : "";
+  let wxPlan = null;
+  if(outdoor.length && wd){ wxPlan = wxPlanFor(outdoor, w.starts); wxBriefRows(wxPlan, date, outdoor, subBtn).forEach(r=>sugg.push(r)); }
+  { /* one verdict from the same evaluator the banner uses */
+    const iss = wd ? (wxPlan ? wxPlan.issues : wxEval(8*60, 18*60)) : [];
+    const verdict = iss.length ? `${wxIcon(wxIssueIcon(iss[0])||"wx-cloudy","wx-ic")}${esc(iss.map(x=>x.text).join(" "))}` : "✅ Looks fine for outdoor training.";
+    wx = wd ? wx.replace("__WXVERDICT__", verdict) : wx;
+    if(wd) wx = wxIcon(kotWeatherKey(wd),"wx-ic-lg")+wx;
   }
   const hbLoadLine = await hbBriefLine();
   return `<div class="card rt-brief"><div class="rt-brief-head"><div class="rt-badge">${{morning:"🌅",afternoon:"☀️",evening:"🌇",night:"🌙"}[rtTimeOfDay()]}</div><div><h2>${greet}, here’s your day</h2><p class="rt-muted">${esc(fmtDateLong(date))}</p></div><button class="btn btn-ghost" data-rt="gosched">Open schedule →</button></div>
@@ -5049,7 +5243,7 @@ async function rtMorningBrief(day, log){
       <div><span class="rt-k">Planned workout${wks.length===1?"":"s"}</span><p>${wkLine}</p></div>
     </div>
     ${hbLoadLine}
-    ${sugg.length ? `<div class="rt-suggest"><span class="rt-k">Suggested adjustments</span>${sugg.map(s=>`<div class="rt-sug"><span>💡 ${s.t}</span>${s.b}</div>`).join("")}</div>` : ""}</div>`;
+    ${sugg.length ? `<div class="rt-suggest"><span class="rt-k">Suggested adjustments</span>${sugg.map(s=>`<div class="rt-sug"><span>${s.ic?wxIcon(s.ic):"💡 "}${s.t}</span>${s.b}</div>`).join("")}</div>` : ""}</div>`;
 }
 
 /* ---------- events (delegated; no inline handlers) ---------- */
@@ -6191,7 +6385,7 @@ async function renderDashboard(){
     ? Array.from({length:7},(_,i)=>dateAdd(date, i-((new Date(date+"T00:00:00").getDay()+6)%7)))
     : allCalendarDates().filter(d=>getDayPlan(d).weekNum===day.weekNum);
 
-  const wxAlert = checkTodayOutdoorSuitability(day, log);
+  const wxAlert = await wxAlertFor(day, log);
   const recent = await buildRecentValueLookup(date, 30);
   const exRecent = await buildRecentExerciseValueLookup(date, 30);
 
@@ -6219,7 +6413,7 @@ async function renderDashboard(){
       ${weekDays.map(d=>{
         const dd = getDayPlan(d);
         return `<div class="day-pill ${d===date?'selected':''} ${d===todayISO()?'today':''}" data-selectday="${d}">
-          <div class="dp-dow">${dd.dowLabel}</div><div class="dp-date">${dayNum(d)}</div><div class="dp-tag">${esc(dd.type==='race'?'RACE':dd.type)}</div>
+          <div class="dp-dow">${dd.dowLabel}</div><div class="dp-date">${dayNum(d)}</div>${wxPill(d)}<div class="dp-tag">${esc(dd.type==='race'?'RACE':dd.type)}</div>
         </div>`;
       }).join("")}
       <button data-week-nav="1" title="Next week" style="flex-shrink:0; align-self:center; border:1.5px solid var(--grey-200); background:#fff; border-radius:8px; width:30px; height:30px; cursor:pointer; color:var(--ink-600); font-weight:700;">›</button>
@@ -6295,29 +6489,6 @@ function renderCheckinWidget(date, log, isOpen, recent){
       <div class="field wide"><label>Notes</label><textarea id="dc-notes">${esc(log.notes||'')}</textarea></div>
     </div>
     <div class="save-row"><button class="btn btn-primary" data-save-checkin="${date}">Save check-in</button></div>`;
-}
-
-function renderWeatherAlertBanner(day, wxAlert){
-  const altText = "The scheduled outdoor ride can be swapped for an equivalent indoor session.";
-  return `
-  <div class="card" style="border-color:var(--orange); background:var(--orange-pale);">
-    <div style="display:flex; gap:12px; align-items:flex-start;">
-      <div style="font-size:22px;">⚠️</div>
-      <div style="flex:1;">
-        <h3 style="font-size:15px; color:#7a4622;">Today's outdoor ride may not be a good idea</h3>
-        <ul style="margin:8px 0 0; padding-left:18px; font-size:13px; color:#5c3517; line-height:1.6;">
-          ${wxAlert.reasons.map(r=>`<li>${esc(r)}</li>`).join("")}
-        </ul>
-        <p style="font-size:12px; color:#7a4622; margin-top:8px;">${altText}</p>
-        <div class="save-row" style="margin-top:10px;">
-          ${wxAlert.outdoorWorkouts.map(w=>{
-            return `<button class="btn btn-primary" data-weather-swap="${day.date}" data-slot="${w.slotKey}">Use Indoor Alternative for "${esc(w.name)}"</button>`;
-          }).join("")}
-          <button class="btn btn-ghost" data-dismiss-weather-alert="1">Dismiss for now</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
 }
 
 async function saveCheckin(date){
@@ -6554,7 +6725,7 @@ async function renderCalendarView(){
         const evDots = (dp.events||[]).map(e=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${esc(e.color)};margin-right:2px;" title="${esc(e.name)}"></span>`).join("");
         const dots = dp.workouts.slice(0,4).map(w=>`<span style="display:inline-block;width:14px;height:14px;border-radius:5px;background:${status==='start'?'rgba(255,255,255,0.3)':'var(--grey-100)'};margin:1px;font-size:10px;line-height:14px;text-align:center;vertical-align:top;overflow:hidden;">${kotWorkoutEmoji(w)}</span>`).join("");
         return `<div class="${cls.join(' ')}" data-cal-day="${iso}">
-          <div class="cal-daynum">${dayNum(iso)}${status==='start'?' 🚩':''}</div>
+          <div class="cal-daynum">${dayNum(iso)}${status==='start'?' 🚩':''}${wxCell(iso)}</div>
           ${evDots?`<div style="margin:2px 0;">${evDots}</div>`:''}
           <div class="cal-daytitle">${esc(dp.title.length>16?dp.title.slice(0,15)+'…':dp.title)}</div>
           <div style="margin-top:3px; display:flex; flex-wrap:wrap;">${dots}</div>
@@ -6941,6 +7112,7 @@ async function renderProfile(){
   const t = nutritionTargets(todayDay, p);
 
   return `
+  ${renderWxRulesCard()}
   ${renderCloudSyncCard()}
   ${renderGSCard()}
   ${renderHubCard()}
@@ -8297,5 +8469,6 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
 
