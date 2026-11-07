@@ -3178,6 +3178,408 @@ function gsOnClick(e){
 }
 
 /* ============================================================
+   PHASE 4 - DATA HUB, WELLNESS, DEDUPE, TRAINING LOAD  (namespace hb* / HB)
+   Strava activity ledger (acts:YYYY-MM), source precedence, same-session
+   dedupe with undo, per-session effort + load ramp (load:YYYY-MM),
+   wellness check-ins (wellness:YYYY-MM-DD). All keys are Drive-synced.
+   ============================================================ */
+const HB_LEDGER_DAYS = 90, HB_SYNC_WINDOW_DAYS = 28, HB_SYNC_EVERY_MS = 30*60*1000, HB_DETAIL_CAP = 25;
+const HB_START_TOL_MIN = 15, HB_DUR_TOL = 0.15, HB_DIST_TOL = 0.10;
+const HB_PREC = {
+  "ride-out": ["garmin","rouvy","zwift","samsung","other"],
+  "ride-in":  ["rouvy","zwift","garmin","samsung","other"],
+  run:        ["samsung","garmin","other"],
+  tennis:     ["samsung","garmin","other"],
+  vr:         ["fitxr","other"],
+  _default:   ["garmin","samsung","other"]
+};
+const HB_HR_ORDER = ["garmin","rouvy","zwift","samsung","other"];   /* ride heart rate: the HRM-Pro Plus rides with the Garmin first */
+const HB_SRC_LABEL = {garmin:"Garmin Edge 840", rouvy:"Rouvy", zwift:"Zwift", samsung:"Galaxy Watch 9 / Samsung Health", fitxr:"FitXR", other:"Other / unrecognized", kot:"KoT entry"};
+const HB_CAT_LABEL = {"ride-out":"Outdoor ride","ride-in":"Indoor ride",run:"Run",walk:"Walk",tennis:"Tennis",vr:"VR Cardio",strength:"Strength",hiit:"HIIT",flex:"Flex / Recovery",swim:"Swim",other:"Other"};
+const HB_FACTOR = {strength:0.7, run:1.4, "ride-out":1.1, "ride-in":1.3, hiit:1.8, vr:1.0, tennis:1.2, flex:0.3, walk:0.5, swim:1.1, other:0.8};
+const HB_FACES = {mood:["😞","🙁","😐","🙂","😄"], stress:["😌","🙂","😐","😟","😫"], energy:["🪫","😴","😐","🙂","⚡"]};
+const HB_FACE_WORDS = {mood:["Low","Down","Okay","Good","Great"], stress:["Calm","Easy","Moderate","Tense","Very stressed"], energy:["Drained","Tired","Okay","Good","High"]};
+const HB = { recs:{}, meta:{lastSync:null, rules:[]}, loaded:false, syncing:false, lastError:null, savedStr:{}, load:{}, loadReady:false, fillY:false, computedOn:null, loadTimer:null, notice:"", pending:0 };
+window.HB = HB;
+
+/* ---------- small helpers ---------- */
+function hbClamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+function hbMonth(d){ return d.slice(0,7); }
+function hbMonthsBack(days){ const out = new Set(); for(let i=0;i<=days;i+=7){ out.add(hbMonth(dateAdd(todayISO(), -i))); } out.add(hbMonth(dateAdd(todayISO(), -days))); return [...out]; }
+function hbMin(iso){ const m = /T(\d{2}):(\d{2})/.exec(iso||""); return m ? (+m[1])*60+(+m[2]) : null; }
+
+/* ---------- ledger storage (acts:YYYY-MM, acts:meta) ---------- */
+async function hbLoadLedger(){
+  HB.meta = Object.assign({lastSync:null, rules:[]}, (await loadJSON("acts:meta"))||{});
+  HB.recs = {}; HB.savedStr = {};
+  for(const mo of hbMonthsBack(HB_LEDGER_DAYS)){
+    const m = await loadJSON("acts:"+mo); HB.savedStr[mo] = m ? JSON.stringify(m) : "";
+    if(m) Object.keys(m).forEach(id=>{ HB.recs[id] = m[id]; });
+  }
+  HB.loaded = true;
+}
+async function hbSaveLedger(){
+  const byMo = {}; const cutoff = dateAdd(todayISO(), -HB_LEDGER_DAYS);
+  Object.keys(HB.recs).forEach(id=>{ const r = HB.recs[id]; if(r.date < cutoff){ delete HB.recs[id]; return; } (byMo[hbMonth(r.date)] = byMo[hbMonth(r.date)] || {})[id] = r; });
+  for(const mo of new Set([...Object.keys(byMo), ...Object.keys(HB.savedStr)])){
+    const obj = byMo[mo] || {}, s = Object.keys(obj).length ? JSON.stringify(obj) : "";
+    if(s !== (HB.savedStr[mo]||"")){ HB.savedStr[mo] = s; if(s) await saveJSON("acts:"+mo, obj); else if(HB.savedStr[mo] !== undefined) await saveJSON("acts:"+mo, {}); }
+  }
+}
+async function hbSaveMeta(){ await saveJSON("acts:meta", HB.meta); }
+
+/* ---------- source + category detection ---------- */
+function hbDetectSrc(txt){
+  const t = String(txt||"").toLowerCase();
+  for(const r of (HB.meta.rules||[])){ try{ if(new RegExp(r.pat, "i").test(t)) return r.src; }catch(e){} }
+  if(/fitxr|quest|oculus/.test(t)) return "fitxr";
+  if(/rouvy/.test(t)) return "rouvy";
+  if(/zwift/.test(t)) return "zwift";
+  if(/garmin|\bedge\s?\d{3}/.test(t)) return "garmin";
+  if(/samsung|galaxy\s?watch|s health/.test(t)) return "samsung";
+  return "other";
+}
+function hbDetectCat(a, src){
+  const st = a.sport_type || a.type || "";
+  if(src === "fitxr") return "vr";
+  if(/^VirtualRide$/.test(st)) return "ride-in";
+  if(/^(Ride|GravelRide|MountainBikeRide|EBikeRide|Handcycle)$/.test(st)) return a.trainer ? "ride-in" : "ride-out";
+  if(/^(Run|TrailRun|VirtualRun)$/.test(st)) return "run";
+  if(/^(Walk|Hike)$/.test(st)) return "walk";
+  if(/^(Tennis|Pickleball|Racquetball|Squash|Badminton|TableTennis)$/.test(st)) return "tennis";
+  if(/^(HighIntensityIntervalTraining)$/.test(st)) return "hiit";
+  if(/^(WeightTraining|Crossfit)$/.test(st)) return "strength";
+  if(/^(Yoga|Pilates)$/.test(st)) return "flex";
+  if(/^Swim$/.test(st)) return "swim";
+  return "other";
+}
+function hbGroup(cat){ return (cat==="ride-out"||cat==="ride-in") ? "ride" : (cat==="hiit"||cat==="strength") ? "gym" : cat; }
+function hbRank(src, cat){ const list = HB_PREC[cat] || HB_PREC._default; const i = list.indexOf(src); return i<0 ? 90 : i; }
+
+function hbRecFrom(item, detail, old){
+  const a = Object.assign({}, item, detail||{}), r = old || {};
+  const txt = [a.device_name, a.name, a.description, a.external_id].join(" ");
+  const src = detail || r.detail ? hbDetectSrc(txt) : (r.src || hbDetectSrc(txt));
+  const cat = hbDetectCat(a, src);
+  return Object.assign({}, r, {
+    id:String(a.id), date:(a.start_date_local||"").slice(0,10), startMin:hbMin(a.start_date_local),
+    durMin: a.moving_time ? Math.round(a.moving_time/6)/10 : (r.durMin||0), distM: a.distance||r.distM||0,
+    sport:a.sport_type||a.type||"", trainer:!!a.trainer, name:(a.name||"").slice(0,80), device:a.device_name||r.device||"",
+    avgHR: a.average_heartrate ? Math.round(a.average_heartrate) : (r.avgHR||0), maxHR: a.max_heartrate ? Math.round(a.max_heartrate) : (r.maxHR||0),
+    rel: a.suffer_score ? Math.round(a.suffer_score) : (r.rel||0), src, cat, detail: !!(detail || r.detail),
+    needsDetail: detail ? false : (r.needsDetail===undefined ? true : r.needsDetail)
+  });
+}
+
+/* ---------- sync from Strava (via the existing Worker) ---------- */
+async function hbSync(manual){
+  if(HB.syncing) return;
+  HB.lastError = null; HB.notice = "";
+  try{
+    await loadStravaConfig();
+    if(!stravaConfigured()){ if(manual) HB.lastError = "Add your Strava Worker URL and app key under Profile & Zones first."; hbRefreshHub(); return; }
+    HB.syncing = true; hbRefreshHub();
+    await hbLoadLedger();
+    const after = Math.floor((Date.now() - HB_SYNC_WINDOW_DAYS*86400000)/1000), before = Math.floor((Date.now()+86400000)/1000);
+    let items = [];
+    for(let page=1; page<=3; page++){
+      const list = await stravaCall("/activities?after="+after+"&before="+before+"&per_page=100&page="+page);
+      if(!Array.isArray(list)) break; items = items.concat(list); if(list.length < 100) break;
+    }
+    items.forEach(it=>{ const id = String(it.id); if(!HB.recs[id]) HB.recs[id] = hbRecFrom(it, null, null); });
+    let n = 0;
+    for(const id of Object.keys(HB.recs)){
+      const r = HB.recs[id]; if(!r.needsDetail || n >= HB_DETAIL_CAP) continue; n++;
+      try{ const d = await stravaCall("/activity/"+id); HB.recs[id] = hbRecFrom(items.find(i=>String(i.id)===id)||{id}, d, r); }
+      catch(e){ if(/rate limit/i.test(e.message)){ HB.notice = "Strava's rate limit was reached - the rest will finish on the next sync."; break; } }
+    }
+    await hbDedupe();
+    await hbSaveLedger();
+    HB.meta.lastSync = new Date().toISOString(); await hbSaveMeta();
+    await hbRecomputeLoad();
+  }catch(e){ HB.lastError = e.message || String(e); }
+  finally{ HB.syncing = false; hbRefreshHub(); hbRefreshToday(); }
+}
+
+/* ---------- KoT's own sessions (manual log entries + slot links) ---------- */
+function hbCatFromKind(kind, name){
+  const n = String(name||"");
+  if(kind==="cycling") return /indoor|trainer|rouvy|zwift|virtual/i.test(n) ? "ride-in" : "ride-out";
+  if(kind==="run") return "run";
+  if(kind==="flexrecovery") return "flex";
+  if(/fitxr|\bvr\b|virtual reality/i.test(n)) return "vr";
+  if(/hiit|interval/i.test(n)) return "hiit";
+  if(/tennis/i.test(n)) return "tennis";
+  return kind==="strengthblock" ? "strength" : "other";
+}
+async function hbCollectKot(){
+  /* returns {manual: {date:[{key,slotKey,cat,durMin,avgHR,name}]}, linked: {stravaId:{date,slotKey}}} for the load window */
+  const out = {manual:{}, linked:{}}, today = todayISO();
+  for(let i=0;i<=HB_SYNC_WINDOW_DAYS+7;i++){
+    const date = dateAdd(today, -i), log = await getLog(date); if(!log || !log.workouts) continue;
+    const day = getDayPlan(date);
+    for(const slotKey of Object.keys(log.workouts)){
+      const sw = log.workouts[slotKey]; if(!sw) continue;
+      if(sw.stravaId){ out.linked[String(sw.stravaId)] = {date, slotKey}; continue; }
+      const w = (day.workouts||[]).find(x=>x.slotKey===slotKey) || {kind:"strengthblock", name:""};
+      let durMin = durationTotalMinutes(sw) || (parseFloat(sw.actualLenOverride)||0);
+      const logged = sw.completed || (w.items ? workoutIsLogged(w, sw) : false);
+      if(!durMin && logged) durMin = w.timeMin || 0;
+      if(!logged && !durMin) continue; if(!(durMin > 0)) continue;
+      (out.manual[date] = out.manual[date] || []).push({key:"kot:"+date+"|"+slotKey, slotKey, date, cat:hbCatFromKind(w.kind, w.name), durMin, avgHR:parseFloat(sw.avgHR)||0, rel:parseFloat(sw.relEffort)||0, name:w.name||"Workout", manual:true});
+    }
+  }
+  return out;
+}
+
+/* ---------- dedupe ---------- */
+function hbSimilar(durA, durB, distA, distB){
+  const dOk = durA>0 && durB>0 && Math.abs(durA-durB)/Math.max(durA,durB) <= HB_DUR_TOL;
+  const sOk = distA>0 && distB>0 && Math.abs(distA-distB)/Math.max(distA,distB) <= HB_DIST_TOL;
+  return dOk || sOk;
+}
+function hbDesc(r){ return (r.manual ? "KoT entry" : (HB_SRC_LABEL[r.src]||r.src)) + " · " + (HB_CAT_LABEL[r.cat]||r.cat) + " · " + Math.round(r.durMin||0) + " min" + (r.distM>0 ? " · "+(r.distM/1609.344).toFixed(1)+" mi" : ""); }
+async function hbDedupe(){
+  const kot = await hbCollectKot(); HB.kot = kot;
+  /* slot links: an activity you imported into a workout is treated like a manual entry */
+  Object.values(HB.recs).forEach(r=>{ r.slot = kot.linked[r.id] || null; });
+  const now = new Date().toISOString();
+  const dates = new Set(Object.values(HB.recs).filter(r=>!r.mergedInto).map(r=>r.date));
+  for(const date of dates){
+    const active = Object.values(HB.recs).filter(r=>r.date===date && !r.mergedInto && !r.pinned && r.detail);
+    const anchors = (kot.manual[date]||[]).concat(Object.values(HB.recs).filter(r=>r.date===date && r.slot && !r.mergedInto));
+    /* 1. KoT entries (manual or slot-imported) always win */
+    for(const r of active){
+      if(r.slot || r.mergedInto) continue;
+      const m = anchors.find(a=>{
+        const ac = a.cat, aStart = a.startMin;
+        if(hbGroup(ac) !== hbGroup(r.cat)) return false;
+        if(a.manual) return hbSimilar(a.durMin, r.durMin, 0, 0);                 /* manual entries have no start time */
+        return aStart!=null && r.startMin!=null && Math.abs(aStart-r.startMin)<=HB_START_TOL_MIN && hbSimilar(a.durMin, r.durMin, a.distM, r.distM);
+      });
+      if(m){ r.mergedInto = m.manual ? m.key : m.id; r.mergedAt = now; r.why = "KoT entry always wins"; }
+    }
+    /* 2. between imports: precedence table */
+    const rest = active.filter(r=>!r.slot && !r.mergedInto);
+    const indoor = rest.some(o=>o.cat==="ride-in");
+    const rk = r => hbRank(r.src, (hbGroup(r.cat)==="ride" && indoor) ? "ride-in" : r.cat);
+    rest.sort((a,b)=>rk(a)-rk(b) || a.id.localeCompare(b.id));
+    for(let i=0;i<rest.length;i++){
+      const w = rest[i]; if(w.mergedInto) continue;
+      for(let j=i+1;j<rest.length;j++){
+        const l = rest[j]; if(l.mergedInto) continue;
+        if(hbGroup(w.cat) !== hbGroup(l.cat)) continue;
+        if(w.startMin==null || l.startMin==null || Math.abs(w.startMin-l.startMin) > HB_START_TOL_MIN) continue;
+        if(!hbSimilar(w.durMin, l.durMin, w.distM, l.distM)) continue;
+        l.mergedInto = w.id; l.mergedAt = now;
+        l.why = "Precedence ("+(HB_CAT_LABEL[w.cat]||w.cat)+"): "+(HB_SRC_LABEL[w.src]||w.src)+" over "+(HB_SRC_LABEL[l.src]||l.src);
+      }
+    }
+  }
+  /* suggestions only: overlapping imports of different sport types */
+  HB.possible = [];
+  const act = Object.values(HB.recs).filter(r=>!r.mergedInto && !r.pinned && r.detail && r.startMin!=null);
+  for(let i=0;i<act.length;i++) for(let j=i+1;j<act.length;j++){
+    const a = act[i], b = act[j]; if(a.date!==b.date || hbGroup(a.cat)===hbGroup(b.cat)) continue;
+    const s = Math.max(a.startMin,b.startMin), e = Math.min(a.startMin+a.durMin, b.startMin+b.durMin), ov = e-s;
+    if(ov > 0 && ov / Math.min(a.durMin,b.durMin) >= 0.7) HB.possible.push([a.id,b.id]);
+  }
+}
+async function hbUndo(id){
+  const r = HB.recs[id]; if(!r) return;
+  r.mergedInto = null; r.pinned = true; r.why = ""; r.mergedAt = null;
+  await hbSaveLedger(); await hbRecomputeLoad(); hbRefreshHub(); hbRefreshToday();
+}
+async function hbManualMerge(aId, bId){
+  const a = HB.recs[aId], b = HB.recs[bId]; if(!a||!b) return;
+  const w = hbRank(a.src,a.cat) <= hbRank(b.src,b.cat) ? a : b, l = w===a ? b : a;
+  l.mergedInto = w.id; l.mergedAt = new Date().toISOString(); l.why = "Merged by you: "+(HB_SRC_LABEL[w.src]||w.src)+" kept";
+  await hbSaveLedger(); await hbRecomputeLoad(); hbRefreshHub(); hbRefreshToday();
+}
+
+/* ---------- training load ---------- */
+function hbScore(s){
+  const p = State.profile || {}, rest = +p.restingHR || 60, mx = +p.maxHR || 180, dur = s.durMin || 0;
+  if(s.avgHR > rest+5 && dur > 0 && mx > rest){
+    const x = hbClamp((s.avgHR - rest)/(mx - rest), 0.05, 1);
+    return {v: dur * x * 0.64 * Math.exp(1.92*x), m:"hr"};
+  }
+  if(s.rel > 0) return {v:s.rel, m:"rel"};
+  return {v: dur * (HB_FACTOR[s.cat] != null ? HB_FACTOR[s.cat] : 0.8), m:"factor"};
+}
+function hbDaySessions(date, kot){
+  const out = [];
+  const winners = Object.values(HB.recs).filter(r=>r.date===date && !r.mergedInto);
+  const merged = Object.values(HB.recs).filter(r=>r.date===date && r.mergedInto);
+  winners.forEach(r=>{
+    let hr = r.avgHR;
+    const group = merged.filter(m=>m.mergedInto===r.id && m.avgHR);
+    if(hbGroup(r.cat)==="ride" && group.length){                      /* ride heart rate: HRM-Pro Plus source first */
+      const cands = [r].concat(group).filter(x=>x.avgHR).sort((a,b)=>HB_HR_ORDER.indexOf(a.src)-HB_HR_ORDER.indexOf(b.src));
+      hr = cands.length ? cands[0].avgHR : hr;
+    } else if(!hr && group.length) hr = group[0].avgHR;
+    out.push({key:r.id, cat:r.cat, durMin:r.durMin, avgHR:hr, rel:r.rel, name:r.name});
+  });
+  ((kot.manual[date])||[]).forEach(m=>{
+    let hr = m.avgHR; const g = merged.filter(x=>x.mergedInto===m.key && x.avgHR);
+    if(!hr && g.length) hr = g[0].avgHR;
+    out.push({key:m.key, cat:m.cat, durMin:m.durMin, avgHR:hr, rel:m.rel, name:m.name});
+  });
+  /* slot entries imported from Strava whose ledger record is outside the window */
+  Object.keys(kot.linked).forEach(sid=>{ /* covered by ledger recs when present */ });
+  return out;
+}
+async function hbRecomputeLoad(){
+  try{
+    const kot2 = await hbCollectKot(), today = todayISO(), byMo = {};
+    for(let i=0;i<=HB_SYNC_WINDOW_DAYS+6;i++){
+      const date = dateAdd(today, -i), ss = hbDaySessions(date, kot2);
+      let tot = 0; const cats = {};
+      ss.forEach(s=>{ const sc = hbScore(s).v; tot += sc; cats[s.cat] = (cats[s.cat]||0) + sc; });
+      Object.keys(cats).forEach(k=>cats[k] = Math.round(cats[k]));
+      (byMo[hbMonth(date)] = byMo[hbMonth(date)] || {})[date] = {s:Math.round(tot), n:ss.length, c:cats};
+    }
+    for(const mo of Object.keys(byMo)){
+      const old = (await loadJSON("load:"+mo)) || {days:{}}, days = Object.assign({}, old.days, byMo[mo]);
+      const next = {v:1, days};
+      if(JSON.stringify(next) !== JSON.stringify(old)) await saveJSON("load:"+mo, next);
+    }
+    HB.computedOn = today;
+    await hbReadLoad();
+  }catch(e){ console.warn("load recompute failed", e); }
+}
+async function hbReadLoad(){
+  const days = {};
+  for(const mo of hbMonthsBack(HB_SYNC_WINDOW_DAYS+6)){ const m = await loadJSON("load:"+mo); if(m && m.days) Object.assign(days, m.days); }
+  HB.load = days; HB.loadReady = true; return days;
+}
+function hbScheduleLoad(){ if(HB.loadTimer) clearTimeout(HB.loadTimer); HB.loadTimer = setTimeout(async ()=>{ if(!HB.loaded) await hbLoadLedger(); await hbDedupe(); await hbSaveLedger(); await hbRecomputeLoad(); hbRefreshToday(); hbRefreshHub(); }, 1500); }
+function hbRamp(){
+  const today = todayISO(), L = HB.load || {};
+  const sum = (from, to)=>{ let t = 0; for(let i=from;i<=to;i++){ const d = L[dateAdd(today,-i)]; if(d) t += d.s||0; } return t; };
+  const acute = sum(0,6), chronic = sum(0,27)/4, tdy = (L[today]||{}).s || 0;
+  const dates = Object.keys(L).filter(d=>(L[d].s||0) > 0).sort(), first = dates[0];
+  const baseline = !first || first > dateAdd(today,-13) || chronic < 50;
+  const ratio = chronic > 0 ? acute/chronic : 0;
+  let flag = "none"; if(!baseline) flag = ratio > 1.5 ? "red" : ratio >= 1.3 ? "amber" : "green";
+  const cats = {}; for(let i=0;i<=6;i++){ const d = L[dateAdd(today,-i)]; if(d && d.c) Object.keys(d.c).forEach(k=>{ cats[k] = (cats[k]||0) + d.c[k]; }); }
+  return {today:tdy, acute, chronic, ratio, flag, baseline, cats};
+}
+async function hbBriefLine(){
+  try{ if(!HB.loadReady) await hbReadLoad(); const r = hbRamp();
+    if(r.flag==="amber" || r.flag==="red") return `<p class="rt-loadline" style="margin:10px 0 0; font-size:13px; font-weight:600; color:${r.flag==="red"?"var(--red)":"#7a5c00"};">Load is high - consider an easier day or mobility</p>`;
+  }catch(e){}
+  return "";
+}
+
+/* ---------- wellness ---------- */
+async function hbWellGet(date){ return (await loadJSON("wellness:"+date)) || null; }
+async function hbWellSet(date, field, val){
+  const rec = (await hbWellGet(date)) || {date}; rec[field] = val; rec.upd = new Date().toISOString();
+  await saveJSON("wellness:"+date, rec); return rec;
+}
+function hbDotColor(field, v){ if(!v) return "var(--grey-200)"; const good = field==="stress" ? 6-v : v; return ["#d9534f","#e8884d","#e0b73a","#7bbf6a","#3aa86d"][good-1]; }
+
+async function hbRenderToday(){
+  const today = todayISO(), yday = dateAdd(today,-1);
+  const rows = [];
+  for(let i=6;i>=0;i--){ const d = dateAdd(today,-i); rows.push({d, rec: await hbWellGet(d)}); }
+  const wm = (await loadJSON("wellness:meta")) || {};
+  const todayRec = rows[6].rec || {}, yRec = rows[5].rec;
+  const askY = !yRec && wm.askedFor !== yday;
+  const faceRow = (field, date, rec, label)=>`
+    <div class="hb-row" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:6px 0;">
+      <span style="width:62px; font-size:12px; font-weight:700; color:var(--ink-600);">${label}</span>
+      ${HB_FACES[field].map((f,i)=>`<button type="button" class="hb-face ${(rec&&rec[field])===i+1?'on':''}" data-hb-well="${field}" data-v="${i+1}" data-d="${date}" title="${esc(HB_FACE_WORDS[field][i])}" aria-label="${esc(label+' '+(i+1)+' - '+HB_FACE_WORDS[field][i])}" style="font-size:22px; line-height:1; padding:6px 8px; border-radius:12px; border:2px solid ${(rec&&rec[field])===i+1?'var(--teal)':'var(--grey-200)'}; background:${(rec&&rec[field])===i+1?'var(--teal-pale)':'transparent'}; cursor:pointer;">${f}</button>`).join("")}
+    </div>`;
+  const strip = `<div class="hb-strip" style="display:flex; gap:6px; margin-top:10px;">${rows.map(r=>`
+    <div title="${esc(fmtDate(r.d))}" style="flex:1; text-align:center; font-size:10px; color:var(--grey-600);">
+      ${["mood","stress","energy"].map(f=>`<div style="width:12px; height:12px; border-radius:50%; margin:3px auto; background:${hbDotColor(f, r.rec&&r.rec[f])};"></div>`).join("")}
+      <div>${esc(new Date(r.d+"T12:00:00").toLocaleDateString("en-US",{weekday:"narrow"}))}</div></div>`).join("")}</div>
+    <div style="font-size:10.5px; color:var(--grey-600); margin-top:2px;">Last 7 days · top mood, middle stress, bottom energy (green = better)</div>`;
+  const yBlock = HB.fillY ? `<div style="border-top:1px dashed var(--grey-200); margin-top:10px; padding-top:8px;"><div style="font-size:12.5px; font-weight:700;">Yesterday</div>${faceRow("mood",yday,yRec,"Mood")}${faceRow("stress",yday,yRec,"Stress")}${faceRow("energy",yday,yRec,"Energy")}<button class="btn btn-ghost" data-hb-ydone="1">Done</button></div>`
+    : askY ? `<div style="margin-top:10px; padding:8px 12px; background:var(--grey-50); border:1px solid var(--grey-200); border-radius:var(--radius-sm); font-size:12.5px;">You haven't checked in for yesterday. <button class="btn btn-ghost" data-hb-yfill="1">Fill in yesterday</button> <button class="btn btn-ghost" data-hb-yskip="1">Not now</button></div>` : "";
+  const wellCard = `<div class="card" id="hb-well-card"><div class="card-header"><h2>How are you today?</h2><span class="meta">One tap each · editable today</span></div>
+    ${faceRow("mood",today,todayRec,"Mood")}${faceRow("stress",today,todayRec,"Stress")}${faceRow("energy",today,todayRec,"Energy")}${yBlock}${strip}</div>`;
+  if(!HB.loadReady) await hbReadLoad();
+  const r = hbRamp(), col = {green:"var(--green)", amber:"#d9a400", red:"var(--red)", none:"var(--grey-400)"}[r.flag];
+  const label = r.flag==="none" ? "Building baseline" : {green:"Ramp OK", amber:"Ramp rising", red:"Ramp high"}[r.flag];
+  const catLine = Object.keys(r.cats).filter(k=>r.cats[k]>0).sort((a,b)=>r.cats[b]-r.cats[a]).map(k=>`${esc(HB_CAT_LABEL[k]||k)} ${Math.round(r.cats[k])}`).join(" · ");
+  const loadCard = `<div class="card" id="hb-load-card"><div class="card-header"><h2>Training Load</h2><span class="meta">Effort points</span></div>
+    <div class="calc-box"><div class="cline"><span>Today</span><span><b>${Math.round(r.today)}</b></span></div>
+    <div class="cline"><span>Last 7 days</span><span><b>${Math.round(r.acute)}</b></span></div>
+    <div class="cline"><span>Ramp (7-day vs 28-day avg)</span><span style="font-weight:700; color:${col};">● ${label}${r.flag!=="none"?" · "+r.ratio.toFixed(2):""}</span></div></div>
+    ${catLine?`<p style="font-size:12px; color:var(--ink-600); margin-top:8px;">7-day mix: ${catLine}</p>`:""}
+    ${r.flag==="none"?`<p style="font-size:11.5px; color:var(--grey-600); margin-top:6px;">The flag appears after about two weeks of logged or synced sessions.</p>`:""}</div>`;
+  return `<div id="hb-today">${wellCard}${loadCard}</div>`;
+}
+async function hbRefreshToday(){
+  const el = document.getElementById("hb-today"); if(!el) return;
+  try{ const w = document.createElement("div"); w.innerHTML = await hbRenderToday(); el.replaceWith(w.firstElementChild); }catch(e){}
+}
+
+/* ---------- Data Hub card (Profile) ---------- */
+function renderHubCard(){
+  const recs = Object.values(HB.recs), merged = recs.filter(r=>r.mergedInto), pending = recs.filter(r=>r.needsDetail).length;
+  const unk = {}; recs.forEach(r=>{ if(r.src==="other" && r.detail){ const k = r.device || r.name || "(no device)"; unk[k] = (unk[k]||0)+1; } });
+  const prec = [["Outdoor ride","ride-out"],["Indoor ride","ride-in"],["Run","run"],["Tennis","tennis"],["VR","vr"]].map(([n,c])=>`<tr><td>${n}</td><td>${HB_PREC[c].filter(s=>s!=="other").map(s=>esc(HB_SRC_LABEL[s])).join(" → ")}</td></tr>`).join("");
+  const merges = merged.sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id)).map(r=>{
+    const w = HB.recs[r.mergedInto]; const wd = w ? hbDesc(w) : (String(r.mergedInto).startsWith("kot:") ? "KoT entry" : "?");
+    return `<div class="tcx-panel" style="padding:8px 12px; margin:6px 0;"><div style="font-size:12.5px;"><b>${esc(fmtDate(r.date))}</b> · ${esc(hbDesc(r))}<br><span style="color:var(--grey-600);">merged into ${esc(wd)} · ${esc(r.why||"")}</span></div><button class="btn btn-ghost" data-hb-undo="${esc(r.id)}">Undo</button></div>`; }).join("");
+  const poss = (HB.possible||[]).map(([a,b])=>`<div class="tcx-panel" style="padding:8px 12px; margin:6px 0;"><div style="font-size:12.5px;">${esc(hbDesc(HB.recs[a]))}<br>${esc(hbDesc(HB.recs[b]))}<br><span style="color:var(--grey-600);">overlap in time, different sport types - not merged</span></div><button class="btn btn-ghost" data-hb-merge="${esc(a)}|${esc(b)}">Merge</button></div>`).join("");
+  const rules = (HB.meta.rules||[]).map((r,i)=>`<div style="font-size:12px;">/${esc(r.pat)}/ → ${esc(HB_SRC_LABEL[r.src]||r.src)} <button class="btn btn-ghost" data-hb-delrule="${i}" style="padding:2px 8px;">Remove</button></div>`).join("");
+  return `<div class="card" id="hb-card"><div class="card-header"><h2>Data Hub</h2><span class="meta">Strava activities · sources · duplicates</span></div>
+    <div class="calc-box"><div class="cline"><span>Activities (last 90 days)</span><span>${recs.length}</span></div>
+    <div class="cline"><span>Merged duplicates</span><span>${merged.length}</span></div>
+    <div class="cline"><span>Last sync</span><span>${HB.syncing?"syncing…":(HB.meta.lastSync?new Date(HB.meta.lastSync).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"never")}</span></div></div>
+    ${HB.lastError?`<p style="font-size:12px; color:var(--red); margin-top:8px;">${esc(HB.lastError)}</p>`:""}
+    ${HB.notice?`<p style="font-size:12px; color:var(--ink-600); margin-top:8px;">${esc(HB.notice)}</p>`:""}
+    ${pending?`<p style="font-size:11.5px; color:var(--grey-600); margin-top:6px;">${pending} activit${pending===1?"y":"ies"} waiting for device details (fetched a batch at a time).</p>`:""}
+    <div class="save-row"><button class="btn btn-primary" data-hb-sync="1" ${HB.syncing?"disabled":""}>${HB.syncing?"Syncing…":"Sync Strava now"}</button> <button class="btn btn-ghost" data-hb-recalc="1">Recalculate load</button></div>
+    <h3 style="font-size:13px; margin:14px 0 4px;">Source of truth</h3>
+    <table style="font-size:12px; width:100%;">${prec}</table>
+    <p style="font-size:11.5px; color:var(--grey-600); margin-top:4px;">Anything not listed: KoT entry → Garmin → Samsung → other. Manual KoT entries always win. Ride heart rate comes from the Garmin (HRM-Pro Plus) record first.</p>
+    ${Object.keys(unk).length?`<h3 style="font-size:13px; margin:14px 0 4px;">Unrecognized devices</h3><p style="font-size:12px;">${Object.keys(unk).map(k=>esc(k)+" ("+unk[k]+")").join(", ")}</p>`:""}
+    <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;"><input type="text" id="hb-rule-pat" placeholder="text found in device or name" style="flex:1; min-width:160px;"><select id="hb-rule-src">${["garmin","rouvy","zwift","samsung","fitxr","other"].map(s=>`<option value="${s}">${esc(HB_SRC_LABEL[s])}</option>`).join("")}</select><button class="btn btn-ghost" data-hb-addrule="1">Add rule</button></div>${rules}
+    <h3 style="font-size:13px; margin:14px 0 4px;">Dedupe Review</h3>${merges || `<p style="font-size:12px; color:var(--grey-600);">No merges yet.</p>`}
+    ${poss?`<h3 style="font-size:13px; margin:14px 0 4px;">Possible duplicates</h3>${poss}`:""}</div>`;
+}
+function hbRefreshHub(){
+  const el = document.getElementById("hb-card"); if(!el) return;
+  try{ const w = document.createElement("div"); w.innerHTML = renderHubCard(); el.replaceWith(w.firstElementChild); }catch(e){}
+}
+
+/* ---------- events + init ---------- */
+async function hbOnClick(e){
+  const t = e.target.closest && e.target.closest("[data-hb-well],[data-hb-yfill],[data-hb-yskip],[data-hb-ydone],[data-hb-sync],[data-hb-recalc],[data-hb-undo],[data-hb-merge],[data-hb-addrule],[data-hb-delrule]");
+  if(!t) return;
+  if(t.hasAttribute("data-hb-well")){ await hbWellSet(t.dataset.d, t.dataset.hbWell, +t.dataset.v); await hbRefreshToday(); }
+  else if(t.hasAttribute("data-hb-yfill")){ HB.fillY = true; const wm = (await loadJSON("wellness:meta"))||{}; wm.askedFor = dateAdd(todayISO(),-1); await saveJSON("wellness:meta", wm); await hbRefreshToday(); }
+  else if(t.hasAttribute("data-hb-yskip")){ const wm = (await loadJSON("wellness:meta"))||{}; wm.askedFor = dateAdd(todayISO(),-1); await saveJSON("wellness:meta", wm); await hbRefreshToday(); }
+  else if(t.hasAttribute("data-hb-ydone")){ HB.fillY = false; await hbRefreshToday(); }
+  else if(t.hasAttribute("data-hb-sync")) hbSync(true);
+  else if(t.hasAttribute("data-hb-recalc")){ await hbDedupe(); await hbSaveLedger(); await hbRecomputeLoad(); hbRefreshHub(); hbRefreshToday(); }
+  else if(t.hasAttribute("data-hb-undo")) hbUndo(t.dataset.hbUndo);
+  else if(t.hasAttribute("data-hb-merge")){ const [a,b] = t.dataset.hbMerge.split("|"); hbManualMerge(a,b); }
+  else if(t.hasAttribute("data-hb-addrule")){
+    const pat = (document.getElementById("hb-rule-pat").value||"").trim(), src = document.getElementById("hb-rule-src").value; if(!pat) return;
+    try{ new RegExp(pat,"i"); }catch(err){ HB.lastError = "That isn't a valid pattern."; hbRefreshHub(); return; }
+    HB.meta.rules = (HB.meta.rules||[]).concat([{pat, src}]); await hbSaveMeta();
+    Object.values(HB.recs).forEach(r=>{ if(r.detail){ r.src = hbDetectSrc([r.device,r.name].join(" ")); r.cat = hbDetectCat({sport_type:r.sport, trainer:r.trainer}, r.src); } });
+    await hbDedupe(); await hbSaveLedger(); await hbRecomputeLoad(); hbRefreshHub(); hbRefreshToday();
+  }
+  else if(t.hasAttribute("data-hb-delrule")){ HB.meta.rules.splice(+t.dataset.hbDelrule,1); await hbSaveMeta(); hbRefreshHub(); }
+}
+async function hbInit(){
+  await hbLoadLedger();
+  try{ await hbReadLoad(); }catch(e){}
+  if(!HB._bound){
+    HB._bound = true; document.addEventListener("click", hbOnClick);
+    setTimeout(async ()=>{ try{ await loadStravaConfig(); if(stravaConfigured() && (!HB.meta.lastSync || Date.now()-new Date(HB.meta.lastSync).getTime() > HB_SYNC_EVERY_MS) && document.visibilityState!=="hidden") hbSync(false); else hbScheduleLoad(); }catch(e){} }, 4000);
+  }
+}
+
+/* ============================================================
    CENTURY READY — ICON SYSTEM
    Minimal line icons (24x24, stroke=currentColor) depicting each
    workout/exercise type. Used in workout headers, day pills,
@@ -3392,6 +3794,7 @@ async function saveJSON(key, obj){
     const r = await window.storage.set(key, JSON.stringify(obj), false);
     if(typeof scheduleDrivePush==="function" && key!=="driveConfig") scheduleDrivePush();
     if(typeof scheduleGSync==="function" && !String(key).startsWith("gsync")) scheduleGSync();
+    if(typeof hbScheduleLoad==="function" && HB.loaded && (String(key).startsWith("log:") || key==="profile")) hbScheduleLoad();
     return !!r;
   }
   catch(e){ console.error("save failed", key, e); return false; }
@@ -4638,12 +5041,14 @@ async function rtMorningBrief(day, log){
       if(early+30 < st && early > now) sugg.push({t:`It is going to be hot (high ${wd.highF}°F). An earlier start is more comfortable.`, b:`<button class="btn btn-primary" data-rt="shiftwk" data-start="${early}" data-first="${esc(outdoor[0].slotKey)}">Move to ${rtFmt(early)}</button>`});
     }
   }
+  const hbLoadLine = await hbBriefLine();
   return `<div class="card rt-brief"><div class="rt-brief-head"><div class="rt-badge">${{morning:"🌅",afternoon:"☀️",evening:"🌇",night:"🌙"}[rtTimeOfDay()]}</div><div><h2>${greet}, here’s your day</h2><p class="rt-muted">${esc(fmtDateLong(date))}</p></div><button class="btn btn-ghost" data-rt="gosched">Open schedule →</button></div>
     <div class="rt-brief-grid">
       <div><span class="rt-k">Schedule</span><p>${sched}</p></div>
       <div><span class="rt-k">Weather</span><p>${wx}</p></div>
       <div><span class="rt-k">Planned workout${wks.length===1?"":"s"}</span><p>${wkLine}</p></div>
     </div>
+    ${hbLoadLine}
     ${sugg.length ? `<div class="rt-suggest"><span class="rt-k">Suggested adjustments</span>${sugg.map(s=>`<div class="rt-sug"><span>💡 ${s.t}</span>${s.b}</div>`).join("")}</div>` : ""}</div>`;
 }
 
@@ -4810,6 +5215,7 @@ async function init(){
   await handleStravaReturn();
   await rtInit();
   await gsInit();
+  await hbInit();
 
   let today = todayISO();
   const dates = allCalendarDates();
@@ -5790,8 +6196,10 @@ async function renderDashboard(){
   const exRecent = await buildRecentExerciseValueLookup(date, 30);
 
   const rtBrief = isToday ? await rtMorningBrief(day, log) : "";
+  const hbToday = isToday ? await hbRenderToday() : "";
   return `
   ${rtBrief}
+  ${hbToday}
   ${wxAlert ? renderWeatherAlertBanner(day, wxAlert) : ""}
   <div class="card">
     <div class="today-banner">
@@ -6535,6 +6943,7 @@ async function renderProfile(){
   return `
   ${renderCloudSyncCard()}
   ${renderGSCard()}
+  ${renderHubCard()}
   ${renderStravaCard()}
   ${await renderDataDiagnosticsCard()}
   ${await renderArchivesCard()}
@@ -7888,6 +8297,5 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
-
 
 
