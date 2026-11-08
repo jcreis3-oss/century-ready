@@ -913,6 +913,45 @@ input[type=checkbox][data-rt-check]:checked::after{content:'✓'; font-weight:90
   .rt-item.is-current{padding-top:32px;}
 }
 
+/* ---------- Phase 9: Google events in the Day view, conflict dialog, Google settings ---------- */
+.gs-row{display:flex; gap:8px; align-items:center; font-size:13px; margin:6px 0; cursor:pointer;}
+.gs-note{font-size:12px; color:var(--muted); margin:6px 0; line-height:1.45;}
+.gs-dot{display:inline-block; width:10px; height:10px; border-radius:50%; flex:none;}
+.gs-dates{font-size:11.5px; color:var(--muted); margin:6px 0;}
+.gs-cx-list{max-height:260px; overflow:auto; border:1px solid var(--border); border-radius:10px; margin:6px 0;}
+.gs-cx-row{display:grid; grid-template-columns:auto 84px 1fr auto; gap:8px; align-items:center; padding:6px 10px; font-size:12px; border-top:1px solid var(--border);}
+.gs-cx-row:first-child{border-top:0;}
+.gs-cx-row code{grid-column:2 / -1; font-size:10.5px; color:var(--muted-2); word-break:break-all;}
+.gs-cx-s{font-size:11px; color:var(--muted);}
+.rt-chip.gcal{color:#60a5fa; border-color:rgba(96,165,250,.5); background:rgba(59,130,246,.14);}
+body.theme-light .rt-chip.gcal{color:#1d4ed8;}
+.rt-viewhint{margin:4px 2px 8px; font-size:13px;}
+.rt-hintrow{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px;}
+.rt-allday{display:flex; flex-direction:column; gap:6px; margin:0 0 10px;}
+.rt-allday-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px; border:1px solid var(--border); border-left:4px solid #4285f4; border-radius:12px; background:var(--soft); font-size:13px;}
+.rt-allday-t{font-weight:700;}
+.rt-gcal{margin:0;}
+.rt-gitem{display:flex; align-items:center; gap:10px; padding:10px 14px; border:1px dashed var(--border); border-left:4px solid #4285f4; border-radius:1.2rem; background:transparent;}
+.rt-gitem.muted{opacity:.62;}
+.rt-gitem .rt-main{flex:1; min-width:0;}
+.rt-glink{font-size:12px; color:var(--muted); text-decoration:underline; white-space:nowrap;}
+.rt-cxchip{margin-top:4px; font-size:12px; font-weight:700; color:#b45309;}
+body.theme-dark .rt-cxchip{color:#fbbf24;}
+.rt-cxbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; padding:10px 14px; border-radius:1rem; border:1px solid rgba(250,204,21,.55); background:rgba(250,204,21,.12); font-size:13.5px; margin:0 0 10px;}
+.rt-fullday{margin-top:8px; border-top:1px solid var(--border); padding-top:6px;}
+.rt-fd-row{font-size:13px; padding:3px 0;}
+.rt-fd-warn{color:#b45309; font-weight:700;}
+body.theme-dark .rt-fd-warn{color:#fbbf24;}
+#rt-cx-modal .rt-cx-back{position:fixed; inset:0; z-index:9000; background:rgba(2,6,23,.62); display:flex; align-items:center; justify-content:center; padding:16px;}
+#rt-cx-modal .rt-cx-box{width:min(560px,100%); max-height:88vh; overflow:auto; background:var(--panel-solid); color:inherit; border:1px solid var(--border); border-radius:18px; padding:18px 20px; box-shadow:0 24px 60px rgba(0,0,0,.45);}
+#rt-cx-modal h3{margin:0 0 8px; font-size:17px;}
+.rt-cx-row{border-top:1px solid var(--border); padding:10px 0;}
+.rt-cx-row p{margin:0 0 6px; font-size:13.5px;}
+.rt-cx-opt{display:flex; gap:8px; align-items:flex-start; font-size:13px; padding:4px 0; cursor:pointer;}
+.rt-cx-opt.off{opacity:.5; cursor:not-allowed;}
+.rt-cx-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+.rt-cx-keep{margin:10px 0 0; text-align:right;}
+.rt-cx-link{background:none; border:0; color:var(--muted); text-decoration:underline; cursor:pointer; font-size:12.5px;}
 </style>
 </head>
 <body class="theme-dark">
@@ -988,7 +1027,52 @@ const EXERCISE_SEED = {
   easywalk:    {name:"Easy Walk", bodyGroup:"recovery", bodyParts:["full body"], desc:"A relaxed 20–30 minute walk to promote blood flow without adding fatigue.", sets:"1", reps:"20–30 min"},
   fullbodyroll:{name:"Full-Body Foam Roll", bodyGroup:"recovery", bodyParts:["full body"], desc:"Roll calves, quads, IT band, glutes and upper back — about 1–2 minutes on each area.", sets:"1", reps:"full body"},
   legsup:      {name:"Legs-Up-The-Wall", bodyGroup:"recovery", bodyParts:["legs"], desc:"Lie on your back with legs resting up a wall for 5–10 minutes to aid venous return and calm the nervous system.", sets:"1", reps:"8 min"},
-  gentleyoga:  {name:"Gentle Yoga Flow", bodyGroup:"recovery", bodyParts:["full body"], desc:"A slow, breath-led sequence of stretches through the hips, hamstrings and back.", sets:"1", reps:"10 min"}
+  gentleyoga:  {name:"Gentle Yoga Flow", bodyGroup:"recovery", bodyParts:["full body"], desc:"A slow, breath-led sequence of stretches through the hips, hamstrings and back.", sets:"1", reps:"10 min"},
+  /* Phase 8b additions */
+  ex8_db_bench: {name:"Dumbbell Bench Press", bodyGroup:"upper", bodyParts:["chest", "arms", "shoulders"], desc:"Lie on a bench with a dumbbell in each hand over your chest; lower until elbows reach about 90°, then press up without flaring the elbows wide.", sets:"3", reps:"10"},
+  ex8_db_incline_press: {name:"Incline Dumbbell Press", bodyGroup:"upper", bodyParts:["chest", "shoulders", "arms"], desc:"Bench set to about 30°; press the dumbbells up and slightly together, lowering slowly to upper-chest level.", sets:"3", reps:"10"},
+  ex8_db_floor_press: {name:"Dumbbell Floor Press", bodyGroup:"upper", bodyParts:["chest", "arms"], desc:"Lie on the floor, knees bent; lower the dumbbells until your upper arms touch the floor, pause, and press back up. Easy on the shoulders.", sets:"3", reps:"10"},
+  ex8_bb_row: {name:"Barbell Bent-Over Row", bodyGroup:"upper", bodyParts:["back", "arms"], desc:"Hinge to a flat back with the bar at knee height; pull it to your lower ribs, squeezing your shoulder blades together, and lower with control.", sets:"3", reps:"8"},
+  ex8_bb_ohp: {name:"Barbell Overhead Press", bodyGroup:"upper", bodyParts:["shoulders", "arms"], desc:"Bar at collarbone height, glutes and abs braced; press straight overhead, moving your head through at the top.", sets:"3", reps:"8"},
+  ex8_bb_curl: {name:"Barbell Curl", bodyGroup:"upper", bodyParts:["arms"], desc:"Elbows pinned at your sides, curl the bar to shoulder height without swinging, then lower slowly.", sets:"3", reps:"10"},
+  ex8_db_hammer: {name:"Dumbbell Hammer Curl", bodyGroup:"upper", bodyParts:["arms"], desc:"Palms facing each other, curl both dumbbells up with elbows still; targets the forearms and the muscle beside the biceps.", sets:"3", reps:"12"},
+  ex8_cable_facepull: {name:"Cable Face Pull", bodyGroup:"upper", bodyParts:["shoulders", "back"], desc:"Rope set at face height; pull toward your forehead while spreading the ends apart, elbows high. Great for rear delts and posture on the bike.", sets:"3", reps:"15"},
+  ex8_cable_fly: {name:"Cable Crossover Fly", bodyGroup:"upper", bodyParts:["chest"], desc:"Pulleys set high, step forward with a slight lean; sweep both handles down and together in front of your hips with soft elbows.", sets:"3", reps:"12"},
+  ex8_cable_rope_hammer: {name:"Cable Rope Hammer Curl", bodyGroup:"upper", bodyParts:["arms"], desc:"Low pulley with a rope, thumbs up; curl to shoulder height keeping elbows tight to your ribs.", sets:"3", reps:"12"},
+  ex8_trx_row: {name:"TRX Row", bodyGroup:"upper", bodyParts:["back", "arms", "abs/core"], desc:"Hold the TRX handles, lean back with a straight body line, and pull your chest to your hands. Walk your feet forward to make it harder.", sets:"3", reps:"10"},
+  ex8_trx_chest_press: {name:"TRX Chest Press", bodyGroup:"upper", bodyParts:["chest", "arms", "abs/core"], desc:"Face away from the anchor, lean forward in a plank line, and press your hands out in front; control the return.", sets:"3", reps:"10"},
+  ex8_trx_y_fly: {name:"TRX Y-Fly", bodyGroup:"upper", bodyParts:["shoulders", "back"], desc:"Lean back holding the TRX handles and raise your arms into a Y overhead, thumbs up. Builds the shoulder-blade muscles that support a long ride.", sets:"3", reps:"10"},
+  ex8_mb_chest_pass: {name:"Medicine Ball Chest Pass", bodyGroup:"upper", bodyParts:["chest", "arms", "shoulders"], desc:"Standing a few feet from a solid wall, push the solid medicine ball out from your chest with both hands, catch the rebound, and reset.", sets:"3", reps:"10"},
+  ex8_bb_rdl: {name:"Barbell Romanian Deadlift", bodyGroup:"lower", bodyParts:["legs", "glutes"], desc:"Soft knees, bar close to your legs; push your hips back until you feel the hamstrings stretch, then drive hips forward to stand tall.", sets:"3", reps:"8"},
+  ex8_bb_hipthrust: {name:"Barbell Hip Thrust (bench)", bodyGroup:"lower", bodyParts:["glutes", "legs"], desc:"Upper back on a bench with the bar across your hips; drive up until your body is flat and squeeze your glutes at the top.", sets:"3", reps:"10"},
+  ex8_bb_front_squat: {name:"Barbell Front Squat", bodyGroup:"lower", bodyParts:["legs", "glutes", "abs/core"], desc:"Bar resting on your front shoulders with elbows high; squat to parallel keeping your torso upright, and stand with your chest tall.", sets:"3", reps:"8"},
+  ex8_bb_goodmorning: {name:"Barbell Good Morning", bodyGroup:"lower", bodyParts:["legs", "glutes", "back"], desc:"Bar on your upper back, soft knees; hinge at the hips with a flat back until your torso is nearly parallel to the floor, then return.", sets:"3", reps:"10"},
+  ex8_db_goblet: {name:"Dumbbell Goblet Squat", bodyGroup:"lower", bodyParts:["legs", "glutes"], desc:"Hold one dumbbell upright against your chest; squat deep with elbows inside your knees and heels planted.", sets:"3", reps:"12"},
+  ex8_db_sl_calf: {name:"Dumbbell Single-Leg Calf Raise", bodyGroup:"lower", bodyParts:["legs"], desc:"Hold a dumbbell on one side and the wall with the other hand; rise on one foot, pause, then lower under control.", sets:"3", reps:"12 / leg"},
+  ex8_cable_pullthrough: {name:"Cable Pull-Through", bodyGroup:"lower", bodyParts:["glutes", "legs"], desc:"Face away from a low cable with the rope between your legs; hinge back, then snap the hips forward and squeeze the glutes.", sets:"3", reps:"12"},
+  ex8_ladder_quickfeet: {name:"Agility Ladder Quick Feet", bodyGroup:"lower", bodyParts:["legs"], desc:"Run through the agility ladder with one quick foot in each square, staying on the balls of your feet with arms pumping.", sets:"3", reps:"30 sec"},
+  ex8_ladder_inout: {name:"Agility Ladder In-Out Shuffle", bodyGroup:"lower", bodyParts:["legs", "glutes"], desc:"Move sideways down the agility ladder, stepping both feet in and then out of each square. Light, fast and coordinated.", sets:"3", reps:"30 sec"},
+  ex8_box_jump_low: {name:"Low Box Jump", bodyGroup:"lower", bodyParts:["legs", "glutes"], desc:"Jump onto a low plyo box (about 12–18 in), land softly with both feet, stand tall, then step down rather than jumping down.", sets:"3", reps:"6"},
+  ex8_trx_ham_curl: {name:"TRX Hamstring Curl", bodyGroup:"lower", bodyParts:["legs", "glutes"], desc:"Lie on your back with your heels in the TRX straps; lift your hips, then curl your heels toward you and extend back out.", sets:"3", reps:"10"},
+  ex8_trx_squat: {name:"TRX Assisted Squat", bodyGroup:"lower", bodyParts:["legs", "glutes"], desc:"Hold the TRX handles for balance and sit back into a deep squat; use your arms only as much as you need.", sets:"3", reps:"12"},
+  ex8_sb_ham_curl: {name:"Stability Ball Hamstring Curl", bodyGroup:"lower", bodyParts:["legs", "glutes"], desc:"Heels on a stability ball, hips lifted; roll the ball toward you by curling your heels, then extend back out without dropping your hips.", sets:"3", reps:"10"},
+  ex8_cable_pallof: {name:"Cable Pallof Press", bodyGroup:"core", bodyParts:["abs/core"], desc:"Stand sideways to a cable at chest height; press the handle straight out and hold for a beat without letting your torso rotate.", sets:"3", reps:"10 / side"},
+  ex8_cable_woodchop: {name:"Cable Woodchop", bodyGroup:"core", bodyParts:["abs/core", "shoulders"], desc:"High pulley, rotate through your torso as you pull the handle diagonally down across your body, pivoting your back foot.", sets:"3", reps:"10 / side"},
+  ex8_db_suitcase: {name:"Dumbbell Suitcase Carry", bodyGroup:"core", bodyParts:["abs/core", "arms"], desc:"Hold one heavy dumbbell at your side and walk tall without leaning; the offset load works the obliques and grip.", sets:"3", reps:"30 sec / side"},
+  ex8_trx_bodysaw: {name:"TRX Body Saw", bodyGroup:"core", bodyParts:["abs/core", "shoulders"], desc:"Forearm plank with your feet in the TRX straps; slide your body forward and back a few inches by moving your shoulders only.", sets:"3", reps:"10"},
+  ex8_slam_rotational: {name:"Slam Ball Rotational Slam", bodyGroup:"core", bodyParts:["abs/core", "shoulders"], desc:"Lift the slam ball overhead to one side, then rotate and slam it down outside the opposite foot using your whole core.", sets:"3", reps:"8 / side"},
+  ex8_mb_russian_twist: {name:"Medicine Ball Russian Twist", bodyGroup:"core", bodyParts:["abs/core"], desc:"Seated and leaning back with feet lifted or down, hold the medicine ball and rotate it from hip to hip, turning your ribs, not just your arms.", sets:"3", reps:"20"},
+  ex8_sb_deadbug: {name:"Stability Ball Dead Bug", bodyGroup:"core", bodyParts:["abs/core"], desc:"Lying on your back, squeeze a stability ball between hands and knees; extend the opposite arm and leg while the ball stays still.", sets:"3", reps:"8 / side"},
+  ex8_foam_thoracic: {name:"Foam Roll — Thoracic Spine", bodyGroup:"mobility", bodyParts:["back"], desc:"Foam roller under your upper back, hands behind your head; roll from mid-back to shoulder blades and pause to gently extend over the roller.", sets:"1", reps:"60 sec"},
+  ex8_foam_glutes: {name:"Foam Roll — Glutes & Piriformis", bodyGroup:"mobility", bodyParts:["glutes", "hips"], desc:"Sit on the foam roller with one ankle crossed over the opposite knee; lean toward the crossed leg and roll slowly over the deep hip muscles.", sets:"1", reps:"60 sec / side"},
+  ex8_foam_lats: {name:"Foam Roll — Lats", bodyGroup:"mobility", bodyParts:["back", "shoulders"], desc:"Lie on your side with the foam roller under your armpit and arm extended; roll a few inches along the side of your back.", sets:"1", reps:"45 sec / side"},
+  ex8_yoga_bridge: {name:"Supported Bridge (yoga block)", bodyGroup:"mobility", bodyParts:["hips", "back"], desc:"Lie on your back and slide a yoga block under your sacrum (the flat part of your lower back); relax and breathe to open the hip flexors.", sets:"1", reps:"60 sec"},
+  ex8_supine_ham: {name:"Supine Hamstring Stretch", bodyGroup:"mobility", bodyParts:["legs"], desc:"Lie on your back, loop a strap or towel around one foot and raise the leg until you feel a stretch behind the thigh; keep the other leg flat.", sets:"2", reps:"45 sec / side"},
+  ex8_wgs: {name:"World's Greatest Stretch", bodyGroup:"mobility", bodyParts:["hips", "legs", "back"], desc:"From a deep lunge, place both hands inside the front foot, rotate the inside arm to the ceiling, then straighten the front leg.", sets:"2", reps:"5 / side"},
+  ex8_9090: {name:"90/90 Hip Switch", bodyGroup:"mobility", bodyParts:["hips"], desc:"Sit with both knees bent at 90° and rotate them side to side without using your hands; keep your chest tall.", sets:"2", reps:"8"},
+  ex8_couch: {name:"Couch Stretch", bodyGroup:"mobility", bodyParts:["legs", "hips"], desc:"Kneel with your back foot up against a wall or couch and your front foot forward; squeeze the glute and tuck the pelvis.", sets:"2", reps:"45 sec / side"},
+  ex8_doorway_chest: {name:"Doorway Chest Stretch", bodyGroup:"mobility", bodyParts:["chest", "shoulders"], desc:"Forearm on a doorframe, elbow at shoulder height; step through until you feel a gentle stretch across the chest.", sets:"2", reps:"30 sec / side"},
+  ex8_childs_reach: {name:"Child's Pose with Reach", bodyGroup:"mobility", bodyParts:["back", "shoulders"], desc:"Sit your hips back to your heels with arms extended forward; walk your hands to one side to stretch the opposite lat, then switch.", sets:"2", reps:"45 sec"}
 };
 
 /* time-per-set estimate (seconds), used to auto-compute workout durations */
@@ -1087,7 +1171,24 @@ const WORKOUT_SEED = {
   rouvy_sweet_spot_symphony:   {name:"Sweet Spot Symphony", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"88–90% FTP", timeMin:45, desc:"2×15 minutes at sweet spot with recovery between — builds endurance, strength and pacing skill. A solid substitute for a scheduled Sweet Spot session. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
   rouvy_fight_fatigue:         {name:"Fight the Fatigue", kind:"cycling", platform:"Rouvy (Library)", source:"rouvy", zoneText:"FTP efforts + 140% FTP surges", timeMin:50, desc:"Two 4-minute efforts at FTP followed by 40/20-second surges at ~140% FTP — designed to improve fatigue resistance late in a ride. Search this name in the Rouvy Workouts library.", url:"https://riders.rouvy.com/workouts"},
   rouvy_route_mallorca:        {name:"Mallorca Climbs (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", zoneText:"Free ride — pace to Zone 2–3", timeMin:75, desc:"A scenic real-world climbing route filmed in Mallorca — ride it in Just Ride mode at endurance/tempo pace as a change of scenery from structured intervals. Search this name in the Rouvy Routes library.", url:"https://riders.rouvy.com/routes"},
-  rouvy_route_nz:              {name:"Rolling New Zealand Countryside (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", zoneText:"Free ride — pace to Zone 2", timeMin:60, desc:"A rolling, scenic real-world route through New Zealand countryside — a relaxed option for an easy endurance or recovery spin. Search this name in the Rouvy Routes library.", url:"https://riders.rouvy.com/routes"}
+  rouvy_route_nz:              {name:"Rolling New Zealand Countryside (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", zoneText:"Free ride — pace to Zone 2", timeMin:60, desc:"A rolling, scenic real-world route through New Zealand countryside — a relaxed option for an easy endurance or recovery spin. Search this name in the Rouvy Routes library.", url:"https://riders.rouvy.com/routes"},
+  /* Phase 8b: Rouvy route catalog entries (free rides; noSwap keeps them out of automatic weather/GFP swaps) */
+  rouvy_route_stelvio: {name:"Passo dello Stelvio via Umbrailpass (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — climb steady at Zone 3, ease off to Zone 2", timeMin:188, desc:"Stelvio Pass, Italy. 30.55 km · 1,841 m elevation. A long alpine climb to one of the highest paved passes in Europe. Best for a big mountain day when you want a challenge, or as the long ride of a peak week. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/93824"},
+  rouvy_route_ventoux: {name:"Mt. Ventoux (from Bedoin) (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — climb steady at Zone 3, ease off to Zone 2", timeMin:135, desc:"Provence, France. 17.12 km · 1,401 m elevation. The classic hard climb, with the final stretch above the tree line. Pairs with Mountain Strength days or a long weekend ride. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/36341"},
+  rouvy_route_alpe: {name:"Alpe d'Huez (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — climb steady at Zone 3", timeMin:105, desc:"Isère, France. 14.32 km · 1,081 m elevation. The famous 21 hairpins. A good fit when you want a sustained climbing effort in place of a structured session. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/93570"},
+  rouvy_route_sacalobra: {name:"Sa Calobra (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — climb at Zone 3, recover on the flats", timeMin:67, desc:"Mallorca, Spain. 11.9 km · 669 m elevation. Mallorca's iconic switchback climb. A good substitute for a short Sweet Spot or Mountain Strength session. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/84771"},
+  rouvy_route_formentor: {name:"Cap de Formentor (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2–3", timeMin:62, desc:"Mallorca, Spain. 19.16 km · 527 m elevation. Dramatic cliff-top coastal road with rolling climbs. A scenic choice for an hour of tempo-ish endurance. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/96513"},
+  rouvy_route_kwaremont: {name:"Nukerke to Oudenaarde via Oude Kwaremont (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2–3", timeMin:112, desc:"Flanders, Belgium. 46.9 km · 649 m elevation. A rolling Classics-style route over the cobbled Oude Kwaremont. A good match for a Race-Pace Tempo or steady endurance day. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/96105"},
+  rouvy_route_pch: {name:"Pacific Coast Highway (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2–3", timeMin:88, desc:"USA. 37.62 km · 532 m elevation. A scenic coastal route with rolling terrain. Suited to an endurance ride or a Zone 3 tempo block. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/83926"},
+  rouvy_route_malibu: {name:"Pacific Coast through Malibu (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:130, desc:"California, USA. 62.48 km · 448 m elevation. A long, scenic coastal ride at a steady effort. A natural pairing with a Zone 2 endurance day or a long indoor ride. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/84715"},
+  rouvy_route_vuelta21: {name:"La Vuelta 2023 Stage 21, Madrid Part 2 (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2–3", timeMin:43, desc:"Madrid, Spain. 20.34 km · 213 m elevation. A short urban Madrid ride with a few short rises. Fits when you want a brisk 45 minutes in place of a tempo workout. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/95943"},
+  rouvy_route_gardawest: {name:"Lago di Garda West (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:47, desc:"Lake Garda, Italy. 22 km · 195 m elevation. Lakeside road riding with gentle rolling climbs. A relaxed pairing with an easy endurance or recovery-leaning ride. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/96543"},
+  rouvy_route_garda: {name:"Lago di Garda (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:52, desc:"Lake Garda, Italy. 27.09 km · 95 m elevation. Mostly flat lakeside route. Ideal for a Zone 2 endurance ride or the Cadence & Endurance session. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/94125"},
+  rouvy_route_palmbeach: {name:"Palm Beach (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:48, desc:"Florida, USA. 25.22 km · 44 m elevation. Flat and easy. A good fit for a Zone 2 base ride or an easy spin. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/251433"},
+  rouvy_route_bormio: {name:"Bormio to Tirano (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:55, desc:"Lombardy, Italy. 35.4 km · 95 m elevation. A long gentle descent through the Valtellina valley, so keep your own power up. A good pairing with a Zone 2 endurance ride. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/81141"},
+  rouvy_route_glacier: {name:"Glacier National Park (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:80, desc:"Rogers Pass, British Columbia, Canada. 36.6 km · 376 m elevation. Mountain scenery past Rogers Pass and Avalanche Mountain. A good setting for steady Zone 2 endurance. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/95675"},
+  rouvy_route_jasper: {name:"Jasper National Park (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:86, desc:"Canada. 48.25 km · 204 m elevation. A long, mostly smooth ride along the eastern slopes of the Rockies. Good for endurance miles. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/95696"},
+  rouvy_route_pukaki: {name:"Lake Pukaki (Rouvy Route)", kind:"cycling", platform:"Rouvy (Route)", source:"rouvy", noSwap:true, zoneText:"Free ride — pace to Zone 2", timeMin:85, desc:"Mackenzie Basin, New Zealand. 41.92 km · 269 m elevation. Open, rolling lakeside riding. A scenic pick for an 80–90 minute endurance ride. Ride it in Just Ride mode. Figures from Rouvy page, Nov 2026.", url:"https://rouvy.com/all-rouvy-routes/84589"}
 };
 /* Mobility / recovery library workouts now live in the Flexibility/Recovery category */
 Object.keys(WORKOUT_SEED).forEach(id=>{
@@ -2754,7 +2855,8 @@ function disconnectDrive(){
    ============================================================ */
 const GS_SCOPE_CAL = "https://www.googleapis.com/auth/calendar.app.created";
 const GS_SCOPE_TASKS = "https://www.googleapis.com/auth/tasks";
-const GS_SCOPE = GS_SCOPE_CAL + " " + GS_SCOPE_TASKS + " openid email";
+const GS_SCOPE_CALLIST = "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
+const GS_SCOPE_EVREAD = "https://www.googleapis.com/auth/calendar.events.readonly";
 const GS_CAL_NAME = "KoT Training", GS_LIST_NAME = "KoT Routine";
 const GS_DAYS = 14;                       /* today + 14 following days */
 const GS_POLL_MS = 90000, GS_DEBOUNCE_MS = 4000, GS_MAXWAIT_MS = 8000, GS_CURSOR_SAVE_MS = 10*60*1000;
@@ -2768,6 +2870,10 @@ const GS = {
   fails:0, dirtySince:null, timer:null, pollTimer:null, retryTimer:null, metaSavedAt:0, metaCore:"", mapStr:"", cyc:0
 };
 window.GS = GS;
+GS.opts = {v:1, routineTasks:false, cals:{}, grace:0, cleanup:null};
+GS.grant = {cal:null, tasks:null, read:null};
+GS.gcal = {cals:[], calsAt:0, days:{}, cover:[], err:null, busy:null};
+GS.cx = {state:"idle", items:[], extra:0, listId:null, dellist:false, removed:0, err:null};
 
 function gsErr(msg, code, status){ const e = new Error(msg); e.gsCode = code||"api"; e.status = status; return e; }
 const gsEnc = encodeURIComponent;
@@ -2790,6 +2896,8 @@ function gsIdOk(id){ return /^[a-v0-9]{5,1024}$/.test(id); }
 /* ---------- local state ---------- */
 async function gsLoadState(){
   GS.cfg = Object.assign({enabled:false, hint:GS_DEFAULT_HINT}, (await loadJSON("gsyncConfig"))||{});
+  GS.opts = Object.assign({v:1, routineTasks:false, cals:{}, grace:0, cleanup:null}, (await loadJSON("gsync:opts")) || {});
+  if(!GS.opts.cals || typeof GS.opts.cals !== "object") GS.opts.cals = {};
   GS.meta = (await loadJSON("gsync:meta")) || {};
   const m = (await loadJSON("gsync:map")) || {};
   GS.map = {ev:m.ev||{}, tk:m.tk||{}};
@@ -2813,18 +2921,31 @@ async function gsEnsureToken(interactive){
   if(!interactive && GS.token && Date.now() < GS.tokenExp) return true;
   await loadGISScript();
   if(!Drive.clientId) throw gsErr("Enter your Google OAuth Client ID in Cloud Sync first (the same one Drive uses).", "config");
-  const hint = gsHint();
-  if(!GS.tokenClient || interactive){
-    GS.tokenClient = google.accounts.oauth2.initTokenClient({client_id: Drive.clientId, scope: GS_SCOPE, hint, callback: ()=>{}});
+  const hint = gsHint(), scope = gsScope();
+  if(!GS.tokenClient || interactive || GS.tokenScope !== scope){
+    GS.tokenClient = google.accounts.oauth2.initTokenClient({client_id: Drive.clientId, scope, hint, callback: ()=>{}}); GS.tokenScope = scope;
   }
-  const resp = await new Promise((resolve, reject)=>{
-    const to = setTimeout(()=>reject(gsErr("Google didn't respond - reconnect Calendar & Tasks.", "auth")), interactive ? 120000 : 20000);
-    GS.tokenClient.callback = r=>{ clearTimeout(to); if(r.error) reject(gsErr("Google sign-in was not completed ("+r.error+").", "auth")); else resolve(r); };
-    GS.tokenClient.error_callback = e=>{ clearTimeout(to); reject(gsErr("Google sign-in was closed or blocked ("+((e&&e.type)||"popup")+").", "auth")); };
-    GS.tokenClient.requestAccessToken(interactive ? {prompt:"select_account", hint} : {prompt:"", hint});
-  });
-  if(google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(resp, GS_SCOPE_CAL, GS_SCOPE_TASKS))
-    throw gsErr("Calendar and Tasks access wasn't granted. Reconnect and allow both.", "scope");
+  const extended = scope.indexOf(GS_SCOPE_EVREAD) >= 0;
+  let resp;
+  try{
+    resp = await new Promise((resolve, reject)=>{
+      const to = setTimeout(()=>reject(gsErr("Google didn't respond - reconnect Calendar & Tasks.", "auth")), interactive ? 120000 : 20000);
+      GS.tokenClient.callback = r=>{ clearTimeout(to); if(r.error) reject(gsErr("Google sign-in was not completed ("+r.error+").", "auth")); else resolve(r); };
+      GS.tokenClient.error_callback = e=>{ clearTimeout(to); reject(gsErr("Google sign-in was closed or blocked ("+((e&&e.type)||"popup")+").", "auth")); };
+      GS.tokenClient.requestAccessToken(interactive ? {prompt:"select_account", hint} : {prompt:"", hint});
+    });
+  }catch(e){
+    if(interactive && extended && e.gsCode === "auth"){ GS.extFailed = true; e.message += " If you haven't added the two read-only calendar permissions to your Google consent screen yet, add them first and try again, or use \"Connect without calendar reading\" (workouts still sync)."; }
+    throw e;
+  }
+  { const got = (resp.scope || "").split(/\s+/).filter(Boolean), gh = google.accounts.oauth2.hasGrantedAllScopes;
+    const has = s=>resp.scope ? got.includes(s) : (gh ? !!gh(resp, s) : true);
+    GS.grant.cal = has(GS_SCOPE_CAL); GS.grant.tasks = (!interactive && GS.grant.tasks === false) ? false : has(GS_SCOPE_TASKS);   /* once dropped, only an interactive reconnect can bring Tasks back */
+    if(extended){ GS.grant.read = has(GS_SCOPE_CALLIST) && has(GS_SCOPE_EVREAD); if(GS.grant.read) GS.gcal.err = null; }
+    else if(GS.baseOnly) GS.grant.read = false;
+    GS.extFailed = false;
+    if(!GS.grant.cal) throw gsErr("Calendar access wasn't granted. Reconnect and allow it.", "scope");
+  }
   GS.token = resp.access_token; GS.tokenExp = Date.now() + (resp.expires_in||3600)*1000 - 60000;
   /* pin the account */
   let email = null;
@@ -2869,7 +2990,7 @@ async function gsEnsureContainers(){
     await gsSaveState(true);                                          /* share the new id with the other device right away */
     if(typeof Drive!=="undefined" && Drive.connected){ try{ await pushToDrive(); }catch(e){} }
   }
-  if(!GS.meta.listId){
+  if(gsRoutineOn() && !GS.meta.listId){
     let found = [], page = null;
     do{ const r = await gsApi("GET", GS_TASKS_API+"/users/@me/lists?maxResults=100"+(page?"&pageToken="+gsEnc(page):""));
         found = found.concat(((r.json&&r.json.items)||[]).filter(l=>l.title===GS_LIST_NAME)); page = r.json && r.json.nextPageToken; }while(page);
@@ -3089,11 +3210,12 @@ async function gsCycle(reason){
     await gsEnsureContainers();
     const D0 = await gsDesired();
     const appliedEv = await gsPullEvents(D0);
-    await gsPullTasks();
+    if(gsRoutineOn()) await gsPullTasks();                           /* setting off (default): the whole Tasks step is skipped, zero Tasks requests */
     const D = await gsDesired();                                      /* recompute after applying Google's changes */
     await gsPushEvents(D, appliedEv);
-    await gsPushTasks(D);
+    if(gsRoutineOn()) await gsPushTasks(D);
     await gsSaveState(false);
+    try{ await gsGcalCycle(); }catch(e){}
     GS.lastSyncAt = new Date().toISOString(); GS.lastError = null; GS.errCode = null; GS.fails = 0;
     if(appliedEv.length && typeof renderTabContent==="function") renderTabContent();
   }catch(e){
@@ -3125,13 +3247,14 @@ async function gsInit(){
     GS._bound = true;
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") gsCycle("visible"); });
     document.addEventListener("click", gsOnClick);
+    p9Bind();
   }
   if(GS.cfg.enabled){ gsStartTimers(); if(!GS._booted){ GS._booted = true; setTimeout(()=>gsCycle("boot"), 3000); } }
 }
 
 /* ---------- connect / disconnect ---------- */
-async function gsConnect(){
-  GS.lastError = null; GS.errCode = null; GS.blocked = false; GS.calChecked = false;
+async function gsConnect(base){
+  GS.baseOnly = base === true; GS.lastError = null; GS.errCode = null; GS.blocked = false; GS.calChecked = false;
   const inp = document.getElementById("gs-hint-input");
   try{
     await gsLoadState();
@@ -3186,20 +3309,22 @@ function renderGSCard(){
       <div class="save-row">
         <button class="btn btn-primary" data-gs-sync="1">${GS.running?'Syncing…':'Sync Now'}</button>
         ${GS.blocked||GS.errCode==='auth'||GS.errCode==='scope'?`<button class="btn btn-primary" data-gs-connect="1">Reconnect</button>`:""}
+        ${GS.extFailed?`<button class="btn btn-ghost" data-gs-connectbase="1">Connect without calendar reading</button>`:""}
         ${GS.blocked?`<button class="btn btn-ghost" data-gs-switch="1">Switch account</button>`:""}
         <button class="btn btn-ghost" data-gs-relink="1" title="Re-create events/tasks you deleted in Google">Reset unlinks</button>
         <button class="btn btn-ghost" data-gs-disconnect="1">Disconnect</button>
       </div>
-      <div class="info-callout">Workouts appear as events in a calendar named "${GS_CAL_NAME}" and your checkable routine items as tasks in "${GS_LIST_NAME}" (today + ${GS_DAYS} days). Disconnecting stops syncing but leaves the events and tasks already created in Google.</div>`;
+      ${gsRenderExtras()}
+      <div class="info-callout">Workouts appear as events in a calendar named "${GS_CAL_NAME}" (today + ${GS_DAYS} days)${GS.opts.routineTasks?` and your checkable routine items as tasks in "${GS_LIST_NAME}"`:""}. Disconnecting stops syncing but leaves the events${GS.opts.routineTasks?" and tasks":""} already created in Google.</div>`;
   } else {
     body = `
-      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:10px;">A separate Google connection from Drive, so Calendar and Tasks can live in a different account. Uses the same OAuth Client ID. KoT can only see the calendar and list it creates itself.</p>
+      <p style="font-size:12.5px; color:var(--grey-600); margin-bottom:10px;">A separate Google connection from Drive, so Calendar and Tasks can live in a different account. Uses the same OAuth Client ID. KoT can change only the calendar it creates itself. Your other calendars are read-only, and only if you allow it.</p>
       <div class="field-grid"><div class="field wide"><label>Google account for Calendar &amp; Tasks</label><input type="text" id="gs-hint-input" value="${esc((c.hint)||GS_DEFAULT_HINT)}" placeholder="you@gmail.com"></div></div>
       ${GS.lastError?`<p style="font-size:12px; color:var(--red); margin-top:6px;">${esc(GS.lastError)}</p>`:""}
       <div class="save-row"><button class="btn btn-primary" data-gs-connect="1" ${!(typeof Drive!=="undefined"&&Drive.clientId)?'disabled':''}>Connect Google Calendar &amp; Tasks</button></div>
       ${!(typeof Drive!=="undefined"&&Drive.clientId)?`<p style="font-size:12px; color:var(--ink-600); margin-top:6px;">Save your Client ID in Cloud Sync above first.</p>`:""}`;
   }
-  return `<div class="card" id="gs-card"><div class="card-header"><h2>Google Calendar &amp; Tasks</h2><span class="meta">Workouts &rarr; Calendar · Routine &rarr; Tasks</span></div>${body}</div>`;
+  return `<div class="card" id="gs-card"><div class="card-header"><h2>Google Calendar &amp; Tasks</h2><span class="meta">Workouts &rarr; Calendar${GS.opts.routineTasks?" · Routine &rarr; Tasks":""}</span></div>${body}</div>`;
 }
 function gsRenderBanner(){
   const el = document.getElementById("gs-banner"); if(!el) return;
@@ -3216,15 +3341,508 @@ function gsRenderUI(){
   }catch(e){}
 }
 function gsOnClick(e){
-  const t = e.target.closest && e.target.closest("[data-gs-connect],[data-gs-disconnect],[data-gs-sync],[data-gs-retry],[data-gs-switch],[data-gs-relink]");
+  const t = e.target.closest && e.target.closest("[data-gs-connect],[data-gs-disconnect],[data-gs-sync],[data-gs-retry],[data-gs-switch],[data-gs-relink],[data-gs-connectbase]");
   if(!t) return;
-  if(t.hasAttribute("data-gs-connect")) gsConnect();
+  if(t.hasAttribute("data-gs-connectbase")) gsConnect(true);
+  else if(t.hasAttribute("data-gs-connect")) gsConnect();
   else if(t.hasAttribute("data-gs-disconnect")) gsDisconnect();
   else if(t.hasAttribute("data-gs-switch")) gsSwitchAccount();
   else if(t.hasAttribute("data-gs-relink")) gsResetUnlinks();
   else if(t.hasAttribute("data-gs-retry")){ (GS.blocked||GS.errCode==="auth"||GS.errCode==="scope") ? gsConnect() : gsCycle("retry"); }
   else gsCycle("manual");
 }
+
+/* ============================================================
+   PHASE 9 - Google: routine -> Tasks is a setting (off by default) with a one-time
+   cleanup, and the Day view can show Google Calendar events (read-only, memory only).
+   gsync:opts (Drive-synced, NOT on the exclusion list) = {routineTasks, cals:{id:bool}, grace, cleanup}
+   ============================================================ */
+const GS_GC_TTL = 5*60*1000;
+function gsCleanupState(){
+  const o = GS.opts || {}; if(o.cleanup) return o.cleanup;
+  return (GS.meta && GS.meta.listId) || Object.keys((GS.map && GS.map.tk) || {}).length ? "pending" : "done";
+}
+function gsWantTasks(){ return !!(GS.opts && GS.opts.routineTasks) || gsCleanupState() !== "done"; }
+function gsScope(){
+  return [GS_SCOPE_CAL].concat(gsWantTasks() ? [GS_SCOPE_TASKS] : [], GS.baseOnly ? [] : [GS_SCOPE_CALLIST, GS_SCOPE_EVREAD], ["openid", "email"]).join(" ");
+}
+/* the Tasks leg runs only when the setting is on AND Google granted Tasks access; otherwise the whole step is skipped */
+function gsRoutineOn(){ return !!(GS.opts && GS.opts.routineTasks) && GS.grant.tasks !== false; }
+async function gsSaveOpts(){ await saveJSON("gsync:opts", GS.opts); }
+
+/* ---------- read-only Google Calendar events for the Day view ---------- */
+function gsGcalOn(){ return !!(GS.cfg && GS.cfg.enabled) && !GS.blocked && GS.grant.read !== false && GS.gcal.err !== "scope"; }
+function gsCalIsOn(c){ const v = (GS.opts.cals || {})[c.id]; return v === undefined ? !!c.primary : !!v; }
+async function gsGcalCals(force){
+  if(!force && GS.gcal.cals.length && Date.now() - GS.gcal.calsAt < 3600000) return GS.gcal.cals;
+  const out = []; let page = null;
+  do{
+    const r = await gsApi("GET", GS_CAL_API + "/users/me/calendarList?minAccessRole=reader&maxResults=250" + (page ? "&pageToken=" + gsEnc(page) : ""));
+    if(!r.ok) throw gsErr("Calendar list failed (HTTP " + r.status + ").", "api", r.status);
+    ((r.json && r.json.items) || []).forEach(c=>{
+      if(c.deleted || c.id === GS.meta.calId) return;                 /* KoT Training is excluded: workouts already show natively */
+      out.push({id:c.id, name:c.summaryOverride || c.summary || c.id, primary:!!c.primary, color:c.backgroundColor || "#4285f4"});
+    });
+    page = r.json && r.json.nextPageToken;
+  }while(page);
+  GS.gcal.cals = out; GS.gcal.calsAt = Date.now(); return out;
+}
+function gsGcalNorm(ev, cal, out){
+  if(!ev || ev.status === "cancelled" || ev.eventType === "workingLocation") return;
+  if(ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.kotApp) return;
+  const me = (ev.attendees || []).find(a=>a.self), rs = me && me.responseStatus;
+  const base = {calId:cal.id, calName:cal.name, color:cal.color, title:ev.summary || "(no title)", link:ev.htmlLink || "",
+    declined: rs === "declined", tentative: rs === "tentative", free: ev.transparency === "transparent"};
+  base.blocking = !base.declined && !base.free;
+  if(ev.start && ev.start.date){                                       /* all-day: banner only, never a conflict */
+    let d = ev.start.date, n = 0; const end = (ev.end && ev.end.date) || dateAdd(d, 1);
+    while(d < end && n++ < 31){ (out[d] = out[d] || []).push(Object.assign({}, base, {id:"g:" + cal.id + ":" + ev.id + ":" + d, allDay:true, start:0, end:1440, blocking:false})); d = dateAdd(d, 1); }
+    return;
+  }
+  if(!(ev.start && ev.start.dateTime)) return;
+  const s = new Date(ev.start.dateTime), e = new Date((ev.end && ev.end.dateTime) || ev.start.dateTime);
+  if(!(e > s)) return;
+  let day = gsLocalISO(s), n = 0;
+  while(n++ < 31){
+    const d0 = new Date(day + "T00:00:00"), d1 = new Date(dateAdd(day, 1) + "T00:00:00");
+    const a = s > d0 ? s : d0, b = e < d1 ? e : d1;
+    if(b > a){
+      const sm = a <= d0 ? 0 : a.getHours() * 60 + a.getMinutes(), em = b >= d1 ? 1440 : b.getHours() * 60 + b.getMinutes();
+      if(em > sm) (out[day] = out[day] || []).push(Object.assign({}, base, {id:"g:" + cal.id + ":" + ev.id + ":" + day, allDay:false, start:sm, end:em}));
+    }
+    if(e <= d1) break; day = dateAdd(day, 1);
+  }
+}
+async function gsGcalFetch(from, to){
+  const cals = (await gsGcalCals(false)).filter(gsCalIsOn), tmp = {};
+  const timeMin = new Date(from + "T00:00:00").toISOString(), timeMax = new Date(dateAdd(to, 1) + "T00:00:00").toISOString();
+  for(const c of cals){
+    let page = null;
+    do{
+      const q = new URLSearchParams({singleEvents:"true", orderBy:"startTime", maxResults:"250", timeMin, timeMax}); if(page) q.set("pageToken", page);
+      const r = await gsApi("GET", GS_CAL_API + "/calendars/" + gsEnc(c.id) + "/events?" + q.toString());
+      if(r.status === 404 || r.status === 410) break;
+      if(!r.ok) throw gsErr("Calendar events failed (HTTP " + r.status + ").", "api", r.status);
+      ((r.json && r.json.items) || []).forEach(ev=>gsGcalNorm(ev, c, tmp));
+      page = r.json && r.json.nextPageToken;
+    }while(page);
+  }
+  for(let d = from; d <= to; d = dateAdd(d, 1)){
+    GS.gcal.days[d] = (tmp[d] || []).sort((a,b)=>(a.start - b.start) || (a.title < b.title ? -1 : 1));
+  }
+}
+async function gsGcalEnsure(date, force){
+  if(!gsGcalOn()) return false;
+  if(!(GS.token && Date.now() < GS.tokenExp)) return false;           /* never opens a sign-in popup from the Day view; the sync cycle owns the token */
+  const now = Date.now(), cv = GS.gcal.cover.find(c=>date >= c.from && date <= c.to);
+  if(!force && cv && now - cv.at < GS_GC_TTL) return true;
+  if(GS.gcal.busy){ try{ await GS.gcal.busy; }catch(e){} const c2 = GS.gcal.cover.find(c=>date >= c.from && date <= c.to); if(c2 && !force) return true; }
+  const today = todayISO(); let from = today, to = dateAdd(today, GS_DAYS);
+  if(date < from || date > to){ from = dateAdd(date, -3); to = dateAdd(date, 3); }
+  const before = JSON.stringify(GS.gcal.days);
+  const job = (async()=>{
+    try{
+      await gsGcalFetch(from, to);
+      GS.gcal.cover = GS.gcal.cover.filter(c=>!(c.from <= to && c.to >= from)).concat([{from, to, at:Date.now()}]); GS.gcal.err = null;
+    }catch(e){
+      if(e && e.gsCode === "scope"){ GS.grant.read = false; GS.gcal.err = "scope"; } else GS.gcal.err = (e && e.message) || String(e);
+    }
+  })();
+  GS.gcal.busy = job; try{ await job; }finally{ if(GS.gcal.busy === job) GS.gcal.busy = null; }
+  if(JSON.stringify(GS.gcal.days) !== before && typeof p9GoogleChanged === "function") p9GoogleChanged();
+  else if(GS.gcal.err === "scope") gsRenderUI();
+  return !GS.gcal.err;
+}
+async function gsGcalCycle(){
+  if(!gsGcalOn()) return;
+  try{ await gsGcalEnsure(todayISO(), false); if(typeof RT !== "undefined" && RT.date && RT.date !== todayISO()) await gsGcalEnsure(RT.date, false); }catch(e){}
+}
+async function gsGcalReset(){ GS.gcal.cover = []; GS.gcal.days = {}; if(gsGcalOn() && GS.token) await gsGcalEnsure(typeof RT !== "undefined" && RT.date ? RT.date : todayISO(), true); if(typeof rtRefresh === "function") rtRefresh(); }
+
+/* ---------- one-time cleanup of the Tasks KoT created (only items carrying the kot: marker) ---------- */
+function gsCx(){ return GS.cx; }
+async function gsCleanupScan(){
+  const cx = GS.cx; cx.state = "scanning"; cx.err = null; cx.items = []; cx.extra = 0; gsRenderUI();
+  try{
+    await gsEnsureToken(false);
+    if(!GS.grant.tasks){ cx.state = "needscope"; gsRenderUI(); return; }
+    let listId = GS.meta.listId;
+    if(!listId){
+      let found = [], page = null;
+      do{ const r = await gsApi("GET", GS_TASKS_API + "/users/@me/lists?maxResults=100" + (page ? "&pageToken=" + gsEnc(page) : ""));
+          found = found.concat(((r.json && r.json.items) || []).filter(l=>l.title === GS_LIST_NAME)); page = r.json && r.json.nextPageToken; }while(page);
+      if(found.length) listId = found.map(l=>l.id).sort()[0];
+    }
+    cx.listId = listId || null;
+    if(!listId){ cx.state = "review"; gsRenderUI(); return; }
+    const base = GS_TASKS_API + "/lists/" + gsEnc(listId) + "/tasks"; let all = [], page = null;
+    do{ const r = await gsApi("GET", base + "?showCompleted=true&showHidden=true&maxResults=100" + (page ? "&pageToken=" + gsEnc(page) : ""));
+        if(r.status === 404){ cx.listId = null; break; }
+        if(!r.ok) throw gsErr("Tasks list failed (HTTP " + r.status + ").", "api", r.status);
+        all = all.concat((r.json && r.json.items) || []); page = r.json && r.json.nextPageToken; }while(page);
+    for(const t of all){
+      const m = /(?:^|\n)kot:(\d{4}-\d{2}-\d{2}):(.+)/.exec(t.notes || "");
+      if(m) cx.items.push({id:t.id, title:t.title || "", date:m[1], key:m[2].trim(), done:t.status === "completed", marker:"kot:" + m[1] + ":" + m[2].trim(), sel:true});
+      else cx.extra++;
+    }
+    cx.items.sort((a,b)=>(a.date < b.date ? -1 : a.date > b.date ? 1 : (a.title < b.title ? -1 : 1)));
+    cx.state = "review";
+  }catch(e){ cx.state = "error"; cx.err = (e && e.message) || String(e); }
+  gsRenderUI();
+}
+async function gsCleanupRun(){
+  const cx = GS.cx, todo = cx.items.filter(i=>i.sel); let n = 0, failed = null;
+  cx.state = "deleting"; gsRenderUI();
+  const base = GS_TASKS_API + "/lists/" + gsEnc(cx.listId) + "/tasks";
+  for(const t of todo){
+    try{
+      const r = await gsApi("DELETE", base + "/" + t.id);
+      if(r.ok || r.status === 404 || r.status === 410){ cx.items = cx.items.filter(x=>x.id !== t.id); n++; }
+      else { failed = "Google refused one delete (HTTP " + r.status + ")."; break; }
+    }catch(e){ failed = (e && e.message) || String(e); break; }
+  }
+  cx.removed = (cx.removed || 0) + n;
+  if(failed){ cx.state = "review"; cx.err = failed + " Nothing else was changed; you can run this again."; gsRenderUI(); return; }
+  if(cx.dellist && cx.listId && cx.items.length === 0 && cx.extra === 0){
+    try{ const r = await gsApi("DELETE", GS_TASKS_API + "/users/@me/lists/" + gsEnc(cx.listId)); if(r.ok || r.status === 404 || r.status === 410){ if(GS.meta.listId === cx.listId) GS.meta.listId = null; cx.listDeleted = true; } }catch(e){}
+  }
+  if(cx.items.length === 0){
+    GS.map.tk = {}; GS.meta.tasksMin = null; GS.opts.cleanup = "done"; GS.opts.cleanupAt = new Date().toISOString(); GS.grant.tasks = false;      /* the Tasks permission is dropped: turning routine sync on later needs a reconnect */
+    await gsSaveOpts(); await gsSaveState(true); cx.state = "finished";
+  } else cx.state = "review";
+  gsRenderUI();
+}
+async function gsCleanupLeave(){ GS.opts.cleanup = "done"; GS.opts.cleanupAt = new Date().toISOString(); GS.grant.tasks = false; await gsSaveOpts(); GS.cx.state = "idle"; gsRenderUI(); }
+
+async function gsSetRoutine(on){
+  GS.opts.routineTasks = !!on; await gsSaveOpts();
+  if(on && GS.grant.tasks !== true && gsCleanupState() === "done") GS.grant.tasks = false;   /* the Tasks permission was dropped after cleanup: reconnect needed */
+  gsRenderUI();
+  if(on && GS.grant.tasks !== false && GS.cfg.enabled) gsCycle("opts");
+}
+
+/* ---------- card extras ---------- */
+function gsRenderExtras(){
+  const o = GS.opts, g = GS.grant, cx = GS.cx, on = !!o.routineTasks, st = gsCleanupState();
+  let h = `<div class="section-title" style="margin-top:16px;">Routine items &rarr; Google Tasks</div>
+    <label class="gs-row"><input type="checkbox" data-gs-routine="1" ${on ? "checked" : ""}> Sync routine items to Google Tasks (list &ldquo;${GS_LIST_NAME}&rdquo;)</label>
+    <p class="gs-note">Off by default. When off, KoT makes no Google Tasks requests at all; your Day view and Today page already show your routine. If you finish the cleanup below, the Tasks permission is dropped, so turning this on again later means reconnecting Google once.</p>`;
+  if(on && g.tasks === false) h += `<p class="gs-note" style="color:var(--red);">Tasks access isn't granted on this connection. <button class="btn btn-primary" data-gs-connect="1">Reconnect Google</button> to turn routine sync on.</p>`;
+  if(st === "pending" || cx.state !== "idle"){
+    h += `<div class="calc-box gs-cx" style="margin-top:10px;">`;
+    if(cx.state === "idle"){
+      const hint = Object.keys(GS.map.tk || {}).length;
+      h += `<p class="gs-note" style="margin:0 0 8px;">Routine tasks from earlier syncing may still be in Google${hint ? " (about " + hint + " tracked here)" : ""}. Review them first; nothing is deleted until you confirm.</p>
+        <div class="save-row"><button class="btn btn-primary" data-gs-cxscan="1">Review old routine tasks</button><button class="btn btn-ghost" data-gs-cxleave="1">Leave them in Google</button></div>`;
+    } else if(cx.state === "scanning" || cx.state === "deleting"){
+      h += `<p class="gs-note" style="margin:0;">${cx.state === "scanning" ? "Reading the KoT Routine list…" : "Deleting…"}</p>`;
+    } else if(cx.state === "needscope"){
+      h += `<p class="gs-note" style="margin:0 0 8px;">Google hasn't granted Tasks access on this connection, so the cleanup can't read the list. Reconnect once to allow it.</p><div class="save-row"><button class="btn btn-primary" data-gs-connect="1">Reconnect Google</button><button class="btn btn-ghost" data-gs-cxcancel="1">Cancel</button></div>`;
+    } else if(cx.state === "error"){
+      h += `<p class="gs-note" style="color:var(--red);margin:0 0 8px;">${esc(cx.err || "Something went wrong.")}</p><div class="save-row"><button class="btn btn-primary" data-gs-cxscan="1">Try again</button><button class="btn btn-ghost" data-gs-cxcancel="1">Cancel</button></div>`;
+    } else if(cx.state === "finished"){
+      h += `<p class="gs-note" style="margin:0;">Done. Removed ${cx.removed || 0} task${(cx.removed || 0) === 1 ? "" : "s"}${cx.listDeleted ? " and the empty list" : ""}. The Tasks permission is dropped the next time you reconnect.</p>`;
+    } else {
+      const sel = cx.items.filter(i=>i.sel).length, byDate = {};
+      cx.items.forEach(i=>{ byDate[i.date] = (byDate[i.date] || 0) + 1; });
+      h += `<p class="gs-note" style="margin:0 0 6px;"><b>List &ldquo;${GS_LIST_NAME}&rdquo;</b> &middot; ${cx.items.length} item${cx.items.length === 1 ? "" : "s"} created by KoT (marker <code>kot:DATE:key</code>)${cx.listId ? "" : " &middot; the list no longer exists in Google"}</p>`;
+      if(cx.err) h += `<p class="gs-note" style="color:var(--red);">${esc(cx.err)}</p>`;
+      if(cx.items.length){
+        h += `<div class="gs-dates">${Object.keys(byDate).map(d=>esc(fmtDate(d)) + " (" + byDate[d] + ")").join(" &middot; ")}</div>
+          <label class="gs-row"><input type="checkbox" data-gs-cxall="1" ${sel === cx.items.length ? "checked" : ""}> Select all</label>
+          <div class="gs-cx-list">${cx.items.map(i=>`<label class="gs-cx-row"><input type="checkbox" data-gs-cxsel="${esc(i.id)}" ${i.sel ? "checked" : ""}><span class="gs-cx-d">${esc(fmtDate(i.date))}</span><span class="gs-cx-t">${esc(i.title)}</span><span class="gs-cx-s">${i.done ? "completed" : "open"}</span><code>${esc(i.marker)}</code></label>`).join("")}</div>`;
+      } else h += `<p class="gs-note">No KoT-created tasks were found.</p>`;
+      h += `<p class="gs-note">Not touched: ${cx.extra} item${cx.extra === 1 ? "" : "s"} in that list without a <code>kot:</code> marker.</p>`;
+      if(cx.listId) h += `<label class="gs-row"><input type="checkbox" data-gs-cxdellist="1" ${cx.dellist ? "checked" : ""}> Also delete the &ldquo;${GS_LIST_NAME}&rdquo; list itself if it ends up empty</label>`;
+      if(cx.state === "confirm"){
+        h += `<div class="rt-confirm" role="alert"><span>Delete ${sel} task${sel === 1 ? "" : "s"} from Google? This can't be undone. Your routine data in KoT is not affected.</span><button class="btn btn-primary" data-gs-cxyes="1">Yes, delete</button><button class="btn btn-ghost" data-gs-cxno="1">Cancel</button></div>`;
+      } else {
+        h += `<div class="save-row">${cx.items.length ? `<button class="btn btn-primary" data-gs-cxdelete="1" ${sel ? "" : "disabled"}>Delete ${sel} selected</button>` : `<button class="btn btn-primary" data-gs-cxleave="1">Finish cleanup</button>`}<button class="btn btn-ghost" data-gs-cxcancel="1">Cancel</button></div>`;
+      }
+    }
+    h += `</div>`;
+  }
+  /* Google Calendar events in the Day view */
+  h += `<div class="section-title" style="margin-top:16px;">Google Calendar events in the Day view</div>`;
+  if(g.read === false || GS.gcal.err === "scope"){
+    h += `<p class="gs-note">Connect your calendars to see Google Calendar events in the Day view. KoT asks for two read-only permissions (calendar list and events). If you haven't added them to your Google consent screen yet, do that first, then reconnect.</p>
+      <div class="save-row"><button class="btn btn-primary" data-gs-connect="1">Connect your calendars</button></div>`;
+  } else {
+    const cals = GS.gcal.cals;
+    h += `<p class="gs-note">Read-only. Events appear in the Day view and in &ldquo;here's your day&rdquo;; KoT never changes them. Your primary calendar is on by default.</p>`;
+    h += cals.length ? cals.map(c=>`<label class="gs-row"><input type="checkbox" data-gs-cal="${esc(c.id)}" ${gsCalIsOn(c) ? "checked" : ""}> <span class="gs-dot" style="background:${esc(c.color)}"></span>${esc(c.name)}${c.primary ? " (primary)" : ""}</label>`).join("")
+      : `<p class="gs-note">${GS.gcal.err ? esc(GS.gcal.err) : "Your calendars load after the next sync."} <button class="btn btn-ghost" data-gs-calrefresh="1">Load my calendars</button></p>`;
+    h += `<p class="gs-note">The ${GS_CAL_NAME} calendar is never listed here (your workouts already show natively).</p>
+      <div class="field" style="max-width:260px;"><label>Grace minutes around Google events</label><select data-gs-grace="1">${[0, 5, 10, 15].map(n=>`<option value="${n}" ${(+o.grace || 0) === n ? "selected" : ""}>${n === 0 ? "0 (exact overlap only)" : n + " min"}</option>`).join("")}</select></div>`;
+  }
+  return h;
+}
+function p9GsBind(){
+  if(GS._bound9) return; GS._bound9 = true;
+  document.addEventListener("click", async e=>{
+    const t = e.target && e.target.closest ? e.target.closest("[data-gs-routine],[data-gs-cal],[data-gs-calrefresh],[data-gs-cxscan],[data-gs-cxleave],[data-gs-cxcancel],[data-gs-cxsel],[data-gs-cxall],[data-gs-cxdellist],[data-gs-cxdelete],[data-gs-cxyes],[data-gs-cxno]") : null;
+    if(!t) return; const cx = GS.cx;
+    if(t.hasAttribute("data-gs-routine")) return void await gsSetRoutine(t.checked);
+    if(t.hasAttribute("data-gs-cal")){ GS.opts.cals = GS.opts.cals || {}; GS.opts.cals[t.dataset.gsCal] = t.checked; await gsSaveOpts(); await gsGcalReset(); gsRenderUI(); return; }
+    if(t.hasAttribute("data-gs-calrefresh")){ try{ await gsEnsureToken(false); await gsGcalCals(true); GS.gcal.err = null; }catch(err){ GS.gcal.err = err.message; if(err.gsCode === "scope"){ GS.grant.read = false; GS.gcal.err = "scope"; } } gsRenderUI(); return; }
+    if(t.hasAttribute("data-gs-cxscan")) return void await gsCleanupScan();
+    if(t.hasAttribute("data-gs-cxleave")) return void await gsCleanupLeave();
+    if(t.hasAttribute("data-gs-cxcancel")){ cx.state = "idle"; cx.items = []; cx.err = null; gsRenderUI(); return; }
+    if(t.hasAttribute("data-gs-cxsel")){ const it = cx.items.find(i=>i.id === t.dataset.gsCxsel); if(it) it.sel = t.checked; gsRenderUI(); return; }
+    if(t.hasAttribute("data-gs-cxall")){ cx.items.forEach(i=>{ i.sel = t.checked; }); gsRenderUI(); return; }
+    if(t.hasAttribute("data-gs-cxdellist")){ cx.dellist = t.checked; gsRenderUI(); return; }
+    if(t.hasAttribute("data-gs-cxdelete")){ if(cx.items.some(i=>i.sel)){ cx.state = "confirm"; gsRenderUI(); } return; }
+    if(t.hasAttribute("data-gs-cxno")){ cx.state = "review"; gsRenderUI(); return; }
+    if(t.hasAttribute("data-gs-cxyes")) return void await gsCleanupRun();
+  });
+  document.addEventListener("change", async e=>{
+    const t = e.target; if(t && t.matches && t.matches("[data-gs-grace]")){ GS.opts.grace = +t.value || 0; await gsSaveOpts(); if(typeof rtRefresh === "function") rtRefresh(); }
+  });
+}
+
+/* ============================================================
+   PHASE 9 - one conflict engine for the Day view.
+   Blocks = routine items + KoT workouts + (read-only) Google events. A conflict is any overlap of two
+   timed blocks (strict: back-to-back is fine) where at least one is an app block. Google always wins.
+   Detection runs after every saved change (manual edit, assistant, reorder, bulk ops, workout time,
+   add-workout) and gates the Lock action. Past days are display-only.
+   ============================================================ */
+function rtGrace(){ return Math.max(0, parseInt((GS.opts && GS.opts.grace) || 0, 10) || 0); }
+function rtBlocksFor(date){
+  const out = [], day = getDayPlan(date), items = rtItemsFor(date), starts = rtWorkoutStarts(date, items, day);
+  items.forEach(it=>{
+    if(!(it.durMin > 0) || it.group === "workout" || it.group === "sleep") return;     /* the Workout block is a container; sleep is not a booking */
+    out.push({src:"routine", id:it.id, name:it.name, emoji:it.emoji, start:it.start, end:it.start + it.durMin, dur:it.durMin, ref:it});
+  });
+  (day.workouts || []).forEach(wk=>{
+    if(wk.kind === "rest") return; const st = starts[wk.slotKey]; if(st == null) return;
+    const dur = Math.max(5, Math.round(wk.timeMin || 30));
+    out.push({src:"workout", id:"w:" + wk.slotKey, slot:wk.slotKey, name:wk.name, emoji:"🏋️", start:st, end:st + dur, dur, ref:wk});
+  });
+  ((typeof GS !== "undefined" && GS.gcal && GS.gcal.days && GS.gcal.days[date]) || []).forEach(g=>{
+    if(g.allDay || !(g.end > g.start)) return;
+    out.push({src:"google", id:g.id, name:g.title, start:g.start, end:g.end, dur:g.end - g.start, blocking:g.blocking, tentative:g.tentative, ref:g});
+  });
+  return out;
+}
+function rtFindConflicts(date, opt){
+  opt = opt || {}; if(!date || date < todayISO()) return [];
+  const B = rtBlocksFor(date), g = rtGrace(), rec = RT.days[date] || {}, keep = new Set((rec.gx && rec.gx.keep) || []), out = [];
+  for(let i = 0; i < B.length; i++) for(let j = i + 1; j < B.length; j++){
+    const a = B[i], b = B[j]; if(a.src === "google" && b.src === "google") continue;
+    if((a.src === "google" && !a.blocking) || (b.src === "google" && !b.blocking)) continue;
+    const pa = a.src === "google" ? g : 0, pb = b.src === "google" ? g : 0;
+    if(!rtOverlap(a.start - pa, a.end + pa, b.start - pb, b.end + pb)) continue;
+    let mover, fixed;
+    if(a.src === "google") { mover = b; fixed = a; } else if(b.src === "google") { mover = a; fixed = b; }
+    else if(a.src === "workout" && b.src === "routine") { mover = b; fixed = a; } else if(b.src === "workout" && a.src === "routine") { mover = a; fixed = b; }
+    else { mover = (b.start >= a.start) ? b : a; fixed = mover === a ? b : a; }
+    const key = [a.id, b.id].sort().join("|");
+    if(!opt.includeKept && keep.has(key)) continue;
+    out.push({key, a, b, mover, fixed});
+  }
+  return out;
+}
+/* recommended fix + what is possible. Google item is never touched. */
+function rtFixFor(date, c){
+  const m = c.mover, f = c.fixed, g = rtGrace(), pad = f.src === "google" ? g : 0, fs = f.start - pad, fe = f.end + pad;
+  const others = rtBlocksFor(date).filter(x=>x.id !== m.id && !(x.src === "google" && !x.blocking));
+  const free = s=>others.every(x=>{ const px = x.src === "google" ? g : 0; return !rtOverlap(s, s + m.dur, x.start - px, x.end + px); });
+  let move = null;
+  for(let s = Math.ceil(fe / 5) * 5; s + m.dur <= 1440; s += 5){ if(free(s)){ move = s; break; } }
+  if(move == null){ for(let s = Math.floor((fs - m.dur) / 5) * 5; s >= 0; s -= 5){ if(free(s)){ move = s; break; } } }
+  let shorten = null;
+  if(m.src === "routine"){
+    if(m.start < fs && m.end > fe) shorten = null;                       /* the other block sits in the middle */
+    else if(m.start < fs){ const nd = fs - m.start; if(nd >= 15) shorten = {start:m.start, dur:nd}; }
+    else if(m.end > fe){ const nd = m.end - fe; if(nd >= 15) shorten = {start:fe, dur:nd}; }
+  }
+  const remove = m.src === "routine";
+  const rec = move != null ? "move" : shorten ? "shorten" : remove ? "remove" : "keep";
+  return {move, shorten, remove, rec};
+}
+async function rtFixApply(date, c, fx, act){
+  const m = c.mover, rec = rtRec(date);
+  if(act === "move" && fx.move != null){
+    if(m.src === "routine") await rtSetStarts(date, [[m.id, fx.move]]);
+    else { rec.wt = rec.wt || {}; rec.wt[m.slot] = fx.move; rec.wtAt = rec.wtAt || {}; rec.wtAt[m.slot] = new Date().toISOString(); await rtSaveDay(date); }
+    return true;
+  }
+  if(act === "shorten" && fx.shorten){ await rtApplyEdit(date, m.ref, {start:fx.shorten.start, durMin:fx.shorten.dur}, "today"); return true; }
+  if(act === "remove" && fx.remove){ await rtDeleteItem(date, m.ref, "today"); return true; }
+  if(act === "keep"){ rec.gx = rec.gx || {}; rec.gx.keep = Array.from(new Set((rec.gx.keep || []).concat([c.key]))); await rtSaveDay(date); return true; }
+  return false;
+}
+function rtCfLabels(list){
+  const m = {};
+  list.forEach(c=>{
+    const lab = x=>x.name + (x.src === "google" ? " (Google)" : "") + " " + rtFmt(x.start) + "–" + rtFmt(x.end);
+    (m[c.a.id] = m[c.a.id] || []).push(lab(c.b)); (m[c.b.id] = m[c.b.id] || []).push(lab(c.a));
+  });
+  return m;
+}
+/* ---------- when to check ---------- */
+function rtCxInit(date){
+  if(!date || RT.cxSig[date]) return;
+  RT.cxSig[date] = new Set(rtFindConflicts(date).map(c=>c.key));
+  RT.cxPrev[date] = JSON.stringify(RT.days[date] || {});
+}
+function rtCxSchedule(date){
+  if(RT._cxBusy || !date || date < todayISO()) return;
+  clearTimeout(RT._cxT); RT._cxT = setTimeout(()=>{ rtCxAfterChange(date).catch(()=>{}); }, 250);   /* lets multi-step edits finish first */
+}
+async function rtCxAfterChange(date, o){
+  o = o || {};
+  if(RT._cxBusy || !date || date < todayISO()) return;
+  await rtLoadDay(date);
+  const cur = rtFindConflicts(date), keys = new Set(cur.map(c=>c.key)), prev = RT.cxSig[date];
+  if(!prev){ RT.cxSig[date] = keys; RT.cxPrev[date] = JSON.stringify(RT.days[date] || {}); return; }
+  const fresh = cur.filter(c=>!prev.has(c.key));
+  RT.cxSig[date] = keys;
+  if(!fresh.length){ RT.cxPrev[date] = JSON.stringify(RT.days[date] || {}); return; }
+  if(date !== (RT.date || todayISO()) && !o.force){ if(typeof rtToast === "function") rtToast(fresh.length + " overlap" + (fresh.length === 1 ? "" : "s") + " on " + fmtDate(date) + ". Open that day to resolve."); return; }
+  rtCxOpen(date, "edit", {undo:!o.noUndo});
+}
+/* plan-side change (an added workout): prompt only for conflicts that involve that workout */
+async function rtCxAfterPlan(date, slotKey){
+  if(!date || date < todayISO()) return; await rtLoadDay(date); rtCxInit(date);
+  const cur = rtFindConflicts(date).filter(c=>c.a.id === "w:" + slotKey || c.b.id === "w:" + slotKey);
+  RT.cxSig[date] = new Set(rtFindConflicts(date).map(c=>c.key));
+  if(cur.length) rtCxOpen(date, "edit", {undo:false});
+}
+function p9GoogleChanged(){
+  Object.keys(RT.cxSig || {}).forEach(d=>{ try{ rtFindConflicts(d).forEach(c=>RT.cxSig[d].add(c.key)); }catch(e){} });   /* Google-driven overlaps show as a banner, not a pop-up */
+  if(RT.cx) rtCxRender();
+  if(typeof State !== "undefined" && (State.tab === "schedule" || State.tab === "dashboard") && typeof renderTabContent === "function") renderTabContent();
+}
+/* ---------- the dialog ---------- */
+function rtCxOpen(date, ctx, o){
+  o = o || {}; const list = rtFindConflicts(date);
+  if(!list.length){ if(ctx === "lock") return rtCxFinishLock(date); return; }
+  RT.cx = {date, ctx, undo:!!o.undo && !!RT.cxPrev[date], sel:(RT.cx && RT.cx.date === date ? RT.cx.sel : {})};
+  rtCxRender();
+}
+function rtCxWho(x){ return `${esc(x.name)} ${rtFmt(x.start)} – ${rtFmt(x.end)}`; }
+function rtCxRender(){
+  const cx = RT.cx; if(!cx) return;
+  const date = cx.date, list = rtFindConflicts(date);
+  if(!list.length){ rtCxDone(); return; }
+  let m = document.getElementById("rt-cx-modal"); if(!m){ m = document.createElement("div"); m.id = "rt-cx-modal"; document.body.appendChild(m); }
+  const rows = list.map(c=>{
+    const fx = rtFixFor(date, c), sel = cx.sel[c.key] || fx.rec, f = c.fixed, mv = c.mover, g = f.src === "google";
+    const opt = (v, label, ok)=>`<label class="rt-cx-opt ${ok ? "" : "off"}"><input type="radio" name="cx-${esc(c.key)}" value="${v}" data-rt-cx="pick" data-key="${esc(c.key)}" ${sel === v ? "checked" : ""} ${ok ? "" : "disabled"}> ${label}</label>`;
+    const mvLabel = mv.src === "workout" ? "Move the workout" : "Move " + esc(mv.name);
+    return `<div class="rt-cx-row"><p><strong>${rtCxWho(mv)}</strong> overlaps <strong>${rtCxWho(f)}</strong>${g ? ` <span class="rt-chip gcal">Google${f.tentative ? " · tentative" : ""}</span>` : ""}</p>
+      ${g ? `<p class="rt-muted">The Google event stays as it is.</p>` : ""}
+      ${opt("move", `${mvLabel} to ${fx.move != null ? rtFmt(fx.move) : "(no free slot today)"}${fx.rec === "move" ? " <em>(recommended)</em>" : ""}`, fx.move != null)}
+      ${opt("shorten", `Shorten ${esc(mv.name)}${fx.shorten ? " to " + rtFmt(fx.shorten.start) + " – " + rtFmt(fx.shorten.start + fx.shorten.dur) : mv.src === "workout" ? " (workout length comes from your plan)" : " (not possible here)"}`, !!fx.shorten)}
+      ${opt("remove", `Remove ${esc(mv.name)} from this day only`, fx.remove)}
+    </div>`;
+  }).join("");
+  const lock = cx.ctx === "lock";
+  m.innerHTML = `<div class="rt-cx-back"><div class="rt-cx-box" role="dialog" aria-modal="true" aria-label="Schedule conflict">
+    <h3>Schedule conflict${list.length > 1 ? "s" : ""}</h3>
+    ${lock ? `<p class="rt-muted">This schedule has ${list.length === 1 ? "an overlap" : list.length + " overlaps"}. Resolve ${list.length === 1 ? "it" : "them"} before locking.</p>` : ""}
+    ${rows}
+    <div class="rt-cx-actions">
+      <button class="btn btn-primary" data-rt-cx="apply">${lock ? "Apply and lock" : "Apply"}</button>
+      ${cx.undo && !lock ? `<button class="btn btn-ghost" data-rt-cx="undo">Undo my change</button>` : ""}
+      <button class="btn btn-ghost" data-rt-cx="back">${lock ? "Back to editing" : "Decide later"}</button>
+    </div>
+    <p class="rt-cx-keep"><button class="rt-cx-link" data-rt-cx="keep">${lock ? "Lock anyway (keep the overlap)" : "Keep the overlap anyway"}</button></p>
+  </div></div>`;
+}
+function rtCxClose(){ const m = document.getElementById("rt-cx-modal"); if(m) m.remove(); RT.cx = null; }
+async function rtCxFinishLock(date){
+  const rec = rtRec(date); rec.locked = true; await rtSaveDay(date); RT.chat = []; rtCxClose(); await rtRefresh();
+}
+function rtCxDone(){
+  const cx = RT.cx; if(!cx) return; const date = cx.date, ctx = cx.ctx; rtCxClose();
+  if(ctx === "lock") rtCxFinishLock(date); else rtRefresh();
+}
+async function rtCxApply(){
+  const cx = RT.cx; if(!cx) return; const date = cx.date, skip = new Set();
+  RT._cxBusy = true;
+  try{
+    for(let pass = 0; pass < 12; pass++){
+      const c = rtFindConflicts(date).find(x=>!skip.has(x.key)); if(!c) break;
+      const fx = rtFixFor(date, c), act = cx.sel[c.key] || fx.rec;
+      let ok = await rtFixApply(date, c, fx, act);
+      if(!ok) ok = await rtFixApply(date, c, fx, fx.rec);
+      if(!ok) skip.add(c.key);
+    }
+  } finally { RT._cxBusy = false; }
+  RT.cxSig[date] = new Set(rtFindConflicts(date).map(c=>c.key)); RT.cxPrev[date] = JSON.stringify(RT.days[date] || {});
+  rtCxRender(); await rtRefresh();
+}
+async function rtCxKeep(){
+  const cx = RT.cx; if(!cx) return; const date = cx.date, rec = rtRec(date);
+  RT._cxBusy = true;
+  try{ rec.gx = rec.gx || {}; rec.gx.keep = Array.from(new Set((rec.gx.keep || []).concat(rtFindConflicts(date).map(c=>c.key)))); await rtSaveDay(date); } finally { RT._cxBusy = false; }
+  RT.cxSig[date] = new Set(rtFindConflicts(date).map(c=>c.key)); RT.cxPrev[date] = JSON.stringify(RT.days[date] || {});
+  rtCxDone();
+}
+async function rtCxUndo(){
+  const cx = RT.cx; if(!cx || !RT.cxPrev[cx.date]) return; const date = cx.date;
+  RT._cxBusy = true;
+  try{ RT.days[date] = JSON.parse(RT.cxPrev[date]); await rtSaveDay(date); } finally { RT._cxBusy = false; }
+  RT.cxSig[date] = new Set(rtFindConflicts(date).map(c=>c.key));
+  rtCxClose(); await rtRefresh();
+}
+function p9RtBind(){
+  if(RT._bound9) return; RT._bound9 = true;
+  document.addEventListener("click", e=>{
+    const el = e.target && e.target.closest ? e.target.closest("[data-rt-cx]") : null; if(!el || !RT.cx) return;
+    const a = el.dataset.rtCx;
+    if(a === "pick") RT.cx.sel[el.dataset.key] = el.value;
+    else if(a === "apply") rtCxApply();
+    else if(a === "keep") rtCxKeep();
+    else if(a === "undo") rtCxUndo();
+    else if(a === "back"){ const d = RT.cx.date; rtCxClose(); rtRefresh(); }
+  });
+}
+/* ---------- Day view pieces ---------- */
+function rtCxBannerHTML(date){
+  const n = rtFindConflicts(date).length; if(!n) return "";
+  const locked = !!(RT.days[date] && RT.days[date].locked);
+  return `<div class="rt-cxbar" role="alert"><span>⚠ ${n} overlap${n === 1 ? "" : "s"} to resolve${locked ? " (this schedule is locked; the overlap appeared after you locked it)" : ""}.</span><button class="btn btn-primary" data-rt="cxopen" data-date="${esc(date)}">Resolve</button></div>`;
+}
+async function rtGoogleDay(date){
+  let to = null;
+  try{
+    if(typeof gsGcalEnsure === "function") await Promise.race([gsGcalEnsure(date, false), new Promise(r=>{ to = setTimeout(r, 2500); })]);
+  }catch(e){} finally { if(to) clearTimeout(to); }
+  const arr = (GS.gcal && GS.gcal.days && GS.gcal.days[date]) || [];
+  const allDay = arr.filter(g=>g.allDay), timed = arr.filter(g=>!g.allDay);
+  const allHTML = allDay.length ? `<div class="rt-allday" aria-label="All-day events">${allDay.map(g=>`<div class="rt-allday-row" style="border-left-color:${esc(g.color)}"><span class="rt-ico">🗓</span><span class="rt-allday-t">${esc(g.title)}</span><span class="rt-chip gcal">All day · ${esc(g.calName)}</span>${g.link ? ` <a class="rt-glink" href="${esc(g.link)}" target="_blank" rel="noopener">Open in Google ↗</a>` : ""}</div>`).join("")}</div>` : "";
+  return {allDay, timed, allHTML};
+}
+function rtGoogleRowHTML(g){
+  const tag = g.declined ? " · declined" : g.free ? " · free" : g.tentative ? " · tentative" : "";
+  return `<div class="rt-entry rt-gcal" data-rt-gcal="${esc(g.id)}"><div class="rt-gitem ${g.blocking ? "" : "muted"}" style="border-left-color:${esc(g.color)}" title="Edit in Google Calendar">
+    <div class="rt-ico">🗓</div>
+    <div class="rt-main"><div class="rt-name">${esc(g.title)} <span class="rt-chip gcal">Google · ${esc(g.calName)}${esc(tag)}</span></div>
+      <div class="rt-sub">${rtFmt(g.start)} – ${rtFmt(g.end)} · ${rtFmtDur(g.end - g.start)}</div></div>
+    ${g.link ? `<a class="rt-glink" href="${esc(g.link)}" target="_blank" rel="noopener">Open in Google ↗</a>` : ""}
+  </div></div>`;
+}
+function rtDayHintHTML(date){
+  const needRead = GS.cfg && GS.cfg.enabled && (GS.grant.read === false || GS.gcal.err === "scope");
+  return `<p class="rt-muted rt-viewhint" data-view-hint="day">Your full day: routine, workouts and Google Calendar events.</p>
+    <div class="rt-hintrow"><button class="btn btn-ghost" data-rt="planwk">Plan workouts for this week →</button>${needRead ? `<button class="btn btn-ghost" data-gs-connect="1">Connect your calendars</button>` : ""}</div>`;
+}
+async function rtBriefMergedHTML(date, w){
+  const gx = await rtGoogleDay(date), rows = [];
+  w.items.forEach(it=>{ if(it.durMin > 0 && it.group !== "sleep" && it.group !== "workout") rows.push({s:it.start, o:0, h:`${rtFmt(it.start)} ${esc(it.emoji || "")} ${esc(it.name)}`}); });
+  w.day.workouts.filter(x=>x.kind !== "rest").forEach(x=>{ const st = w.starts[x.slotKey]; if(st != null) rows.push({s:st, o:1, h:`${rtFmt(st)} ${kotWorkoutEmoji(x)} ${esc(x.name)}`}); });
+  gx.timed.forEach(g=>rows.push({s:g.start, o:2, h:`${rtFmt(g.start)} 🗓 ${esc(g.title)} <span class="rt-chip gcal">Google${g.declined ? " · declined" : g.free ? " · free" : g.tentative ? " · tentative" : ""}</span>`}));
+  rows.sort((a,b)=>(a.s - b.s) || (a.o - b.o));
+  const n = rtFindConflicts(date).length;
+  const head = (gx.allDay.length ? `<div class="rt-fd-row">🗓 All day: ${gx.allDay.map(g=>esc(g.title)).join(", ")}</div>` : "");
+  const warn = n ? `<div class="rt-fd-row rt-fd-warn">⚠ ${n} overlap${n === 1 ? "" : "s"} to resolve <button class="btn btn-ghost" data-rt="cxopen" data-date="${esc(date)}">Resolve</button></div>` : "";
+  return `<div class="rt-fullday" data-rt-fullday="1">${warn}${head}${rows.map(r=>`<div class="rt-fd-row">${r.h}</div>`).join("")}</div>`;
+}
+function p9Bind(){ p9GsBind(); p9RtBind(); }
 
 /* ============================================================
    PHASE 4 - DATA HUB, WELLNESS, DEDUPE, TRAINING LOAD  (namespace hb* / HB)
@@ -5060,7 +5678,7 @@ function wxPlanFor(outdoor, starts){
 
 /* ---------- indoor swap picks ---------- */
 function wxRouvyFor(planned, relaxed){
-  const c = Object.entries(Lib.workouts).filter(([id,w])=>w.kind==="cycling" && (w.source==="rouvy" || /rouvy/i.test(w.platform||"")) && (w.timeMin||0)>0)
+  const c = Object.entries(Lib.workouts).filter(([id,w])=>w.kind==="cycling" && !w.noSwap && (w.source==="rouvy" || /rouvy/i.test(w.platform||"")) && (w.timeMin||0)>0)
     .map(([id,w])=>({id, name:w.name, min:w.timeMin, diff:Math.abs(w.timeMin-planned)})).sort((a,b)=>a.diff-b.diff || a.name.localeCompare(b.name));
   const best = c[0]; if(!best) return null;
   if(!relaxed && best.diff > WX_MATCH*planned + 0.001) return null;
@@ -5283,7 +5901,7 @@ function kotBrandChip(name,label){ const k = kotBrand(name); return k ? `<span c
 const KOT_ANAT = s=>String(s||"").replace(/\b(it|iliotibial)\s*band\b/gi," ").replace(/\bband\s+(of|stretch)\b/gi," ");
 const KOT_NOPAREN = s=>String(s||"").replace(/\([^)]*\)/g," ");
 const KOT_EQ_KEY = {barbell:"exercise-barbell", cable:"exercise-cable", dumbbell:"exercise-dumbbell"};
-/* exercise -> illustration: tools, then name equipment, then gear, then band, then the description's first equipment mention (parenthetical alternatives ignored), then Body Group, then bodyweight */
+/* exercise -> illustration: tools, then name equipment, then gear, then medicine/stability/slam/swiss ball (tools), then band, then the description's first equipment mention (parenthetical alternatives ignored), then Body Group, then bodyweight */
 function kotExerciseImageKey(ex){
   const nm = String((ex&&ex.name)||""), desc = String((ex&&ex.desc)||""), nmS = KOT_ANAT(nm), dS = KOT_ANAT(KOT_NOPAREN(desc)), both = KOT_ANAT(nm+" "+KOT_NOPAREN(desc));
   if(/fitxr|\bvr\b|virtual reality/i.test(nm+" "+String((ex&&ex.platform)||""))) return "workout-vr";
@@ -5291,6 +5909,7 @@ function kotExerciseImageKey(ex){
   if(/\byoga\b|\bstretch(es|ing)?\b/i.test(nmS) || /\byoga\b/i.test(both)) return "exercise-flex";
   const ne = nmS.match(/\b(barbell|cable|dumbbell)s?\b/i); if(ne) return KOT_EQ_KEY[ne[1].toLowerCase()];
   if(/\b(plyo(metric)? box|box jump|agility ladder|ladder drill|bosu)\b/i.test(both) || /\bstep[- ]?ups?\b/i.test(nmS)) return "exercise-gear";
+  if(/\b(medicine|med|stability|slam|swiss|exercise)\s+balls?\b/i.test(nmS)) return "exercise-tools";
   if(/\b(resistance\s+)?band(s|ed)?\b/i.test(nmS)) return "exercise-tools";
   const m = dS.match(/\b(?:(barbell|cable|dumbbell)s?|(?:resistance\s+)?band(?:s|ed)?)\b/i);
   if(m) return m[1] ? KOT_EQ_KEY[m[1].toLowerCase()] : "exercise-tools";
@@ -5896,7 +6515,7 @@ const RT_ALIASES = {
   sleep:["sleep","bed","bedtime","in bed"]
 };
 const RT = {defs:null, days:{}, wk:{}, date:null, chat:[], pending:null, confirm:null, edit:null, panel:null,
-            histOpen:false, bootMin:0, lastToday:null, timers:false, audio:null, audioReady:false, playedMem:{}};
+            histOpen:false, bootMin:0, lastToday:null, timers:false, audio:null, audioReady:false, playedMem:{}, cxSig:{}, cxPrev:{}, cx:null};
 
 /* ---------- small helpers (all local time) ---------- */
 function rtNowMin(){ const n=new Date(); return n.getHours()*60+n.getMinutes(); }
@@ -5944,7 +6563,7 @@ async function rtInit(){
   window.RT = RT;
 }
 async function rtLoadDay(date){ if(!RT.days[date]){ const r = await loadJSON("routine:day:"+date); RT.days[date] = r || {}; } return RT.days[date]; }
-async function rtSaveDay(date){ await saveJSON("routine:day:"+date, rtRec(date)); }
+async function rtSaveDay(date){ await saveJSON("routine:day:"+date, rtRec(date)); if(typeof rtCxSchedule==="function") rtCxSchedule(date); }
 async function rtSaveDefs(){ RT.defs.seeded = false; await saveJSON("routine:defs", RT.defs); }
 
 /* ---------- recurrence + per-day resolution ---------- */
@@ -5994,7 +6613,9 @@ async function rtPrepare(date){
       if(firstStart==null || starts[w.slotKey]<firstStart) firstStart = starts[w.slotKey];
     }
   });
-  return (RT.wk[date] = {day, log, items, starts, logged, totalMin, firstStart});
+  RT.wk[date] = {day, log, items, starts, logged, totalMin, firstStart};
+  if(typeof rtCxInit==="function") rtCxInit(date);
+  return RT.wk[date];
 }
 function rtAuto(date){ const w = RT.wk[date]; return !!(w && w.logged.length); }
 
@@ -6091,7 +6712,7 @@ async function rtShiftDay(date, delta){
 }
 async function rtClearDay(date){ const rec = rtRec(date); rec.list = []; rec.ov = {}; rec.add = []; await rtSaveDay(date); }
 async function rtCopyToTomorrow(date){
-  const tom = dateAdd(date, 1); await rtLoadDay(tom);
+  const tom = dateAdd(date, 1); await rtLoadDay(tom); if(typeof rtCxInit==="function") rtCxInit(tom);
   const rec = rtRec(tom); rec.list = rtItemsFor(date).map(x=>Object.assign({}, x)); rec.ov = {}; rec.add = [];
   await rtSaveDay(tom);
 }
@@ -6459,7 +7080,7 @@ function rtEditorHTML(it, date, isNew){
     </div>
   </div>`;
 }
-function rtItemHTML(it, date, rec, idx, n){
+function rtItemHTML(it, date, rec, idx, n, cf){
   const checked = rtChecked(date,it), fin = !!rec.fin;
   const auto = it.group==="workout" && (rec.c||{}).workout===undefined && rtAuto(date);
   const chip = it.habit ? `<span class="rt-chip habit">Habit</span>` : (!it.checkable ? `<span class="rt-chip">Reminder</span>` : "");
@@ -6476,6 +7097,7 @@ function rtItemHTML(it, date, rec, idx, n){
       <div class="rt-main">
         <div class="rt-name">${esc(it.name)} ${chip}${auto?`<span class="rt-chip auto">✓ from KoT log</span>`:""}</div>
         <div class="rt-sub">${sub}</div>
+        ${cf && cf[it.id] ? `<div class="rt-cxchip">⚠ Overlaps ${esc(cf[it.id].join(", "))}</div>` : ""}
       </div>
       <div class="rt-actions">
         <button type="button" class="rt-mute ${it.muted?"off":""}" data-rt="mute" data-id="${esc(it.id)}" aria-pressed="${it.muted?"true":"false"}">${rtBell(!it.muted)} ${it.muted?"Muted":"Mute"}</button>
@@ -6485,7 +7107,7 @@ function rtItemHTML(it, date, rec, idx, n){
     ${RT.edit===it.id ? rtEditorHTML(it, date, false) : ""}
   </div></div>`;
 }
-function rtWorkoutEntryHTML(date, w, wk, i, rec, exRecent){
+function rtWorkoutEntryHTML(date, w, wk, i, rec, exRecent, cf){
   const st = w.starts[wk.slotKey], dur = wk.kind==="rest" ? 0 : (wk.timeMin||30);
   const custom = (rec.wt||{})[wk.slotKey]!=null;
   return `<div class="rt-entry rt-wk" data-rt-now="1" data-rt-start="${st}" data-rt-end="${st+Math.max(dur,15)}">
@@ -6493,6 +7115,7 @@ function rtWorkoutEntryHTML(date, w, wk, i, rec, exRecent){
       <input type="time" data-rt-wt="${esc(wk.slotKey)}" value="${rtToHHMM(st)}" aria-label="Start time for ${esc(wk.name)} on this day">
       ${custom ? `<button type="button" class="btn btn-ghost" data-rt="wtreset" data-slot="${esc(wk.slotKey)}">Reset time</button>` : `<span class="rt-muted">${i===0?"from the Workout block":"stacked after the previous workout"}</span>`}
     </div>
+    ${cf && cf["w:"+wk.slotKey] ? `<div class="rt-cxchip">⚠ Overlaps ${esc(cf["w:"+wk.slotKey].join(", "))}</div>` : ""}
     ${renderWorkoutItem(w.day, i, wk, w.log, exRecent)}
   </div>`;
 }
@@ -6596,29 +7219,32 @@ function rtPriorHTML(){
 }
 async function rtRenderDay(){
   const date = RT.date = RT.date || todayISO();
+  const gx = await rtGoogleDay(date);
   const w = await rtPrepare(date); const rec = rtRec(date);
   const exRecent = await buildRecentExerciseValueLookup(date, 30);
   const isToday = date===todayISO();
   const routine = w.items;
-  const entries = routine.map((it,idx)=>({t:"r", start:it.start, it, idx})).concat(w.day.workouts.map((wk,i)=>({t:"w", start:w.starts[wk.slotKey], wk, i})));
-  entries.sort((a,b)=>(a.start-b.start)||(a.t==="r"?-1:1));
+  const cf = rtCfLabels(rtFindConflicts(date));
+  const entries = routine.map((it,idx)=>({t:"r", start:it.start, it, idx})).concat(w.day.workouts.map((wk,i)=>({t:"w", start:w.starts[wk.slotKey], wk, i}))).concat(gx.timed.map(g=>({t:"g", start:g.start, g})));
+  const rank = {r:0, w:1, g:2};
+  entries.sort((a,b)=>(a.start-b.start)||(rank[a.t]-rank[b.t]));
   const tools = `<div class="rt-tools">
     <button class="btn btn-ghost ${RT.panel==="add"?"on":""}" data-rt="panel" data-p="add">＋ Add item</button>
     <button class="btn btn-ghost ${RT.panel==="templates"?"on":""}" data-rt="panel" data-p="templates">🗒️ Templates</button>
     <button class="btn btn-ghost ${RT.panel==="bulk"?"on":""}" data-rt="panel" data-p="bulk">⚙️ Bulk edit</button>
   </div>`;
   const head = `<div class="card rt-head">
-    <div class="rt-head-top"><div><h2>${isToday?"Today’s Routine":"Daily Routine"}</h2><p class="rt-muted">${esc(fmtDateLong(date))}${rec.locked?` · <span class="rt-chip ok">SCHEDULE - CONFIRMED</span>`:""}</p></div>
+    <div class="rt-head-top"><div><h2>Schedule and Daily Routine</h2><p class="rt-muted">${esc(fmtDateLong(date))}${rec.locked?` · <span class="rt-chip ok">SCHEDULE - CONFIRMED</span>`:""}</p></div>
       <div class="pill-toggle" role="group" aria-label="Schedule view"><button class="active" data-rt="mode" data-mode="day">Day</button><button data-rt="mode" data-mode="week">Week</button></div></div>
     <div class="rt-datenav"><button class="btn btn-ghost" data-rt="date" data-d="-1" aria-label="Previous day">‹</button><button class="btn btn-ghost" data-rt="date" data-d="0">Today</button><button class="btn btn-ghost" data-rt="date" data-d="1" aria-label="Next day">›</button><input type="date" data-rt-date="1" value="${date}" aria-label="Pick a date"></div>
     ${tools}${rtConfirmHTML()}${rtPanelHTML(date)}</div>`;
-  const list = entries.length ? entries.map(e=>e.t==="r" ? rtItemHTML(e.it, date, rec, e.idx, routine.length) : rtWorkoutEntryHTML(date, w, e.wk, e.i, rec, exRecent)).join("") : `<div class="empty-state"><h3>Nothing scheduled</h3><p>Add a routine item, or apply a template.</p></div>`;
+  const list = entries.length ? entries.map(e=>e.t==="r" ? rtItemHTML(e.it, date, rec, e.idx, routine.length, cf) : e.t==="g" ? rtGoogleRowHTML(e.g) : rtWorkoutEntryHTML(date, w, e.wk, e.i, rec, exRecent, cf)).join("") : `<div class="empty-state"><h3>Nothing scheduled</h3><p>Add a routine item, or apply a template.</p></div>`;
   const assistant = rec.locked ? "" : `<section class="card rt-card"><div class="rt-card-head"><div class="rt-badge">💬</div><div><h2>Schedule Assistant</h2><p class="rt-muted">Try: “Move guitar to 1:00 PM”, “make meditation 45 minutes”, “shorten work block by 30 minutes”, “delete Guitar Practice”.</p></div></div>
     <div class="rt-chat" aria-live="polite">${rtChatHTML()}</div>
     <div class="rt-inline"><input id="rt-assist-input" type="text" placeholder="Tell me what to change…" autocomplete="off"><button class="btn btn-primary" data-rt="assist">Send</button><button class="btn btn-ghost" data-rt="lock">🔒 Lock Schedule</button></div></section>`;
   const hint = rec.locked && !rec.fin ? `<div class="rt-lockbar"><span class="rt-chip ok">SCHEDULE - CONFIRMED</span><button class="btn btn-ghost" data-rt="unlock">Unlock schedule</button></div>` : "";
   const dayPlan = w.day.workouts.length ? "" : `<p class="rt-muted rt-norest">No KoT workout planned — rest day.</p>`;
-  return head + `<div class="rt-timeline">${list}</div>${dayPlan}<div class="card rt-addwk">${renderAddWorkoutPanel(date)}</div>${hint}${assistant}${rec.locked ? rtReportCardHTML(date, routine, rec) : ""}${rtPriorHTML()}`;
+  return head + rtDayHintHTML(date) + gx.allHTML + rtCxBannerHTML(date) + `<div class="rt-timeline">${list}</div>${dayPlan}<div class="card rt-addwk">${renderAddWorkoutPanel(date)}</div>${hint}${assistant}${rec.locked ? rtReportCardHTML(date, routine, rec) : ""}${rtPriorHTML()}`;
 }
 
 /* ---------- Morning Brief (Today tab) ---------- */
@@ -6641,7 +7267,7 @@ async function rtMorningBrief(day, log){
   const first = timed[0], last = timed[timed.length-1];
   const next = items.find(i=>i.start>now && i.group!=="sleep");
   const wks = w.day.workouts.filter(x=>x.kind!=="rest");
-  const sched = items.length
+  let sched = items.length
     ? `${items.length} routine item${items.length===1?"":"s"} today${checkable.length?` · ${doneN}/${checkable.length} checked`:""}${first?` · first ${esc(first.emoji)} ${esc(first.name)} at ${rtFmt(first.start)}`:""}${last&&last!==first?` · last ${esc(last.emoji)} ${esc(last.name)} at ${rtFmt(last.start)}`:""}${next?` · <strong>next up:</strong> ${esc(next.emoji)} ${esc(next.name)} at ${rtFmt(next.start)} (in ${rtFmtDur(next.start-now)})`:""}.`
     : "No routine items scheduled today.";
   let wx;
@@ -6662,10 +7288,11 @@ async function rtMorningBrief(day, log){
     wx = wd ? wx.replace("__WXVERDICT__", verdict) : wx;
     if(wd) wx = wxIcon(kotWeatherKey(wd),"wx-ic-lg")+wx;
   }
+  const fullday = await rtBriefMergedHTML(date, w);
   const hbLoadLine = await hbBriefLine();
   return `<div class="card rt-brief"><div class="rt-brief-head"><div class="rt-badge">${{morning:"🌅",afternoon:"☀️",evening:"🌇",night:"🌙"}[rtTimeOfDay()]}</div><div><h2>${greet}, here’s your day</h2><p class="rt-muted">${esc(fmtDateLong(date))}</p></div><button class="btn btn-ghost" data-rt="gosched">Open schedule →</button></div>
     <div class="rt-brief-grid">
-      <div><span class="rt-k">Schedule</span><p>${sched}</p></div>
+      <div><span class="rt-k">Schedule</span><p>${sched}</p>${fullday}</div>
       <div><span class="rt-k">Weather</span><p>${wx}</p></div>
       <div><span class="rt-k">Planned workout${wks.length===1?"":"s"}</span><p>${wkLine}</p></div>
     </div>
@@ -6749,7 +7376,9 @@ async function rtAction(name, el){
       inp.value = ""; await rtParse(date, t); break;
     }
     case "conf": await rtResolveConflict(el.dataset.act); break;
-    case "lock": { const rec = rtRec(date); rec.locked = true; await rtSaveDay(date); RT.chat = []; break; }
+    case "cxopen": rtCxOpen(el.dataset.date || date, "edit", {undo:false}); return;
+    case "planwk": { const dp = getDayPlan(date); if(dp && dp.weekNum) State.openWeek = dp.weekNum; State.scheduleMode = "week"; await renderTabContent(); return; }
+    case "lock": { if(rtFindConflicts(date).length){ rtCxOpen(date, "lock"); return; } const rec = rtRec(date); rec.locked = true; await rtSaveDay(date); RT.chat = []; break; }
     case "unlock": { const rec = rtRec(date); if(!rec.fin){ rec.locked = false; await rtSaveDay(date); } break; }
     case "tplsave": { const nm = (document.getElementById("rt-tpl-name").value||"").trim(); if(!nm){ rtToast("Name the template first."); return; } await rtSaveTemplate(date, nm); rtToast("Template saved."); break; }
     case "tplapply": await rtApplyTemplate(date, id); RT.panel = null; break;
@@ -7168,7 +7797,7 @@ document.addEventListener("keydown", (e)=>{
 
 document.addEventListener("click", (e)=>{
   const tb = e.target.closest(".tabnav button");
-  if(tb){ if(tb.dataset.etab) State.editorTab = tb.dataset.etab; switchTab(tb.dataset.tab); return; }
+  if(tb){ if(tb.dataset.etab) State.editorTab = tb.dataset.etab; if(tb.dataset.tab==="schedule") State.scheduleMode = "day"; switchTab(tb.dataset.tab); return; }
   if(e.target.closest("#kot-theme-toggle")){ kotToggleTheme(); return; }
   const wf = e.target.closest("[data-open-weather-form]");
   if(wf){ State._openModal="weather"; renderModalRoot(); return; }
@@ -7969,6 +8598,7 @@ async function renderSchedule(){
       </div>
       </div>
     </div>
+    <p class="rt-muted rt-viewhint" data-view-hint="week" style="margin-top:8px;">Workout planning only. Google Calendar events and routine items are not shown here. Use Day for your full day.</p>
     <div data-pg-plan="all" style="margin-top:10px;"></div>
   </div>`;
 
@@ -9141,9 +9771,10 @@ function wireTabEvents(scopeEl){
   el.querySelectorAll("[data-addwk-kind]").forEach(btn=>btn.addEventListener("click",()=>{ State.editorFilter.addWkKind=btn.dataset.addwkKind; renderTabContent(); }));
   el.querySelectorAll("[data-addwk-event]").forEach(sel=>sel.addEventListener("change",()=>{ State.editorFilter.addWkEvent=sel.value; renderTabContent(); }));
   el.querySelectorAll("[data-pick-add]").forEach(btn=>btn.addEventListener("click",()=>{
-    addWorkoutToDay(btn.dataset.eventid, btn.dataset.date, btn.dataset.workoutid);
+    const addedKey = addWorkoutToDay(btn.dataset.eventid, btn.dataset.date, btn.dataset.workoutid);
     State._openItems["addwk_"+btn.dataset.date]=false;
     renderTabContent();
+    if(typeof rtCxAfterPlan==="function") rtCxAfterPlan(btn.dataset.date, addedKey).catch(()=>{});
   }));
 
   el.querySelectorAll("[data-target]").forEach(inp=>inp.addEventListener("change", async ()=>{
@@ -9840,6 +10471,7 @@ async function saveWorkoutFromForm(){
       timeMin: parseInt(document.getElementById("wf-time").value)||undefined,
       estMiles: document.getElementById("wf-miles").value ? parseFloat(document.getElementById("wf-miles").value) : undefined
     };
+    { const prev = (idOld && Lib.workouts[idOld]) || null; if(prev && prev.noSwap){ data.noSwap = true; if(prev.source) data.source = prev.source; } }
     if(/rouvy/i.test(platformVal)){
       const tssEl = document.getElementById("wf-tss"), urlEl = document.getElementById("wf-rouvyurl");
       if(tssEl && tssEl.value) data.targetTSS = parseInt(tssEl.value);
@@ -9906,7 +10538,5 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
-
-
 
 
