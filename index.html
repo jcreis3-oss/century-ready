@@ -1039,6 +1039,26 @@ body.theme-dark .rt-fd-warn{color:#fbbf24;}
 body.theme-dark #kot-rcp-note{background:#111827;color:#f9fafb;border-color:#9ca3af;box-shadow:0 8px 28px rgba(0,0,0,.6);} body.theme-dark #kot-rcp-note button{background:#1f2937;color:#f9fafb;border-color:#9ca3af;}
 body.theme-light #kot-rcp-note{background:#fff;color:#111827;border-color:#1f2937;} body.theme-light #kot-rcp-note button{background:#f3f4f6;color:#111827;border-color:#1f2937;}
 
+/* ---- B3: read-only archive view ---- */
+#kot-arc-view .modal-box{display:flex;flex-direction:column;padding:0;width:calc(100vw - 24px);max-width:680px;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow:hidden;}
+#kot-arc-view .arc-body{flex:1 1 auto;min-height:0;overflow:auto;padding:18px 16px 8px;-webkit-overflow-scrolling:touch;}
+#kot-arc-view .arc-foot{flex:0 0 auto;padding:10px 16px 14px;border-top:1px solid rgba(128,128,128,.25);display:flex;justify-content:flex-end;}
+#kot-arc-view .arc-foot button{min-height:44px;min-width:96px;}
+#kot-arc-view h3{margin:0 0 2px;font-size:17px;}
+#kot-arc-view .arc-sub{font-size:12px;color:var(--ink-600,#64748b);}
+#kot-arc-view .arc-badge{margin:10px 0;padding:9px 11px;border-radius:10px;font-size:12.5px;font-weight:600;line-height:1.4;border:1.5px solid rgba(128,128,128,.4);}
+#kot-arc-view .arc-st-complete{background:rgba(22,163,74,.16);} #kot-arc-view .arc-st-incomplete{background:rgba(217,119,6,.2);} #kot-arc-view .arc-st-none{background:rgba(100,116,139,.2);}
+#kot-arc-view .arc-ro{font-size:12px;color:var(--ink-600,#64748b);margin:4px 0 10px;}
+#kot-arc-view .arc-day{border:1px solid rgba(128,128,128,.28);border-radius:10px;padding:9px 11px;margin:8px 0;}
+#kot-arc-view .arc-dh{margin-bottom:4px;font-size:13px;}
+#kot-arc-view .arc-w{margin:6px 0;font-size:13px;}
+#kot-arc-view .arc-items{margin:4px 0 2px 18px;padding:0;font-size:12.5px;}
+#kot-arc-view .arc-items li{margin:3px 0;}
+#kot-arc-view .arc-log{font-size:12px;color:var(--ink-600,#64748b);margin-top:1px;}
+#kot-arc-view .arc-orph{font-size:12px;margin:4px 0;padding:6px 8px;border-radius:8px;background:rgba(217,119,6,.18);}
+#kot-arc-view .arc-note{font-size:12px;margin-top:3px;}
+#kot-arc-view .arc-more{margin-top:8px;min-height:44px;}
+
 </style>
 </head>
 <body class="theme-dark">
@@ -1562,7 +1582,8 @@ function eventNameTaken(name, excludeId){
 }
 
 async function createEvent(data){
-  await archiveStalePeriods();
+  const ar = await archiveStalePeriods();
+  if(!ar.ok){ createEvent.lastFailure = ar; arcNotifyCreateFailure(ar); return null; }   /* nothing new is created after a failed archive */
   const id = data.isGFP ? uid("gfp") : uid("ev");
   const ev = Object.assign({
     id, hidden:false, createdAt:new Date().toISOString(), color: nextEventColor(), isLegacyCWC:false
@@ -2158,50 +2179,329 @@ function getCurrentPlanInfo(){
   return { names: [], dates: dateSet };
 }
 
-async function archivePeriod(ev){
+/* ============================================================
+   B3 — ARCHIVED PLAN DEFINITIONS + VERIFIED ARCHIVING (additive).
+   * New archives of imported plans carry planData: the workout and exercise
+     definitions the schedule can reach, copied from what the app actually used.
+   * Archiving is verified before anything is removed from the live list:
+     archive body -> archive index -> events list, each read back in full.
+   * The archive viewer is read-only and is built ONLY from the archive record.
+     It never reads or swaps Lib, PlanByEvent or any live key.
+   ============================================================ */
+const ARC3 = {writes:0, view:{id:null, shown:14}};
+function arcCanon(v){ return kmCanon(JSON.parse(JSON.stringify(v))); }
+const arcRead = rcpGetKey;      /* strict read: absent / present / unknown (never "null on error") */
+async function arcReadIndex(){
+  const g = await arcRead("archives");
+  if(g.state==="absent") return {ok:true, list:[]};
+  if(g.state!=="present") return {ok:false, why:"the archive list could not be read"};
+  const a = g.value;
+  if(!Array.isArray(a) || !a.every(e=>e && typeof e==="object" && !Array.isArray(e) && typeof e.id==="string" && e.id) || new Set(a.map(e=>e.id)).size!==a.length) return {ok:false, why:"the archive list is not in the expected format, so it was left untouched"};
+  return {ok:true, list:a};
+}
+/* read back a key and require the ENTIRE intended value (canonical JSON), retrying only the READ */
+async function arcVerify(key, expected){
+  let g = null;
+  for(let i=0;i<3;i++){ g = await arcRead(key); if(g.state!=="unknown") break; await rcpDelay(i*120); }
+  if(g.state==="unknown") return "unknown";
+  if(g.state==="absent") return "absent";
+  return arcCanon(g.value)===arcCanon(expected) ? "ok" : "mismatch";
+}
+async function arcReadEvents(){
+  const g = await arcRead("events");
+  if(g.state==="absent") return {ok:false, why:"the stored Event list was not found"};
+  if(g.state!=="present") return {ok:false, why:"the stored Event list could not be read"};
+  const a = g.value;
+  if(!Array.isArray(a) || !a.every(e=>e && typeof e==="object" && !Array.isArray(e) && typeof e.id==="string" && e.id) || new Set(a.map(e=>e.id)).size!==a.length) return {ok:false, why:"the stored Event list is not in the expected format, so it was left untouched"};
+  return {ok:true, list:a};
+}
+/* read back and say what is there: "ok" (intended), "old" (proven unchanged), "other" (something else), "unknown" (could not read), "absent" */
+async function arcClassify(key, expected, old){
+  let g = null;
+  for(let i=0;i<3;i++){ g = await arcRead(key); if(g.state!=="unknown") break; await rcpDelay(i*120); }
+  if(g.state==="unknown") return "unknown";
+  if(g.state==="absent") return "absent";
+  const c = arcCanon(g.value);
+  if(c===arcCanon(expected)) return "ok";
+  if(old!==undefined && c===arcCanon(old)) return "old";
+  return "other";
+}
+async function arcWrite(key, value){ ARC3.writes++; try{ await window.storage.set(key, JSON.stringify(value), false); return null; }catch(e){ return e; } }
+
+/* ---- what a schedule can reach (from the real schema) ---- */
+function arcExIds(list, into){ (Array.isArray(list)?list:[]).forEach(x=>{ if(x && typeof x==="object" && typeof x.exId==="string") into.add(x.exId); }); }
+function arcPlanDataFor(ev, P, rec, wkCustom, exCustom, limits){
+  const wIds = new Set(), eIds = new Set();
+  const ref = r=>{ if(!r || typeof r!=="object") return; if(typeof r.workoutId==="string") wIds.add(r.workoutId); if(r.overrides && typeof r.overrides==="object") arcExIds(r.overrides.exercises, eIds); };   /* overrides.exercises replaces the base list in resolveWorkout */
+  ((P && P.templates)||[]).forEach(t=>((t && t.refs)||[]).forEach(ref));
+  Object.values((P && P.dayOverrides)||{}).forEach(ov=>{
+    if(!ov || typeof ov!=="object") return;
+    (ov.added||[]).forEach(ref); Object.values(ov.slots||{}).forEach(ref);
+    Object.values(ov.exAdd||{}).forEach(arr=>arcExIds(arr, eIds));
+  });
+  if(rec){ Object.keys(rec.workouts||{}).forEach(id=>wIds.add(id)); (rec.reused||[]).forEach(id=>wIds.add(id)); (rec.optional||[]).forEach(id=>wIds.add(id)); }
+  const has = (o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+  const workouts = {}, unW = [];
+  const owners = (typeof KOT_PKG!=="undefined" && KOT_PKG.owned) ? KOT_PKG.owned : {};
+  for(const id of [...wIds].sort()){
+    /* mirror Lib.workouts exactly: seed < package overlay (whichever package currently wins the id) < custom library */
+    const ownDef = (rec && rec.workouts && has(rec.workouts,id)) ? rec.workouts[id] : null;
+    let origin = null, def = null, ownerId = null;
+    if(has(wkCustom,id)){ origin = "library"; def = wkCustom[id]; }
+    else if(has(owners,id)){
+      ownerId = owners[id];
+      if(ownerId===ev.id && ownDef){ origin = "package"; def = ownDef; }
+      else { origin = ownerId===ev.id ? "package" : "other-package"; def = Lib.workouts[id]; }
+    }
+    else if(typeof WORKOUT_SEED!=="undefined" && has(WORKOUT_SEED,id)){ origin = "builtin"; def = WORKOUT_SEED[id]; }
+    else if(ownDef){ origin = "package"; def = ownDef; }
+    if(!def || typeof def!=="object"){ unW.push(id); continue; }
+    const e = {origin, def:JSON.parse(JSON.stringify(def))};                      /* a full copy: course/TCX data stays intact */
+    if(ownerId && origin==="other-package") e.ownerEventId = ownerId;
+    let packageDef = null;
+    if(ownDef && typeof ownDef==="object" && arcCanon(ownDef)!==arcCanon(def)){ packageDef = ownDef; e.packageDef = JSON.parse(JSON.stringify(ownDef)); }   /* this archive's own package definition, kept separately when the live app used another */
+    if(rec && Array.isArray(rec.optional) && rec.optional.includes(id)) e.optional = true;
+    workouts[id] = e;
+    arcExIds(def.exercises, eIds); if(packageDef) arcExIds(packageDef.exercises, eIds);
+  }
+  const exercises = {}, unE = [];
+  for(const id of [...eIds].sort()){
+    let origin = null, def = null;
+    if(has(exCustom,id)){ origin = "custom"; def = exCustom[id]; }
+    else if(typeof EXERCISE_SEED!=="undefined" && has(EXERCISE_SEED,id)){ origin = "builtin"; def = EXERCISE_SEED[id]; }
+    if(!def || typeof def!=="object"){ unE.push(id); continue; }
+    exercises[id] = {origin, def:JSON.parse(JSON.stringify(def))};
+  }
+  const lim = (limits||[]).slice();
+  return {v:1, capturedAt:new Date().toISOString(), sourceEventId:ev.id,
+    package: rec ? {name:rec.name, hash:rec.hash, startDate:rec.startDate, endDate:rec.endDate, importedAt:rec.importedAt, fixedPlan:true} : null,
+    workouts, exercises, unresolved:{workouts:unW, exercises:unE}, limits:lim, complete: !unW.length && !unE.length && !lim.length};
+}
+
+/* ---- verified archiving ---- */
+async function archivePeriodChecked(ev){
+  const fail = (stage, why, extra)=>Object.assign({ok:false, stage, why, name:ev.name}, extra||{});
   const P = PlanByEvent[ev.id];
   const start = (P && P.start) || ev.trainingStart;
   const end = todayISO();
   const dates = allDatesInRange(start, end);
+  /* 1. strict reads: nothing is written until every input was read cleanly */
   const logs = {};
+  let lk; try{ const r = await window.storage.list("log:", false); lk = new Set((r && r.keys) || []); }catch(e){ return fail("read","the logged days could not be listed"); }
   for(const d of dates){
-    const l = await loadJSON("log:"+d);
-    if(l) logs[d] = l;
+    if(!lk.has("log:"+d)) continue;
+    const g = await arcRead("log:"+d);
+    if(g.state!=="present") return fail("read","the logged day "+d+" could not be read");
+    if(g.value) logs[d] = g.value;
   }
+  let rec = null, capture = false; const limits = [];
+  if(ev.isGFP){
+    const pk = await arcRead(kotPkgKey(ev.id));
+    if(pk.state==="unknown") return fail("read","this plan's imported package could not be read");
+    const v = pk.value;
+    const valid = pk.state==="present" && v && v.v===1 && Array.isArray(v.templates) && v.templates.length && v.workouts && typeof v.workouts==="object" && !Array.isArray(v.workouts);
+    if(valid){ rec = v; capture = true; }
+    else if(P && P.fixedPlan){ capture = true; limits.push(pk.state==="absent" ? "This plan was imported from a package, but the package record was missing when it was archived." : "This plan was imported from a package, but the package record was invalid when it was archived."); }
+    else if(pk.state==="present"){ capture = true; limits.push("A package record existed for this plan but it was not valid, so it was not used."); }
+  }
+  let wkCustom = {}, exCustom = {};
+  if(capture){
+    const wl = await arcRead("workoutLibrary"), el = await arcRead("exerciseLibrary");
+    if(wl.state==="unknown" || el.state==="unknown") return fail("read","your workout or exercise library could not be read");
+    const okObj = x=>x && typeof x==="object" && !Array.isArray(x);
+    if(wl.state==="present"){ if(!okObj(wl.value)) return fail("read","your workout library is not in the expected format"); wkCustom = wl.value; }
+    if(el.state==="present"){ if(!okObj(el.value)) return fail("read","your exercise library is not in the expected format"); exCustom = el.value; }
+  }
+  const idx1 = await arcReadIndex(); if(!idx1.ok) return fail("read", idx1.why);
+  const evs1 = await arcReadEvents(); if(!evs1.ok) return fail("read", evs1.why);
+  const src1 = evs1.list.find(e=>e.id===ev.id);
+  if(!src1) return fail("read","this plan is not in the stored Event list");
+  if(arcCanon(src1)!==arcCanon(ev)) return fail("read","the stored copy of this plan differs from the one on screen (it was changed elsewhere), so nothing was archived. Reload the app and check it before trying again");
   const archiveId = "arc_"+ev.id+"_"+Date.now();
+  const bodyKey = "archive:"+archiveId;
+  { const ex = await arcRead(bodyKey); if(ex.state!=="absent") return fail("read","an archive with this id already exists or could not be checked"); }
+  /* 2. the full record in memory */
   const archive = {
-    id: archiveId,
-    periodType: ev.isGFP ? "gfp" : "event",
-    name: ev.name,
-    startDate: start,
-    endDate: end,
-    archivedAt: new Date().toISOString(),
+    id: archiveId, periodType: ev.isGFP ? "gfp" : "event", name: ev.name, startDate: start, endDate: end, archivedAt: new Date().toISOString(),
     eventMeta: ev.isGFP ? null : {date:ev.date, type:ev.type, typeOther:ev.typeOther, location:ev.location, locationMapUrl:ev.locationMapUrl, website:ev.website, distance:ev.distance, distanceUnit:ev.distanceUnit, description:ev.description},
-    icon: ev.icon || null,
-    photos: ev.photos || [],
-    schedule: P ? {templates:P.templates, dailyQueue:P.dailyQueue, dayOverrides:P.dayOverrides} : null,
-    logs
+    icon: ev.icon || null, photos: ev.photos || [],
+    schedule: P ? {templates:P.templates, dailyQueue:P.dailyQueue, dayOverrides:P.dayOverrides} : null, logs
   };
-  if(ev.banner) archive.banner = JSON.parse(JSON.stringify(ev.banner));   /* A2: optional; absent for records without a banner */
-  const archives = (await loadJSON("archives")) || [];
-  archives.push({id:archiveId, periodType:archive.periodType, name:archive.name, startDate:start, endDate:end, archivedAt:archive.archivedAt, dayCount:dates.length});
-  await saveJSON("archives", archives);
-  await saveJSON("archive:"+archiveId, archive);
-  Events.list = Events.list.filter(e=>e.id!==ev.id);
-  await saveEvents();
+  if(ev.banner) archive.banner = JSON.parse(JSON.stringify(ev.banner));
+  if(capture) archive.planData = arcPlanDataFor(ev, P, rec, wkCustom, exCustom, limits);
+  const entry = {id:archiveId, periodType:archive.periodType, name:archive.name, startDate:start, endDate:end, archivedAt:archive.archivedAt, dayCount:dates.length};
+  /* 3. archive body first, verified in full */
+  await arcWrite(bodyKey, archive);
+  const vb = await arcVerify(bodyKey, archive);
+  if(vb!=="ok") return fail("body","the archive copy could not be saved and verified", vb==="absent" ? {} : {partialId:archiveId, partialState:vb});
+  /* 4. index second: re-read the prior state fresh; if it moved, do not write over it */
+  const idx2 = await arcReadIndex();
+  if(!idx2.ok) return fail("index", idx2.why, {retainedId:archiveId});
+  if(arcCanon(idx2.list)!==arcCanon(idx1.list)) return fail("index","the archive list changed while archiving, so it was not updated", {retainedId:archiveId});
+  const nextIdx = idx2.list.concat([entry]);
+  await arcWrite("archives", nextIdx);
+  const vi = await arcVerify("archives", nextIdx);
+  if(vi!=="ok") return fail("index","the archive list could not be updated and verified", {retainedId:archiveId, indexState:vi});
+  /* 5. only now remove the Event from the stored list: re-read it, refuse if it moved, write the whole intended result, read it back */
+  const evs2 = await arcReadEvents();
+  if(!evs2.ok) return fail("events", evs2.why, {retainedId:archiveId, indexed:true, evState:"notwritten"});
+  if(arcCanon(evs2.list)!==arcCanon(evs1.list)) return fail("events","the stored Event list changed while archiving", {retainedId:archiveId, indexed:true, evState:"notwritten"});
+  const expectedEvents = evs2.list.filter(e=>e.id!==ev.id);
+  await arcWrite("events", expectedEvents);
+  const fin = await arcClassify("events", expectedEvents, evs2.list);
+  if(fin!=="ok") return fail("events", fin==="old" ? "the stored list was not changed" : fin==="unknown" ? "the stored list could not be read back" : "the stored list matches neither the old nor the intended list", {retainedId:archiveId, indexed:true, evState: fin==="old" ? "old" : fin==="unknown" ? "unknown" : "other"});
+  /* memory follows the verified stored list; unrelated Events (and in-memory ad-hoc ones) are kept */
+  Events.list = expectedEvents.map(e=>JSON.parse(JSON.stringify(e))).concat(Events.list.filter(e=>e.isAdhoc && e.id!==ev.id));   /* the verified stored records, not stale in-memory objects */
   delete PlanByEvent[ev.id];
-  return archiveId;
+  rcpSyncAfterVerified();
+  return {ok:true, id:archiveId, name:ev.name, complete: archive.planData ? !!archive.planData.complete : null, hadPlanData: !!archive.planData};
 }
-
-/* Archive whatever is currently occupying the "active plan" slot but is
-   about to be superseded: any active GFP, and any completed real Event
-   that hasn't been archived yet (e.g. the legacy CWC event once its date
-   has passed). Called whenever the User creates a new Event or GFP. */
+/* compatible wrapper: the archive id on success, null on failure (details in archivePeriod.last) */
+async function archivePeriod(ev){ const r = await archivePeriodChecked(ev); archivePeriod.last = r; return r.ok ? r.id : null; }
 async function archiveStalePeriods(){
-  const gfp = activeGFP();
-  if(gfp) await archivePeriod(gfp);
-  const staleCompleted = Events.list.filter(e=>!e.isGFP && !e.isAdhoc && !e.hidden && isEventCompleted(e));
-  for(const ev of staleCompleted) await archivePeriod(ev);
+  const res = {ok:true, archived:[], failed:null, notAttempted:[]};
+  const queue = []; const gfp = activeGFP(); if(gfp) queue.push(gfp);
+  Events.list.filter(e=>!e.isGFP && !e.isAdhoc && !e.hidden && isEventCompleted(e)).forEach(e=>queue.push(e));
+  for(let i=0;i<queue.length;i++){
+    const r = await archivePeriodChecked(queue[i]);
+    if(!r.ok){ res.ok = false; res.failed = r; res.notAttempted = queue.slice(i+1).map(e=>e.name); break; }
+    res.archived.push({name:r.name, id:r.id});
+  }
+  return res;
+}
+/* stage-accurate wording; "Nothing new was created" because creation never starts after a failed archive */
+function arcFailText(res){
+  const f = res && res.failed; if(!f) return "Could not complete archiving; your plan is still active. Nothing new was created.";
+  const done = res.archived.length ? "Already archived: "+res.archived.map(a=>a.name).join(", ")+". " : "";
+  let t = "Could not complete archiving "+f.name+"; ";
+  if(f.stage==="events"){
+    if(f.evState==="old") t += "the archive copy was saved and listed, and a read-back confirmed your plan is still in the live list, so it is still active. Reason: "+f.why+". ";
+    else if(f.evState==="notwritten") t += "the archive copy was saved and listed, but "+f.why+", so the live list was not modified and this attempt did not remove your plan. Reload and check before trying again. ";
+    else t += "the archive copy was saved and listed, but whether your plan was removed from the live list could not be verified: "+f.why+". Do not assume either result: reload the app and check your Events and Archived Training Plans before trying again. ";
+    t += "Trying again may create a second archive copy. ";
+  } else {
+    t += "your plan is still active. Reason: "+f.why+". ";
+    if(f.stage==="body" && f.partialId) t += "A partial or unverified archive copy ("+f.partialId+") may remain in storage; it was left as it is. ";
+    if(f.stage==="index" && f.retainedId) t += "A verified archive copy ("+f.retainedId+") was saved but may not be listed; it was left as it is. ";
+  }
+  if(res.notAttempted && res.notAttempted.length) t += "Not attempted: "+res.notAttempted.join(", ")+". ";
+  return done+t+"Nothing new was created, and what you entered is still on screen.";
+}
+function arcNotifyCreateFailure(res){ try{ rcpNotice(arcFailText(res)); }catch(e){} }
+
+/* ---- read-only archive view: a pure resolution over the archive record (no Lib, no PlanByEvent, no storage writes) ---- */
+function arcViewModel(a){
+  const pd = a && a.planData && a.planData.v===1 && typeof a.planData==="object" ? a.planData : null;
+  const m = {name:a&&a.name, start:a&&a.startDate, end:a&&a.endDate, archivedAt:a&&a.archivedAt, hasDefs:!!pd, complete: pd ? !!pd.complete : null, limits: pd ? (pd.limits||[]) : [], unresolved: pd ? (pd.unresolved||{workouts:[],exercises:[]}) : null, pkg: pd ? pd.package : null,
+    counts: pd ? {workouts:Object.keys(pd.workouts||{}).length, exercises:Object.keys(pd.exercises||{}).length} : null, days:[], hasSchedule:false, logMapKnown: !!(pd && pd.sourceEventId), skippedDays:0};
+  const sch = a && a.schedule; if(!sch || !Array.isArray(sch.templates)) return m;
+  m.hasSchedule = true;
+  const T = sch.templates, Q = Array.isArray(sch.dailyQueue) ? sch.dailyQueue : T.map((_,i)=>i), OV = (sch.dayOverrides && typeof sch.dayOverrides==="object") ? sch.dayOverrides : {};
+  const src = pd ? pd.sourceEventId : null, W = pd ? (pd.workouts||{}) : {}, X = pd ? (pd.exercises||{}) : {};
+  T.forEach((own, idx)=>{
+    const date = own && own.date; if(!date) return;
+    const tIdx = Q[idx]; const template = (tIdx===null || tIdx===undefined) ? null : T[tIdx];
+    const ov = OV[date] || {};
+    const day = {date, title: template ? template.title : "Rest Day (Skipped)", skipped:!template, phaseLabel: (template||own).phaseLabel||"", edited:false, workouts:[]};
+    const removed = new Set(ov.removed||[]);
+    const defs = ((template && template.refs)||[]).map((r,i)=>({slotKey:"t"+i, workoutId:r.workoutId, overrides:r.overrides})).filter(sd=>!removed.has(sd.slotKey));
+    (ov.added||[]).forEach((x,i)=>{ const sk = x.slotKey||("a"+i); if(!removed.has(sk)) defs.push({slotKey:sk, workoutId:x.workoutId, overrides:x.overrides}); });
+    let res = defs.map(sd=>{
+      let wid = sd.workoutId, wov = sd.overrides;
+      if(ov.slots && ov.slots[sd.slotKey]){ wid = ov.slots[sd.slotKey].workoutId; wov = ov.slots[sd.slotKey].overrides; }
+      const e = W[wid];
+      const w = {slotKey:sd.slotKey, id:wid, missing:!e, name:null, kind:null, items:[], extra:[]};
+      if(!e) return w;
+      const merged = Object.assign({id:wid}, e.def, wov||{});                      /* overrides merge over the archived base, exactly like resolveWorkout */
+      if(wov && wov.descSuffix) merged.desc = (e.def.desc||"") + wov.descSuffix;
+      w.name = merged.name || wid; w.kind = merged.kind; w.timeMin = merged.timeMin || merged.plannedMin || null; w.platform = merged.platform || null; w.desc = merged.desc || "";
+      w.hasCourse = !!(merged.course && typeof merged.course==="object");
+      if(merged.kind==="strengthblock" || merged.kind==="flexrecovery" || merged.kind==="other"){
+        let canon = (Array.isArray(merged.exercises)?merged.exercises:[]).map(r=>({exId:r.exId, targetSets:r.sets, targetReps:r.reps}));
+        const baseN = canon.length;
+        ((ov.exAdd && ov.exAdd[sd.slotKey]) || []).forEach(r=>canon.push({exId:r.exId, targetSets:r.sets, targetReps:r.reps, added:true}));
+        canon = canon.map((it,i)=>Object.assign({}, it, {origIndex:i}));          /* stable index: this is what log keys s<origIndex> refer to */
+        const rm = (ov.exRemove && ov.exRemove[sd.slotKey]) || [];
+        let items = canon.filter(it=>!rm.includes(it.origIndex));
+        if(ov.exOrder && ov.exOrder[sd.slotKey]){ const oa = ov.exOrder[sd.slotKey], by = {}; items.forEach(it=>{ by[it.origIndex] = it; }); const re = oa.map(oi=>by[oi]).filter(Boolean); items.forEach(it=>{ if(!oa.includes(it.origIndex)) re.push(it); }); items = re; }
+        w.items = items.map(it=>{ const ex = X[it.exId]; return Object.assign({}, it, {name: ex && ex.def && ex.def.name ? ex.def.name : null}); });
+        w.removedIdx = rm.filter(i=>canon.some(c=>c.origIndex===i));
+        w.baseCount = baseN;
+        if((ov.exAdd&&ov.exAdd[sd.slotKey]&&ov.exAdd[sd.slotKey].length) || rm.length || (ov.exOrder&&ov.exOrder[sd.slotKey])) day.edited = true;
+      }
+      return w;
+    });
+    if(ov.order && ov.order.length){ const by = {}; res.forEach(w=>{ by[w.slotKey] = w; }); const o2 = ov.order.map(k=>by[k]).filter(Boolean); res.forEach(w=>{ if(!ov.order.includes(w.slotKey)) o2.push(w); }); res = o2; day.edited = true; }
+    if((ov.removed&&ov.removed.length) || (ov.added&&ov.added.length) || (ov.slots&&Object.keys(ov.slots).length)) day.edited = true;
+    /* logged values, matched by the saved key <sourceEventId>|<slot> and s<origIndex> (NOT by visible position) */
+    const lg = a.logs && a.logs[date];
+    res.forEach(w=>{
+      const full = src ? src+"|"+w.slotKey : null;
+      const saved = (lg && lg.workouts && full) ? lg.workouts[full] : null;
+      w.logged = !!(saved && typeof saved==="object");
+      if(!w.logged) return;
+      w.completed = !!saved.completed; w.note = typeof saved.notes==="string" ? saved.notes : "";
+      const seen = new Set();
+      w.items.forEach(it=>{ const sv = saved["s"+it.origIndex]; seen.add(it.origIndex); if(sv && typeof sv==="object") it.logged = {sets:sv.sets, reps:sv.reps, weight:sv.weight}; const to = lg.targetOverrides && lg.targetOverrides[full+"_"+it.origIndex]; if(to) it.targetOverride = {sets:to.sets, reps:to.reps}; });
+      w.orphanLogs = Object.keys(saved).filter(k=>/^s\d+$/.test(k) && !seen.has(+k.slice(1)) && saved[k] && (saved[k].sets||saved[k].reps||saved[k].weight)).map(k=>({origIndex:+k.slice(1), sets:saved[k].sets, reps:saved[k].reps, weight:saved[k].weight, removed:(w.removedIdx||[]).includes(+k.slice(1))}));
+    });
+    day.workouts = res; m.days.push(day);
+  });
+  return m;
+}
+function arcStatusText(m){
+  if(!m.hasDefs) return {kind:"none", text:"This archive does not include workout definitions (it was made before they were kept, or it is not an imported plan). Workout names and exercises are not available from the archive, and the app will not fill them in from your current library."};
+  if(m.complete) return {kind:"complete", text:"Complete: the workout and exercise definitions this plan used were kept ("+m.counts.workouts+" workout"+(m.counts.workouts===1?"":"s")+", "+m.counts.exercises+" exercise"+(m.counts.exercises===1?"":"s")+")."};
+  const bits = []; if(m.unresolved && m.unresolved.workouts.length) bits.push(m.unresolved.workouts.length+" workout definition"+(m.unresolved.workouts.length===1?"":"s")+" could not be found"); if(m.unresolved && m.unresolved.exercises.length) bits.push(m.unresolved.exercises.length+" exercise definition"+(m.unresolved.exercises.length===1?"":"s")+" could not be found");
+  return {kind:"incomplete", text:"Incomplete: "+(bits.concat((m.limits||[]).map(l=>String(l).replace(/\.+$/,""))).join("; ")||"some details were not available")+". Anything missing is shown as not kept."};
+}
+function arcViewDayHtml(d){
+  const wk = d.workouts.map(w=>{
+    if(w.missing) return `<div class="arc-w"><b>Definition not kept</b> <span class="arc-sub">(workout id ${esc(w.id)})</span></div>`;
+    const meta = [w.kind, w.timeMin?w.timeMin+" min":"", w.platform||""].filter(Boolean).join(" · ");
+    const items = w.items.length ? `<ol class="arc-items">${w.items.map(it=>`<li data-oi="${it.origIndex}"><span class="arc-ex">${it.name?esc(it.name):"Exercise definition not kept"}${it.name?"":` <span class="arc-sub">(${esc(it.exId)})</span>`}</span> <span class="arc-sub">target ${esc(it.targetOverride?it.targetOverride.sets:it.targetSets)}×${esc(it.targetOverride?it.targetOverride.reps:it.targetReps)}${it.added?" · added on this day":""}</span>${it.logged?`<div class="arc-log">Logged: ${[it.logged.sets&&("sets "+esc(it.logged.sets)), it.logged.reps&&("reps "+esc(it.logged.reps)), it.logged.weight&&("weight "+esc(it.logged.weight))].filter(Boolean).join(" · ")||"nothing entered"}</div>`:""}</li>`).join("")}</ol>` : "";
+    const orph = (w.orphanLogs||[]).length ? `<div class="arc-orph">${w.orphanLogs.length} logged entr${w.orphanLogs.length===1?"y":"ies"} cannot be matched to a visible exercise${w.orphanLogs.some(o=>o.removed)?" (removed from this day)":""}: ${w.orphanLogs.map(o=>"slot s"+o.origIndex+" ("+[o.sets&&("sets "+esc(o.sets)),o.reps&&("reps "+esc(o.reps)),o.weight&&("weight "+esc(o.weight))].filter(Boolean).join(", ")+")").join("; ")}</div>` : "";
+    return `<div class="arc-w" data-slot="${esc(w.slotKey)}"><b>${esc(w.name)}</b> <span class="arc-sub">${esc(meta)}${w.hasCourse?" · course data kept":""}${w.logged?(w.completed?" · logged, completed":" · logged"):""}</span>${items}${orph}${w.note?`<div class="arc-note">Note: ${esc(w.note)}</div>`:""}</div>`;
+  }).join("");
+  return `<div class="arc-day"><div class="arc-dh"><b>${esc(fmtDate(d.date))}</b> <span class="arc-sub">${esc(d.title||"")}${d.edited?" · edited on this day":""}</span></div>${wk||`<div class="arc-sub">${d.skipped?"Rest day (skipped)":"No sessions"}</div>`}</div>`;
+}
+function arcViewHtml(a, shown){
+  const m = arcViewModel(a), st = arcStatusText(m); const n = Math.min(shown||14, m.days.length);
+  const days = m.days.filter(d=>d.workouts.length || d.edited); const restN = m.days.length-days.length;       /* days with sessions or edits are listed; empty days are counted */
+  const list = days.slice(0,n);
+  return `<div class="arc-head"><h3>${esc(m.name||"Archive")}</h3><div class="arc-sub">${esc(m.start?fmtDate(m.start):"")} → ${esc(m.end?fmtDate(m.end):"")} · archived ${esc(m.archivedAt?fmtDate(m.archivedAt.slice(0,10)):"Unknown")}</div></div>
+  <div class="arc-badge arc-st-${st.kind}" role="status">${esc(st.text)}</div>
+  ${m.pkg?`<div class="arc-sub" style="margin:6px 0;">Imported package: ${esc(m.pkg.name)} · ${esc(m.pkg.startDate)} → ${esc(m.pkg.endDate)}${m.pkg.importedAt?" · imported "+esc(fmtDate(m.pkg.importedAt.slice(0,10))):""}</div>`:""}
+  <p class="arc-ro">Read-only. This view is built only from what this archive saved; it does not use your current library and it cannot restore or recreate the plan.</p>
+  ${!m.hasSchedule?`<div class="arc-sub">This archive has no saved schedule.</div>`:""}
+  ${list.map(arcViewDayHtml).join("")}
+  ${restN>0?`<div class="arc-sub" style="margin-top:8px;">${restN} day${restN===1?"":"s"} with no sessions not listed.</div>`:""}
+  ${days.length>n?`<button type="button" class="btn btn-ghost arc-more" data-arc-more="1">Show more days (${days.length-n} not shown)</button>`:""}`;
+}
+async function arcOpenView(id){
+  const g = await arcRead("archive:"+id);
+  let body;
+  if(g.state!=="present" || !g.value || typeof g.value!=="object") body = `<p class="arc-sub">${g.state==="absent"?"This archive was not found in storage.":"This archive could not be read."} Nothing was changed.</p>`;
+  else { ARC3.view = {id, a:g.value, shown:14}; body = arcViewHtml(g.value, 14); }
+  let m = document.getElementById("kot-arc-view"); if(m) m.remove();
+  m = document.createElement("div"); m.id = "kot-arc-view"; m.className = "modal-backdrop";
+  m.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true" aria-label="Archived plan"><div class="arc-body">${body}</div><div class="arc-foot"><button type="button" class="btn btn-primary" data-arc-close="1">Close</button></div></div>`;
+  document.body.appendChild(m);
+  m.addEventListener("click", e=>{
+    if(e.target===m || (e.target.closest && e.target.closest("[data-arc-close]"))){ m.remove(); return; }
+    if(e.target.closest && e.target.closest("[data-arc-more]")){ ARC3.view.shown += 14; m.querySelector(".arc-body").innerHTML = arcViewHtml(ARC3.view.a, ARC3.view.shown); }
+  });
+}
+/* read-only comparison used for the pre-Reload warning (no writes, nothing swapped) */
+function arcReloadWarning(a){
+  const base = "Reload is not a full restore: it rebuilds the schedule from the saved day list using your CURRENT workout library, it does not recreate the imported plan, and entries you logged stay under the original plan's id.";
+  const pd = a && a.planData && a.planData.v===1 ? a.planData : null;
+  if(!pd) return "WARNING: this archive does not include workout definitions. "+base+" Workouts that were changed or removed since will look different or be missing.";
+  let diff = 0, miss = 0; const ws = pd.workouts||{};
+  Object.keys(ws).forEach(id=>{ const live = Lib.workouts[id]; if(!live) miss++; else if(arcCanon(live)!==arcCanon(ws[id].def)) diff++; });
+  let exd = 0, exm = 0; const xs = pd.exercises||{};
+  Object.keys(xs).forEach(id=>{ const live = Lib.exercises[id]; if(!live) exm++; else if(arcCanon(live)!==arcCanon(xs[id].def)) exd++; });
+  return "WARNING: "+base+" Compared with the definitions kept in this archive, "+miss+" workout"+(miss===1?" is":"s are")+" missing now and "+diff+" "+(diff===1?"differs":"differ")+"; "+exm+" exercise"+(exm===1?" is":"s are")+" missing and "+exd+" "+(exd===1?"differs":"differ")+". The reloaded plan will use today's versions"+(pd.complete?"":", and this archive's own definitions are incomplete")+".";
 }
 
 async function listArchives(){ return (await loadJSON("archives")) || []; }
@@ -2933,10 +3233,11 @@ async function flCollect(){
     const nm = (ar && ar.name) || a.name || "Archive";
     const phs = ar && Array.isArray(ar.photos) ? ar.photos : [];
     const logN = ar && ar.logs ? Object.keys(ar.logs).length : null;
+    const pdv = ar && ar.planData && ar.planData.v===1 ? ar.planData : null; const pdTxt = ar ? (pdv ? (pdv.complete ? "plan definitions kept ("+Object.keys(pdv.workouts||{}).length+" workouts, "+Object.keys(pdv.exercises||{}).length+" exercises)" : "plan definitions INCOMPLETE") : "no workout definitions kept") : "";
     flRow(C.archives, {name:nm, catTitle:C.archives.title, kind:"App-made snapshot", belongs: a._orphan ? "Not in the archive list" : "Archived "+(ar&&ar.periodType==="gfp"?"General Fitness Period":"Event"), owner:{type:"archive", id:a.id},
       dateLabel:"Archived (app-recorded)", dateText: flDate((ar&&ar.archivedAt)||a.archivedAt), sortDate:(ar&&ar.archivedAt)||a.archivedAt||"", bytes: g.raw?flBytes(g.raw):null,
-      detail: ar ? ((a.dayCount!=null?a.dayCount+" days · ":"")+(flDate(ar.startDate))+" → "+flDate(ar.endDate)+" · "+phs.length+" photo"+(phs.length===1?"":"s")+(ar.icon?" · icon":"")+(logN!=null?" · "+logN+" logged day"+(logN===1?"":"s"):"")) : (g.st==="absent" ? "Archive data was not found in storage" : "Archive data could not be read"),
-      badges: [], payload:{archiveId:a.id}, acts: ar ? ["owner","copy","export-arc"] : ["copy"], archiveOk: !!ar});
+      detail: ar ? ((a.dayCount!=null?a.dayCount+" days · ":"")+(flDate(ar.startDate))+" → "+flDate(ar.endDate)+" · "+phs.length+" photo"+(phs.length===1?"":"s")+(ar.icon?" · icon":"")+(logN!=null?" · "+logN+" logged day"+(logN===1?"":"s"):"")+(pdTxt?" · "+pdTxt:"")) : (g.st==="absent" ? "Archive data was not found in storage" : "Archive data could not be read"),
+      badges: [], payload:{archiveId:a.id}, acts: ar ? ["owner","copy","view-arc","export-arc"] : ["copy"], archiveOk: !!ar});
     if(ar){
       const owner = "Archive: "+nm;
       if(ar.icon) pushImage(null, owner, ar.icon, true, null, a.id);
@@ -3030,7 +3331,7 @@ async function flCollect(){
   return {cats:[C.photos,C.tcx,C.strava,C.rouvy,C.plans,C.archives], receipts:rcItems, stats:{logsRead, logsBad, keys:keys.length, reads:FL.reads}};
 }
 function flActBtn(r, a){
-  const L = {view:"View", map:"View map", owner:"Go to", copy:"Copy details", "export-img":"Download resized copy", "export-arc":"Download archive copy", "export-plan":"Download stored plan data", "open-link":"Open Rouvy link"};
+  const L = {view:"View", map:"View map", owner:"Go to", copy:"Copy details", "export-img":"Download resized copy", "export-arc":"Download archive copy", "view-arc":"View plan", "export-plan":"Download stored plan data", "open-link":"Open Rouvy link"};
   if(a==="open-link") return `<a class="fl-btn" href="${esc(r.payload.url)}" target="_blank" rel="noopener noreferrer">${L[a]}</a>`;
   return `<button type="button" class="fl-btn" data-fl-act="${a}" data-fl-row="${r.id}">${L[a]}</button>`;
 }
@@ -3153,6 +3454,7 @@ async function flAct(act, id, el){
   else if(act==="owner") await flGoto(r);
   else if(act==="copy"){ const ok = await flCopy(flCopyText(r)); flLive(ok ? "Copied the details of "+r.name+"." : "Copy was not possible here. Nothing was changed."); }
   else if(act==="export-img"){ const ext = /png/i.test(r.payload.dataUrl.slice(0,20)) ? "png" : "jpg"; const ok = flDownloadDataUrl("kot-"+flSlug(r.belongs)+"-"+(r.payload.isIcon?"icon":flSlug(r.payload.caption||"photo")+"-"+(r.payload.date||"undated"))+"-resized."+ext, r.payload.dataUrl); flLive(ok ? "Downloaded the resized copy as stored (not your original file)." : "Could not prepare the download."); }
+  else if(act==="view-arc"){ arcOpenView(r.payload.archiveId); }
   else if(act==="export-arc"){ try{ await downloadArchiveFile(r.payload.archiveId); flLive("Downloaded the archive copy the app stored."); }catch(e){ flLive("Could not prepare the download."); } }
   else if(act==="export-plan"){ try{ triggerBrowserDownload("kot-stored-plan-data-"+flSlug(r.payload.name)+".json", JSON.parse(r.payload.raw)); flLive("Downloaded the stored plan data. This is a data export, not a plan package you can import."); }catch(e){ flLive("Could not prepare the download."); } }
 }
@@ -6168,8 +6470,9 @@ async function cxGenPlan(f){
   return {ev, templates, defs:o.defs, weeks:wk.map(w=>({n:w.n, phase:w.phase, label:w.label, start:dateAdd(start,w.n*7), longMin:w.longMin, totalMin:w.totalMin})), warnings, notes, D, N, start};
 }
 async function cxApplyPlan(plan){
+  const ev = await createEvent(plan.ev);          /* first: if archiving fails nothing else is written (no orphan workout definitions) */
+  if(!ev) return null;
   for(const [id,def] of Object.entries(plan.defs)){ if(!Lib.workouts[id] || /^gen_event_/.test(id) || /^fitxr_block_/.test(id)) await saveWorkout(id, def); }
-  const ev = await createEvent(plan.ev);
   await saveJSON("event:"+ev.id+":templates", plan.templates);
   await saveJSON("event:"+ev.id+":templatesStart", plan.start);
   await saveJSON("event:"+ev.id+":planStart", plan.start);
@@ -6177,10 +6480,10 @@ async function cxApplyPlan(plan){
   return ev;
 }
 async function cxStartGfp(form){
+  let gfp = activeGFP();
+  if(!gfp){ gfp = await createEvent({name:"General Fitness Period"+(form.name?" - "+form.name:""), isGFP:true, trainingStart:todayISO()}); if(!gfp) return null; }   /* preferences are only saved once the period exists */
   const g = CX.prefs.gfp; g.days = cxClamp(Math.round(+form.days||CX_R.defaultDays),3,7); g.run = !!form.run; g.strength = !!form.strength; g.vr = !!form.vr && cxHasFitxr(); g.auto = true;
   await cxSavePrefs();
-  let gfp = activeGFP();
-  if(!gfp){ gfp = await createEvent({name:"General Fitness Period"+(form.name?" - "+form.name:""), isGFP:true, trainingStart:todayISO()}); }
   await cxGfpEnsure(true); return gfp;
 }
 
@@ -6519,8 +6822,9 @@ async function cxOnClick(e){
     if(t.hasAttribute("data-cx-cleartok")){ await cxSaveTok(""); CX.testRes = null; cxReplaceSettings(); cxToast("Token cleared."); return; }
     if(t.hasAttribute("data-cx-test")){ CX.testRes = {ok:false, message:"Testing…", models:[]}; cxReplaceSettings(); CX.testRes = await cxTestConn(); CX.failUntil = {}; CX.aiTried = ""; cxReplaceSettings(); return; }
     if(t.hasAttribute("data-cx-gen-preview")){ CX.prefs.form = CX.genForm; await cxSavePrefs(); CX.genPlan = await cxGenPlan(CX.genForm); const el = document.getElementById("cx-gen-prev"); if(el) el.innerHTML = cxPlanPreviewHtml(CX.genPlan); return; }
-    if(t.hasAttribute("data-cx-gen-apply")){ if(!CX.genPlan || CX.genPlan.error) return; t.disabled = true; const ev = await cxApplyPlan(CX.genPlan); CX.genPlan = null; cxToast("Plan created: "+ev.name+". Find it on the Events tab."); State.tab = "events"; render(); return; }
-    if(t.hasAttribute("data-cx-gfp-start")){ CX.prefs.form = CX.genForm; await cxStartGfp(CX.genForm); cxToast("General Fitness Period is active; the next 7 days are scheduled."); renderTabContent(); return; }
+    if(t.hasAttribute("data-cx-gen-apply")){ if(!CX.genPlan || CX.genPlan.error) return; t.disabled = true; const ev = await cxApplyPlan(CX.genPlan); if(!ev){ t.disabled = false; return; }   /* the failure notice was shown; the generated plan and form are kept */
+      CX.genPlan = null; cxToast("Plan created: "+ev.name+". Find it on the Events tab."); State.tab = "events"; render(); return; }
+    if(t.hasAttribute("data-cx-gfp-start")){ CX.prefs.form = CX.genForm; const gf = await cxStartGfp(CX.genForm); if(!gf) return; cxToast("General Fitness Period is active; the next 7 days are scheduled."); renderTabContent(); return; }
     if(t.hasAttribute("data-cx-gfp-now")){ const r = await cxGfpEnsure(true); cxToast(r && r.n ? "Updated "+r.n+" day"+(r.n===1?"":"s")+"." : "Nothing needed to change."); renderTabContent(); return; }
     if(t.hasAttribute("data-cx-pastesave")){ const v = (document.getElementById("cx-paste")||{}).value||""; CX.state.paste = v.trim() ? {text:cxScrub(v.trim()).slice(0,6000), at:new Date().toISOString()} : null; await cxSaveState(); renderTabContent(); return; }
     if(t.hasAttribute("data-cx-pasteclear")){ CX.state.paste = null; await cxSaveState(); renderTabContent(); return; }
@@ -10390,6 +10694,7 @@ async function renderArchivesCard(){
             <div class="tstats">${esc(fmtDate(a.startDate))} → ${esc(fmtDate(a.endDate))} · ${a.dayCount||0} days · archived ${esc(fmtDate(a.archivedAt.slice(0,10)))}</div>
           </div>
           <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-ghost" data-view-archive="${a.id}">View</button>
             <button type="button" class="btn btn-ghost" data-download-archive="${a.id}">Download</button>
             <button type="button" class="btn btn-ghost" data-reload-archive="${a.id}">Reload</button>
           </div>
@@ -11058,7 +11363,8 @@ function wireTabEvents(scopeEl){
         name: gfpFullName(nameSuffix), isGFP: true,
         trainingStart: startDate, color: document.getElementById("ev-color").value
       };
-      await createEvent(data);
+      const gev = await createEvent(data);
+      if(!gev) return;                     /* archiving did not complete: the form stays open with its inputs, no success path */
       State._eventFormOpen=false; State._editingEventId=null; State._presetGFP=false;
       render();
       return;
@@ -11083,7 +11389,7 @@ function wireTabEvents(scopeEl){
       isGFP: false
     };
     if(!data.date || !data.trainingStart){ alert("Please set both the Event Date and the Training Plan Start Date."); return; }
-    if(isNew) await createEvent(data);
+    if(isNew){ const nev = await createEvent(data); if(!nev) return; }     /* form stays open on a failed archive */
     else await updateEvent(b.dataset.eventid, data);
     State._eventFormOpen=false; State._editingEventId=null; State._presetGFP=false;
     render();
@@ -11342,8 +11648,11 @@ function wireTabEvents(scopeEl){
   }));
   el.querySelectorAll("#start-date-event-select").forEach(sel=>sel.addEventListener("change",()=>{ State._startDateEventId = sel.value; renderTabContent(); }));
   el.querySelectorAll("[data-download-archive]").forEach(btn=>btn.addEventListener("click",()=>{ downloadArchiveFile(btn.dataset.downloadArchive); }));
+  el.querySelectorAll("[data-view-archive]").forEach(btn=>btn.addEventListener("click",()=>{ arcOpenView(btn.dataset.viewArchive); }));
   el.querySelectorAll("[data-reload-archive]").forEach(btn=>btn.addEventListener("click", async ()=>{
-    if(confirm("Restore this archived plan? It will reappear as an active Event or General Fitness Period. This doesn't duplicate any logged data — your logs were never removed.")){
+    const rg = await arcRead("archive:"+btn.dataset.reloadArchive);
+    const warn = rg.state==="present" && rg.value ? arcReloadWarning(rg.value) : "WARNING: this archive could not be read for comparison, so I cannot say how today's library differs from it.";
+    if(confirm(warn+"\n\nRestore this archived plan? It will reappear as an active Event or General Fitness Period. This doesn't duplicate any logged data — your logs were never removed.")){
       await reloadArchive(btn.dataset.reloadArchive);
       render();
     }
@@ -12048,5 +12357,6 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
 
