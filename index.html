@@ -952,6 +952,93 @@ body.theme-dark .rt-fd-warn{color:#fbbf24;}
 .rt-cx-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
 .rt-cx-keep{margin:10px 0 0; text-align:right;}
 .rt-cx-link{background:none; border:0; color:var(--muted); text-decoration:underline; cursor:pointer; font-size:12.5px;}
+/* ---- A1: Events icon + photo controls (media section) ---- */
+.event-card-icon{width:40px;height:40px;border-radius:10px;object-fit:cover;flex:0 0 auto;border:1.5px solid var(--grey-200);}
+@media(min-width:700px){.event-card-icon{width:44px;height:44px;}}
+.km-section{margin-top:14px;padding-top:12px;border-top:1px solid var(--grey-200);}
+.km-title{font-weight:700;font-size:13px;color:var(--navy);margin:0 0 8px;}
+.km-iconrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.km-iconimg,.km-iconph{width:44px;height:44px;border-radius:12px;flex:0 0 auto;border:1.5px solid var(--grey-200);}
+.km-iconimg{object-fit:cover;}
+.km-iconph{background:var(--grey-50);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-600);}
+.km-btn{position:relative;overflow:hidden;box-sizing:border-box;min-height:44px;min-width:44px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:var(--radius-sm);border:1.5px solid var(--grey-200);background:transparent;color:var(--navy);font:600 13px/1.2 inherit;font-family:inherit;cursor:pointer;text-decoration:none;}
+.km-btn:hover{border-color:var(--indigo);}
+.km-btn input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;}
+.km-btn.km-red{color:var(--red);}
+.km-btn[disabled],.km-btn.km-dis{opacity:.5;cursor:not-allowed;pointer-events:none;}
+.km-upload{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px;}
+.km-upload label.km-f{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--ink-600);font-weight:600;}
+.km-upload input[type=date],.km-upload input[type=text]{box-sizing:border-box;width:100%;min-height:44px;padding:0 10px;border:1.5px solid var(--grey-200);border-radius:var(--radius-sm);background:var(--grey-50);color:var(--navy);font:inherit;font-size:14px;}
+@media(min-width:700px){.km-upload{grid-template-columns:170px 1fr auto;align-items:end;}}
+.photo-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
+@media(min-width:700px){.photo-gallery-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));}}
+.photo-thumb{position:relative;background:var(--grey-50);border:1px solid var(--grey-200);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;}
+.photo-thumb>img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--grey-200);}
+.photo-thumb-remove{position:absolute;top:4px;right:4px;box-sizing:border-box;width:44px;height:44px;border-radius:50%;border:0;background:rgba(14,27,51,.72);color:#fff;font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.photo-thumb-remove[disabled]{opacity:.45;cursor:not-allowed;}
+.photo-thumb-meta{padding:6px 8px 8px;display:flex;flex-direction:column;gap:6px;}
+.photo-thumb-cap{font-size:12px;color:var(--ink-600);min-height:15px;overflow-wrap:anywhere;}
+.photo-thumb-meta input[type=date]{box-sizing:border-box;width:100%;min-height:44px;padding:0 8px;border:1.5px solid var(--grey-200);border-radius:var(--radius-sm);background:#fff0;color:var(--navy);font:inherit;font-size:13px;}
+.km-size{font-size:11.5px;color:var(--ink-600);line-height:1.45;margin-top:10px;}
+.km-msg{margin:10px 0 0;padding:9px 11px;border-radius:var(--radius-sm);font-size:12.5px;line-height:1.45;border:1.5px solid var(--grey-200);}
+.km-msg.km-ok{border-color:#1fa971;background:rgba(31,169,113,.10);}
+.km-msg.km-err{border-color:var(--red);background:rgba(255,77,94,.10);}
+.km-msg.km-unc{border-color:#e69a1e;background:rgba(230,154,30,.14);}
+.km-msg .km-btn{margin-top:8px;}
+.km-how{font-size:11.5px;color:var(--ink-600);margin-top:8px;}
+.km-how summary{cursor:pointer;min-height:44px;display:flex;align-items:center;}
+/* ---- A2: banner layer (cannot affect layout) + banner controls ---- */
+.app-header.kot-has-banner{isolation:isolate;}
+.app-header > .kot-banner-bg{position:absolute;inset:0;z-index:-1;pointer-events:none;background-repeat:no-repeat;background-size:cover;}
+.km-selbanner{display:flex;flex-direction:column;gap:6px;}
+.km-badge{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;background:var(--indigo,#4f46e5);color:#fff;font-size:12px;font-weight:700;align-self:flex-start;}
+.km-focus{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.km-focus .km-btn{padding:0 6px;}
+.km-btn.km-on{border-color:var(--indigo,#4f46e5);background:rgba(79,70,229,.14);}
+
+/* ---- B1: File Library (read-only) ---- */
+.fl-card > summary{display:flex;flex-direction:column;gap:2px;cursor:pointer;min-height:44px;justify-content:center;list-style:none;}
+.fl-card > summary::-webkit-details-marker{display:none;}
+.fl-card > summary .fl-sum-t{font-size:1.15rem;font-weight:800;color:var(--navy);}
+.fl-card > summary::after{content:"Show";align-self:flex-start;margin-top:4px;font:700 12px/1 inherit;color:var(--indigo);}
+.fl-card[open] > summary::after{content:"Hide";}
+.fl-body{margin-top:12px;min-width:0;}
+.fl-intro{font-size:12.5px;line-height:1.5;color:var(--ink-600);margin:0 0 10px;}
+.fl-legend{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--ink-600);margin-bottom:10px;}
+.fl-total{font-weight:700;font-size:13px;color:var(--navy);margin-bottom:6px;}
+.fl-cat{margin-top:18px;min-width:0;}
+.fl-cat h3{font-size:14.5px;font-weight:800;color:var(--navy);margin:0 0 2px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;}
+.fl-count{font-size:11.5px;font-weight:600;color:var(--ink-600);}
+.fl-note{font-size:12px;line-height:1.45;color:var(--ink-600);margin:0 0 8px;}
+.fl-empty{font-size:12.5px;color:var(--ink-600);padding:8px 0;}
+.fl-row{border:1.5px solid var(--grey-200);border-radius:var(--radius-sm);background:var(--grey-50);padding:10px 12px;margin-top:8px;min-width:0;}
+.fl-top{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
+.fl-name{font-size:13.5px;color:var(--navy);overflow-wrap:anywhere;}
+.fl-kind{font-size:11px;font-weight:700;color:var(--indigo);}
+.fl-badge{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:999px;background:rgba(79,70,229,.12);color:var(--navy);margin:2px 0 4px;}
+.fl-grid{display:grid;grid-template-columns:minmax(96px,34%) 1fr;gap:3px 10px;margin:4px 0 8px;font-size:12px;}
+.fl-grid dt{color:var(--ink-600);font-weight:600;} .fl-grid dd{margin:0;color:var(--navy);overflow-wrap:anywhere;min-width:0;}
+.fl-sub{color:var(--ink-600);font-size:11px;}
+.fl-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+.fl-btn{box-sizing:border-box;min-height:44px;min-width:44px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);border:1.5px solid var(--grey-200);background:transparent;color:var(--navy);font:600 13px/1.2 inherit;font-family:inherit;cursor:pointer;text-decoration:none;text-align:center;}
+.fl-btn:hover{border-color:var(--indigo);}
+.fl-more{margin-top:10px;width:100%;}
+.fl-msg{font-size:12.5px;padding:8px 10px;border-radius:var(--radius-sm);background:var(--grey-50);color:var(--ink-600);}
+.fl-msg.fl-err{border:1.5px solid #d97706;color:var(--navy);}
+.fl-live{font-size:12px;color:var(--ink-600);min-height:18px;margin-top:6px;}
+.fl-flash{outline:3px solid var(--indigo);outline-offset:2px;transition:outline-color .3s;}
+.fl-modal{max-width:min(94vw,860px);} .fl-modal-sub{font-size:12px;color:var(--ink-600);margin:0 0 8px;overflow-wrap:anywhere;}
+.fl-modal-img{display:block;max-width:100%;max-height:70vh;margin:0 auto;border-radius:var(--radius-sm);}
+@media(min-width:900px){ .fl-row{padding:12px 14px;} .fl-grid{grid-template-columns:170px 1fr;} }
+/* ---- B2: import receipts section + notice ---- */
+.fl-rcsec{margin-top:18px;border:1.5px solid var(--grey-200);border-radius:var(--radius-sm);padding:0 12px 12px;}
+.fl-rcsec > summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font:800 14.5px/1.2 inherit;color:var(--navy);}
+.fl-st-matches{background:rgba(22,163,74,.16)!important;} .fl-st-changed,.fl-st-unverifiable{background:rgba(217,119,6,.18)!important;} .fl-st-missing{background:rgba(100,116,139,.2)!important;}
+#kot-rcp-note{position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;background:#fff;color:#111827;border:1.5px solid #1f2937;font:600 13px/1.4 inherit;box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:640px;margin:0 auto;}
+#kot-rcp-note button{min-height:44px;min-width:64px;border-radius:10px;border:1.5px solid #1f2937;background:#f3f4f6;color:#111827;font:700 13px inherit;cursor:pointer;}
+body.theme-dark #kot-rcp-note{background:#111827;color:#f9fafb;border-color:#9ca3af;box-shadow:0 8px 28px rgba(0,0,0,.6);} body.theme-dark #kot-rcp-note button{background:#1f2937;color:#f9fafb;border-color:#9ca3af;}
+body.theme-light #kot-rcp-note{background:#fff;color:#111827;border-color:#1f2937;} body.theme-light #kot-rcp-note button{background:#f3f4f6;color:#111827;border-color:#1f2937;}
+
 </style>
 </head>
 <body class="theme-dark">
@@ -2095,6 +2182,7 @@ async function archivePeriod(ev){
     schedule: P ? {templates:P.templates, dailyQueue:P.dailyQueue, dayOverrides:P.dayOverrides} : null,
     logs
   };
+  if(ev.banner) archive.banner = JSON.parse(JSON.stringify(ev.banner));   /* A2: optional; absent for records without a banner */
   const archives = (await loadJSON("archives")) || [];
   archives.push({id:archiveId, periodType:archive.periodType, name:archive.name, startDate:start, endDate:end, archivedAt:archive.archivedAt, dayCount:dates.length});
   await saveJSON("archives", archives);
@@ -2150,6 +2238,11 @@ async function reloadArchive(archiveId){
     : Object.assign({id:newId, hidden:false, createdAt:new Date().toISOString(), color:nextEventColor(), isLegacyCWC:false, trainingStart:archive.startDate, trainingEndMode:"event"}, archive.eventMeta, {name:archive.name});
   if(archive.icon) ev.icon = archive.icon;
   if(archive.photos && archive.photos.length) ev.photos = archive.photos;
+  /* A2: restore the optional banner selection only if its photo is in the archive AND no live record already holds a valid selection */
+  if(archive.banner && archive.banner.photoId && (archive.photos||[]).some(p=>p.id===archive.banner.photoId)){
+    if(kmBannerState().state==="none"){ ev.banner = JSON.parse(JSON.stringify(archive.banner)); }
+    else { KM.msg[newId] = {kind:"unc", text:"The archived banner selection was not restored because another record already has one. Choose it again with Use as banner if you want it."}; }
+  }
   Events.list.push(ev);
   await saveEvents();
   if(archive.schedule){
@@ -2195,32 +2288,884 @@ function resizeImageFile(file, maxDim, quality){
   });
 }
 
-async function setEventIcon(eventId, file){
-  const ev = eventById(eventId);
-  if(!ev) return;
-  ev.icon = await resizeImageFile(file, 160, 0.85);
-  await saveEvents();
+/* ============================================================
+   EVENT IMAGES (A1) — icons and dated photo galleries for Events and
+   General Fitness Periods. Images are downscaled client-side via canvas
+   (icon 160 px, photo 900 px, JPEG) before storing as data URIs.
+
+   Media changes use a TARGETED, VERIFIED write path (KM) that never calls
+   createEvent / updateEvent / archiveStalePeriods / initEventPlan and never
+   touches any event:<id>:* key. Each change: re-read the stored "events"
+   list, refuse if it differs from what this screen shows (stale), change only
+   that record's icon/photos on a copy of the stored list, write it, read it
+   back (probing, because a write that throws may still have saved) and compare
+   the WHOLE list. Only a verified save updates memory and schedules sync.
+   Not atomic across tabs: storage has no compare-and-swap.
+   ============================================================ */
+function resizeImageFile(file, maxDim, quality){
+  return new Promise((resolve,reject)=>{
+    if(!file || !file.type || !file.type.startsWith("image/")){ reject(new Error("Please choose an image file.")); return; }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w>maxDim || h>maxDim){
+          if(w>=h){ h = Math.round(h*maxDim/w); w = maxDim; }
+          else { w = Math.round(w*maxDim/h); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = ()=>reject(new Error("Couldn't read that image file."));
+      img.src = reader.result;
+    };
+    reader.onerror = ()=>reject(new Error("Couldn't read that file."));
+    reader.readAsDataURL(file);
+  });
 }
-async function removeEventIcon(eventId){
-  const ev = eventById(eventId);
-  if(!ev) return;
-  delete ev.icon;
-  await saveEvents();
+
+const KM = {q:Promise.resolve(), busy:false, blocked:null, msg:{}, SOFT_LIMIT:12, writes:0};
+function kmCanon(v){ return JSON.stringify(v, (k,x)=> (x && typeof x==="object" && !Array.isArray(x)) ? Object.keys(x).sort().reduce((o,kk)=>{ o[kk]=x[kk]; return o; },{}) : x); }
+function kmBytes(str){ try{ return new Blob([str]).size; }catch(e){ return String(str).length; } }
+function kmKB(n){ return n<1024 ? n+" B" : (n/1024).toFixed(1)+" KB"; }
+function kmStrip(r, fields){ const o = Object.assign({}, r); (fields||[]).forEach(f=>{ delete o[f]; }); return o; }
+function kmStripMedia(r){ return kmStrip(r, ["icon","photos"]); }
+/* The exact fields an operation may change. allow = {target:[fields], others:{id:[fields]}}.
+   Everything else (ids, order, count, every other field of every record) must be identical. */
+function kmCheckDeclared(before, after, eventId, allow){
+  if(!Array.isArray(before) || !Array.isArray(after) || before.length!==after.length) return "the number of records changed";
+  for(let i=0;i<before.length;i++){
+    const b = before[i], a = after[i];
+    if(!b || !a || b.id!==a.id) return "record order or ids changed";
+    const f = b.id===eventId ? (allow.target||[]) : ((allow.others||{})[b.id]||[]);
+    if(kmCanon(kmStrip(b,f))!==kmCanon(kmStrip(a,f))) return "a field outside the declared ones changed on "+(b.name||b.id);
+  }
+  return null;
 }
-async function addEventPhoto(eventId, file, date, caption){
-  const ev = eventById(eventId);
-  if(!ev) return;
+const KM_DEFAULT_ALLOW = ()=>({target:["icon","photos"], others:{}});
+function kmSettled(){ try{ if(typeof scheduleDrivePush==="function") scheduleDrivePush(); if(typeof scheduleGSync==="function") scheduleGSync(); }catch(e){} }
+function kmUI(){ try{ if(State.tab==="events") renderTabContent(); }catch(e){} try{ kmApplyBanner(); }catch(e){} }
+
+/* Read the stored events list without confusing "absent", "readable" and "cannot tell". */
+async function kmReadStored(){
+  try{ const l = await window.storage.list("events", false); const ks = (l && l.keys) || []; if(!ks.includes("events")) return {state:"absent"}; }
+  catch(e){ return {state:"unreadable", why:"the key list could not be read"}; }
+  try{
+    const r = await window.storage.get("events", false);
+    if(!r || typeof r.value!=="string") return {state:"unreadable", why:"the stored value came back empty"};
+    let list; try{ list = JSON.parse(r.value); }catch(e){ return {state:"unreadable", why:"the stored value is not valid JSON"}; }
+    if(!Array.isArray(list)) return {state:"unreadable", why:"the stored value is not a list"};
+    return {state:"ok", raw:r.value, list};
+  }catch(e){ return {state:"unreadable", why:"reading it threw an error"}; }
+}
+class KmLimit extends Error{}
+
+function kmRun(op){ const p = KM.q.then(()=>kmExec(op), ()=>kmExec(op)); KM.q = p.catch(()=>{}); return p; }
+async function kmExec(op){
+  if(KM.blocked) return {status:"blocked", msg:KM.blocked.msg};
+  KM.busy = true; kmUI();
+  try{ return await kmExec2(op); }
+  catch(e){ return {status:"failed", msg:"Nothing was saved: "+(e && e.message || e)}; }
+  finally{ KM.busy = false; }
+}
+function kmBlock(msg, pending){ KM.blocked = {msg, pending:pending||null}; }
+
+async function kmExec2(op){
+  /* 1. read what is really stored */
+  const rd = await kmReadStored();
+  if(rd.state==="unreadable"){
+    const m = "Storage could not be read ("+rd.why+"), so nothing was changed. Photo and icon changes are paused until storage can be read again.";
+    kmBlock(m, null); return {status:"unreadable", msg:m};
+  }
+  if(rd.state==="absent") return {status:"stale", msg:"The saved Events list could not be found in storage, so nothing was changed. Reload the app."};
+  /* 2. stale check: stored list must equal the list this screen shows */
+  const mem = Events.list.filter(e=>!e.isAdhoc);
+  if(kmCanon(mem)!==kmCanon(rd.list)) return {status:"stale", msg:"Your Events changed somewhere else (another tab or a Drive sync) since this screen was loaded, so nothing was changed. Reload the app, then try again."};
+  /* 3. build the candidate from the STORED list; only the DECLARED fields of the DECLARED records may change */
+  const cand = JSON.parse(rd.raw); const idx = cand.findIndex(e=>e && e.id===op.eventId);
+  if(idx<0) return {status:"failed", msg:"That Event or period no longer exists. Nothing was changed."};
+  const allow = (op.allow || KM_DEFAULT_ALLOW)(rd.list);
+  const rec = cand[idx];
+  try{ op.apply(rec, cand); }catch(e){ return {status:"failed", msg:e.message, limit:(e instanceof KmLimit)}; }
+  if(Array.isArray(rec.photos) && !rec.photos.length) delete rec.photos;
+  const bad = kmCheckDeclared(rd.list, cand, op.eventId, allow);
+  if(bad) return {status:"failed", msg:"Internal check: the change touched more than it declared ("+bad+"). Nothing was saved."};
+  const candRaw = JSON.stringify(cand);
+  const touched = [{id:op.eventId, fields:allow.target||[]}].concat(Object.keys(allow.others||{}).map(id=>({id, fields:allow.others[id]})));
+  /* 4. write (a throw does NOT mean it failed) */
+  let werr = null; KM.writes++;
+  try{ await window.storage.set("events", candRaw, false); }catch(e){ werr = e; }
+  /* 5. probe / read back, up to 3 tries */
+  let back = null;
+  for(let i=0;i<3;i++){ back = await kmReadStored(); if(back.state==="ok") break; await new Promise(r=>setTimeout(r, i*150)); }
+  const priorCanon = kmCanon(rd.list), candCanon = kmCanon(cand);
+  const pend = {candCanon, priorCanon, eventId:op.eventId, touched};
+  if(back.state!=="ok"){
+    const m = "The change may or may not have been saved"+(werr?" (the write reported an error)":"")+", and storage could not be read back to check. Further photo, icon and banner changes are blocked until storage can be read again.";
+    kmBlock(m, pend); return {status:"uncertain", msg:m};
+  }
+  const backCanon = kmCanon(back.list);
+  if(backCanon===candCanon){
+    /* explicit second check against the pre-write stored list, on what storage really returned */
+    if(kmCheckDeclared(rd.list, back.list, op.eventId, allow)){
+      const m = "Storage holds data that does not match what was expected. Further changes are blocked; reload the app and check this card.";
+      kmBlock(m, pend); return {status:"uncertain", msg:m};
+    }
+    kmAdopt(back.list, touched); KM.lastBytes = kmBytes(back.raw); kmSettled();
+    return {status:"saved", msg:op.okMsg || "Saved and verified.", stored:(back.list||[]).find(e=>e && e.id===op.eventId)};
+  }
+  if(backCanon===priorCanon){
+    return {status:"failed", msg: werr ? "Storage rejected the change ("+(werr.message||werr)+"). Nothing was saved and your existing photos are untouched." : "Storage accepted the change but did not keep it. Nothing was saved and your existing photos are untouched."};
+  }
+  const m = "Storage now holds Events data that is neither the old nor the new version (another tab or a Drive sync may have written at the same time). Further changes are blocked; reload the app and check this card.";
+  kmBlock(m, pend); return {status:"uncertain", msg:m};
+}
+/* copy the verified declared fields into the in-memory records (only after a verified save) */
+function kmAdopt(storedList, touched){
+  (touched||[]).forEach(t=>{
+    const ev = Events.list.find(e=>e.id===t.id), sr = storedList.find(e=>e.id===t.id); if(!ev || !sr) return;
+    (t.fields||[]).forEach(f=>{ if(sr[f]!=null) ev[f] = JSON.parse(JSON.stringify(sr[f])); else delete ev[f]; });
+  });
+  KM.bannerCache = null;
+}
+/* "Check storage again": the only way to clear a block */
+function kmRecheck(){ return KM.q = KM.q.then(async ()=>{
+  if(!KM.blocked) return {status:"ok"};
+  KM.busy = true; kmUI();
+  try{
+    const rd = await kmReadStored();
+    if(rd.state!=="ok"){ KM.blocked.msg = "Storage still cannot be read ("+(rd.why||"not found")+"). Changes remain paused."; return {status:"blocked", msg:KM.blocked.msg}; }
+    const p = KM.blocked.pending;
+    if(!p){ KM.blocked = null; return {status:"ok", msg:"Storage can be read again. You can continue."}; }
+    const c = kmCanon(rd.list);
+    if(c===p.candCanon){ kmAdopt(rd.list, p.touched); KM.blocked=null; KM.lastBytes=kmBytes(rd.raw); kmSettled(); return {status:"saved", msg:"Confirmed: that change had saved."}; }
+    if(c===p.priorCanon){ KM.blocked=null; return {status:"failed", msg:"Confirmed: that change did not save. Your previous photos and icon are intact."}; }
+    KM.blocked.msg = "Storage holds Events data that does not match either version. Reload the app before changing anything."; return {status:"blocked", msg:KM.blocked.msg};
+  } finally { KM.busy = false; kmUI(); }
+}).catch(()=>({status:"blocked"})); }
+
+/* ---- operations ---- */
+function kmOp(eventId, apply, okMsg){ return kmRun({eventId, apply, okMsg}); }
+function kmValidDate(d){ return /^\d{4}-\d{2}-\d{2}$/.test(d||"") && !isNaN(new Date(d+"T12:00:00Z").getTime()); }
+async function kmAddPhoto(eventId, file, date, caption){
+  const rm = rcpMeta(file, "photo");
   const dataUrl = await resizeImageFile(file, 900, 0.75);
-  ev.photos = ev.photos || [];
-  ev.photos.push({id: uid("ph"), dataUrl, date: date||todayISO(), caption: caption||""});
-  await saveEvents();
+  const photo = {id: uid("ph"), dataUrl, date: kmValidDate(date)?date:todayISO(), caption: String(caption||"").trim().slice(0,120)};
+  const r = await kmOp(eventId, rec=>{
+    const n = (rec.photos||[]).length;
+    if(n>=KM.SOFT_LIMIT) throw new KmLimit("This card already has "+n+" photos. 12 is a soft limit for adding new ones; remove a photo to add another. Existing photos are never deleted and can still be removed.");
+    rec.photos = (rec.photos||[]).concat([photo]);
+  }, "Photo saved and verified.");
+  if(r && r.status==="saved") r.receipt = await rcpAfterMedia(rm, "photo", eventId, photo.id, r.stored);
+  return r;
 }
-async function removeEventPhoto(eventId, photoId){
-  const ev = eventById(eventId);
-  if(!ev || !ev.photos) return;
-  ev.photos = ev.photos.filter(p=>p.id!==photoId);
-  await saveEvents();
+function kmRemovePhoto(eventId, photoId){ return kmRun({eventId, okMsg:"Photo removed and verified.",
+  allow:()=>({target:["photos","banner"], others:{}}),
+  apply:rec=>{ if(!(rec.photos||[]).some(p=>p.id===photoId)) throw new Error("That photo is already gone. Nothing was changed."); rec.photos = rec.photos.filter(p=>p.id!==photoId); if(rec.banner && rec.banner.photoId===photoId) delete rec.banner; } }); }
+function kmSetPhotoDate(eventId, photoId, date){
+  if(!kmValidDate(date)) return Promise.resolve({status:"failed", msg:"Please choose a valid date. Nothing was changed."});
+  return kmOp(eventId, rec=>{ const p=(rec.photos||[]).find(x=>x.id===photoId); if(!p) throw new Error("That photo is already gone. Nothing was changed."); if(p.date===date) throw new Error("The date is unchanged."); p.date = date; }, "Date saved and verified.");
 }
+async function kmSetIcon(eventId, file){ const rm = rcpMeta(file, "icon"); const icon = await resizeImageFile(file, 160, 0.85); const r = await kmOp(eventId, rec=>{ rec.icon = icon; }, "Icon saved and verified."); if(r && r.status==="saved") r.receipt = await rcpAfterMedia(rm, "icon", eventId, null, r.stored); return r; }
+function kmRemoveIcon(eventId){ return kmOp(eventId, rec=>{ if(rec.icon==null) throw new Error("There is no icon to remove."); delete rec.icon; }, "Icon removed and verified."); }
+/* older entry points (the Event edit form) now use the same verified path */
+async function setEventIcon(eventId, file){ const r = await kmSetIcon(eventId, file); if(r.status!=="saved") throw new Error(r.msg); }
+async function removeEventIcon(eventId){ const r = await kmRemoveIcon(eventId); if(r.status!=="saved") throw new Error(r.msg); }
+async function addEventPhoto(eventId, file, date, caption){ const r = await kmAddPhoto(eventId, file, date, caption); if(r.status!=="saved") throw new Error(r.msg); }
+async function removeEventPhoto(eventId, photoId){ const r = await kmRemovePhoto(eventId, photoId); if(r.status!=="saved") throw new Error(r.msg); }
+
+
+/* ============================================================
+   A2 — header banner. An explicit, single-source selection stored as
+   banner:{photoId,focus} on one Event/GFP record. Nothing is ever chosen,
+   moved or cleared automatically. Rendering only READS; it never writes.
+   ============================================================ */
+const KM_FOCUS = {top:"center 15%", center:"center 50%", bottom:"center 85%"};
+const KM_BANNER_GRAD = "linear-gradient(180deg,rgba(15,12,60,.55) 0%,rgba(15,12,60,.40) 45%,rgba(15,12,60,.78) 100%)";
+KM.bannerSeq = 0; KM.bannerKey = ""; KM.pendingKey = ""; KM.decoded = {}; KM.decodedSrc = {}; KM.broken = {}; KM.shownSrc = ""; KM.pendingSrc = "";
+function kmBannerState(list){
+  const L = (list || Events.list).filter(e=>e && !e.isAdhoc && e.banner && typeof e.banner==="object");
+  const valid = [], dangling = [];
+  L.forEach(e=>{ const p = (e.photos||[]).find(x=>x.id===e.banner.photoId); (p ? valid : dangling).push({rec:e, photo:p}); });
+  if(valid.length===1){ const v = valid[0]; return {state:"active", rec:v.rec, photo:v.photo, focus:(KM_FOCUS[v.rec.banner.focus]?v.rec.banner.focus:"center"), valid:[v.rec], dangling:dangling.map(d=>d.rec)}; }
+  if(valid.length>1) return {state:"conflict", valid:valid.map(v=>v.rec), dangling:dangling.map(d=>d.rec)};
+  return {state:"none", valid:[], dangling:dangling.map(d=>d.rec)};
+}
+function kmHash(str){ let h1=0x811c9dc5, h2=0x9747b28c; for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); h1=Math.imul(h1^c,0x01000193)>>>0; h2=Math.imul(h2^c,0x85ebca6b)>>>0; h2=(h2^(h2>>>13))>>>0; } return h1.toString(36)+h2.toString(36)+"."+str.length.toString(36); }
+/* banner identity = record | photo | focus | hash of the actual image content (callbacks additionally compare the full source string) */
+function kmBannerKey(st){ return st.state==="active" ? [st.rec.id, st.photo.id, st.focus, kmHash(st.photo.dataUrl)].join("|") : ""; }
+function kmLiveIs(info){ const st = kmBannerState(); return st.state==="active" && st.rec.id===info.recId && st.photo.id===info.photoId && st.focus===info.focus && st.photo.dataUrl===info.src; }
+function kmLoadImage(src){ return new Promise((res,rej)=>{ const i = new Image(); i.onload = ()=>res(); i.onerror = ()=>rej(new Error("decode")); i.src = src; }); }
+function kmRemoveLayer(){ const h = document.querySelector(".app-header"); if(!h) return; const l = h.querySelector(":scope > .kot-banner-bg"); if(l) l.remove(); h.classList.remove("kot-has-banner"); KM.shownSrc = ""; }
+function kmInsertLayer(key, src, focus){
+  const h = document.querySelector(".app-header"); if(!h) return;
+  kmRemoveLayer();
+  const d = document.createElement("div"); d.className = "kot-banner-bg"; d.setAttribute("aria-hidden","true"); d.dataset.key = key;
+  d.style.backgroundImage = KM_BANNER_GRAD+',url("'+src+'")'; d.style.backgroundPosition = "center,"+KM_FOCUS[focus];
+  h.insertBefore(d, h.firstChild); h.classList.add("kot-has-banner"); KM.shownSrc = src;
+}
+function kmApplyBanner(){
+  const h = document.querySelector(".app-header"); if(!h) return;
+  const st = kmBannerState(), key = kmBannerKey(st);
+  const layer = h.querySelector(":scope > .kot-banner-bg");
+  if(!key){ KM.bannerSeq++; KM.bannerKey = ""; KM.pendingKey = ""; kmRemoveLayer(); return; }
+  if(KM.broken[key]){ KM.bannerSeq++; KM.bannerKey = key; KM.pendingKey = ""; kmRemoveLayer(); return; }
+  if(key===KM.bannerKey && ((layer && layer.dataset.key===key && KM.shownSrc===st.photo.dataUrl) || (KM.pendingKey===key && KM.pendingSrc===st.photo.dataUrl))) return;   /* already showing / already decoding exactly this banner */
+  const my = ++KM.bannerSeq; KM.bannerKey = key; KM.pendingKey = "";
+  const info = {recId:st.rec.id, photoId:st.photo.id, focus:st.focus, src:st.photo.dataUrl};
+  if(layer && layer.dataset.key!==key) kmRemoveLayer();
+  const src = st.photo.dataUrl, focus = st.focus;
+  if(KM.decoded[key] && KM.decodedSrc[key]===src){ kmInsertLayer(key, src, focus); return; }
+  kmRemoveLayer(); KM.pendingKey = key; KM.pendingSrc = src;
+  Promise.resolve().then(()=>kmLoadImage(src)).then(()=>{
+    /* a late result must never repaint after a switch/stop/re-render: check sequence AND live data */
+    if(my!==KM.bannerSeq || KM.bannerKey!==key) return;
+    if(!kmLiveIs(info)) return;           /* the live selection or image content changed while decoding */
+    KM.pendingKey = ""; KM.decoded[key] = true; KM.decodedSrc[key] = src; kmInsertLayer(key, src, focus);
+  }).catch(()=>{
+    if(my!==KM.bannerSeq || KM.bannerKey!==key) return;
+    if(!kmLiveIs(info)) return;           /* a stale failure must not mark the current content broken */
+    KM.pendingKey = ""; KM.broken[key] = true; kmRemoveLayer(); try{ if(State.tab==="events") renderTabContent(); }catch(e){}
+  });
+}
+function kmUseBanner(eid, pid, focus){
+  return kmRun({eventId:eid, okMsg:"Banner selected and verified.",
+    allow:(list)=>({target:["banner"], others:Object.fromEntries(list.filter(r=>r.id!==eid && r.banner!==undefined).map(r=>[r.id,["banner"]]))}),
+    apply:(rec,cand)=>{
+      if(!(rec.photos||[]).some(p=>p.id===pid)) throw new Error("That photo is no longer on this card. Nothing was changed.");
+      let cleared = 0; cand.forEach(r=>{ if(r.id!==eid && r.banner!==undefined){ delete r.banner; cleared++; } });
+      const nb = {photoId:pid, focus:(KM_FOCUS[focus]?focus:"center")};
+      if(!cleared && rec.banner && kmCanon(rec.banner)===kmCanon(nb)) throw new Error("That photo is already the banner.");
+      rec.banner = nb; } });
+}
+function kmSetFocus(eid, focus){ return kmRun({eventId:eid, okMsg:"Banner position saved and verified.", allow:()=>({target:["banner"],others:{}}),
+  apply:rec=>{ if(!rec.banner || !KM_FOCUS[focus]) throw new Error("There is no banner selection to change."); if(rec.banner.focus===focus) throw new Error("That position is already selected."); rec.banner = {photoId:rec.banner.photoId, focus}; } }); }
+function kmStopBanner(eid){ return kmRun({eventId:eid, okMsg:"Banner selection removed and verified.", allow:()=>({target:["banner"],others:{}}),
+  apply:rec=>{ if(rec.banner===undefined) throw new Error("This card has no banner selection."); delete rec.banner; } }); }
+function kmBannerNotes(e, st){
+  const notes = []; const mine = e.banner && typeof e.banner==="object";
+  if(!mine) return "";
+  const photo = (e.photos||[]).find(p=>p.id===e.banner.photoId);
+  if(!photo){ notes.push('This card\'s banner selection points to a photo that no longer exists, so it is ignored. <button type="button" class="km-btn" data-km="banner-stop" data-eid="'+esc(e.id)+'">Remove stale selection</button> (Choosing a banner on any card also clears it.)'); }
+  else if(st.state==="conflict"){ notes.push("Several banner selections exist ("+st.valid.map(r=>esc(r.name||r.id)).join(", ")+"). The header is using its normal look until you choose one: press Use as banner (or Keep this one on the photo that is already selected) for the photo you want."); }
+  else if(st.state==="active" && st.rec.id===e.id){
+    notes.push("This card supplies the header banner."+(e.hidden?" It is hidden; the banner stays until you change it.":"")+(isEventCompleted(e)?" This Event is completed; the banner stays until you change it.":""));
+    if(KM.broken[kmBannerKey(st)]) notes.push("The banner photo could not be loaded, so the header is using its normal look. Your selection is kept.");
+  }
+  return notes.map(n=>'<div class="km-msg km-'+(n.indexOf("could not")>=0||n.indexOf("Several")>=0||n.indexOf("no longer")>=0?"unc":"ok")+'" role="status">'+n+'</div>').join("");
+}
+
+/* ---- UI ---- */
+function kmSizes(){
+  const list = Events.list.filter(e=>!e.isAdhoc);
+  const total = kmBytes(JSON.stringify(list));
+  let media = 0, n = 0; list.forEach(e=>{ if(e.icon){ media += kmBytes(e.icon); n++; } (e.photos||[]).forEach(p=>{ media += kmBytes(p.dataUrl); n++; }); });
+  return {total, media, n};
+}
+function kmThumbBanner(e, p, st, dis){
+  const sel = e.banner && e.banner.photoId===p.id;
+  const conflictSel = sel && st.state==="conflict";
+  if(!sel) return `<button type="button" class="km-btn" data-km="banner-use" data-eid="${esc(e.id)}" data-pid="${esc(p.id)}" ${dis}>Use as banner</button>`;
+  const f = KM_FOCUS[e.banner.focus] ? e.banner.focus : "center";
+  return `<div class="km-selbanner"><span class="km-badge">${conflictSel?"Selected (conflict)":"Banner"}</span>
+    ${conflictSel?`<button type="button" class="km-btn km-keep" data-km="banner-use" data-eid="${esc(e.id)}" data-pid="${esc(p.id)}" data-focus="${esc(e.banner.focus||'center')}" ${dis}>Keep this one</button>`:""}
+    <div class="km-focus" role="group" aria-label="Banner position">${["top","center","bottom"].map(k=>`<button type="button" class="km-btn ${k===f?'km-on':''}" data-km="banner-focus" data-eid="${esc(e.id)}" data-focus="${k}" ${dis}>${k[0].toUpperCase()+k.slice(1)}</button>`).join("")}</div>
+    <button type="button" class="km-btn" data-km="banner-stop" data-eid="${esc(e.id)}" ${dis}>Stop using as banner</button></div>`;
+}
+function kmSectionHtml(e){
+  const dis = (KM.busy || KM.blocked) ? "disabled" : "";
+  const photos = (e.photos||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const sz = kmSizes(), m = KM.msg[e.id], st = kmBannerState();
+  const blocked = KM.blocked ? `<div class="km-msg km-unc" role="alert">${esc(KM.blocked.msg)}<br><button type="button" class="km-btn" data-km="recheck" ${KM.busy?"disabled":""}>Check storage again</button> <button type="button" class="km-btn" data-km="reload">Reload app</button></div>` : "";
+  return `
+  <div class="km-section photo-gallery-section" data-km-card="${esc(e.id)}">
+    <div class="km-title">Icon</div>
+    <div class="km-iconrow">
+      ${e.icon ? `<img class="km-iconimg" src="${esc(e.icon)}" alt="Current icon">` : `<div class="km-iconph" aria-hidden="true">🖼</div>`}
+      <label class="km-btn ${dis?'km-dis':''}">${e.icon?'Change icon':'Choose icon'}<input type="file" accept="image/*" data-km="icon-file" data-eid="${esc(e.id)}" ${dis} aria-label="Choose icon image"></label>
+      ${e.icon ? `<button type="button" class="km-btn km-red" data-km="icon-remove" data-eid="${esc(e.id)}" ${dis}>Remove icon</button>` : ''}
+    </div>
+    <div class="km-title">Photos <span style="font-weight:500;color:var(--ink-600);">(${photos.length})</span></div>
+    ${photos.length ? `<div class="photo-gallery-grid">
+      ${photos.map(p=>`
+        <div class="photo-thumb">
+          <img src="${esc(p.dataUrl)}" alt="${esc(p.caption||'Photo')}" loading="lazy">
+          <button type="button" class="photo-thumb-remove" data-km="photo-remove" data-eid="${esc(e.id)}" data-pid="${esc(p.id)}" title="Remove photo" aria-label="Remove photo" ${dis}>×</button>
+          <div class="photo-thumb-meta">
+            <div class="photo-thumb-cap">${esc(p.caption||'')}</div>
+            <input type="date" value="${esc(p.date)}" data-km="photo-date" data-eid="${esc(e.id)}" data-pid="${esc(p.id)}" aria-label="Photo date" ${dis}>
+            ${kmThumbBanner(e, p, st, dis)}
+            <a class="km-btn" href="${esc(p.dataUrl)}" download="photo-${esc(p.date)}.jpg">Save copy</a>
+          </div>
+        </div>`).join("")}
+    </div>` : `<p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">No photos yet.</p>`}
+    <div class="km-upload">
+      <label class="km-f">Photo date<input type="date" class="km-newdate" value="${esc(todayISO())}" ${dis}></label>
+      <label class="km-f">Caption (optional)<input type="text" class="km-newcap" maxlength="120" placeholder="Caption" ${dis}></label>
+      <label class="km-btn ${dis?'km-dis':''}">Add photo<input type="file" accept="image/*" data-km="photo-file" data-eid="${esc(e.id)}" ${dis} aria-label="Add photo"></label>
+    </div>
+    ${kmBannerNotes(e, st)}
+    ${blocked}
+    ${m ? `<div class="km-msg km-${m.kind}" role="status" aria-live="polite">${esc(m.text)}</div>` : ''}
+    <div class="km-size">Events record: <b>${kmKB(sz.total)}</b> of JSON text, rewritten on every change and included in backups and sync. Of that, <b>${kmKB(sz.media)}</b> is ${sz.n} icon/photo image${sz.n===1?'':'s'} (resized JPEG stored as base64 text, so about a third larger than the image bytes). Images are already compressed, so more compression would gain little. The app cannot see the storage limit; if a write is refused it is reported as failed. New photos: soft limit 12 per card.</div>
+    <details class="km-how"><summary>How saving works</summary>Each change re-reads the saved Events, changes only this card's icon or photos on a copy, writes it, reads it back and compares every field before showing success. If another tab or a Drive sync writes within those few milliseconds, storage has no atomic compare-and-swap, so this is a careful check, not a guarantee. Keep one window open while changing photos.</details>
+  </div>`;
+}
+async function kmHandle(kind, el){
+  const eid = el.dataset.eid; const cardEl = el.closest("[data-km-card]");
+  const show = (r)=>{ KM.msg[eid] = (r && r.msg && !KM.blocked) ? {kind: r.status==="saved"?"ok":(r.status==="uncertain"||r.status==="unreadable"||r.status==="blocked")?"unc":"err", text:r.msg+((r.receipt&&r.receipt.ok===false)?" "+RCP_MSG_FAIL:"")} : null; if(r && r.receipt && r.receipt.ok===false && KM.msg[eid]) KM.msg[eid].kind="unc"; };
+  try{
+    let r;
+    if(kind==="icon-file"){ const f = el.files && el.files[0]; el.value=""; if(!f) return; KM.busy=true; kmUI(); r = await kmSetIcon(eid, f); }
+    else if(kind==="photo-file"){ const f = el.files && el.files[0]; el.value=""; if(!f) return;
+      const d = cardEl && cardEl.querySelector(".km-newdate"), c = cardEl && cardEl.querySelector(".km-newcap");
+      KM.busy=true; kmUI(); r = await kmAddPhoto(eid, f, d&&d.value, c&&c.value); }
+    else if(kind==="photo-date"){ r = await kmSetPhotoDate(eid, el.dataset.pid, el.value); }
+    else if(kind==="photo-remove"){ if(!confirm("Remove this photo? This cannot be undone.")) return; r = await kmRemovePhoto(eid, el.dataset.pid); }
+    else if(kind==="banner-use"){ r = await kmUseBanner(eid, el.dataset.pid, el.dataset.focus || "center"); }
+    else if(kind==="banner-focus"){ r = await kmSetFocus(eid, el.dataset.focus); }
+    else if(kind==="banner-stop"){ r = await kmStopBanner(eid); }
+    else if(kind==="icon-remove"){ if(!confirm("Remove this icon?")) return; r = await kmRemoveIcon(eid); }
+    else return;
+    show(r);
+  }catch(err){ KM.msg[eid] = {kind:"err", text:"Nothing was saved: "+(err && err.message || err)}; }
+  finally{ KM.busy = false; }
+  kmUI();
+}
+if(!window.__kotMediaBound){
+  window.__kotMediaBound = true;
+  document.addEventListener("click", ev=>{
+    const b = ev.target && ev.target.closest ? ev.target.closest("[data-km]") : null; if(!b || b.tagName==="INPUT") return;
+    const k = b.dataset.km;
+    if(k==="recheck"){ ev.preventDefault(); kmRecheck().then(r=>{ if(r && r.msg){ Object.keys(KM.msg).forEach(i=>KM.msg[i]=null); const c=b.closest("[data-km-card]"); if(c) KM.msg[c.dataset.kmCard]={kind:r.status==="saved"||r.status==="ok"?"ok":(r.status==="failed"?"err":"unc"), text:r.msg}; } kmUI(); }); return; }
+    if(k==="reload"){ ev.preventDefault(); location.reload(); return; }
+    if(b.disabled) return; ev.preventDefault(); kmHandle(k, b);
+  });
+  document.addEventListener("change", ev=>{
+    const i = ev.target; if(!i || !i.dataset || !i.dataset.km || i.tagName!=="INPUT") return; if(i.disabled) return;
+    kmHandle(i.dataset.km, i);
+  });
+}
+
+/* ============================================================
+   B2 — IMPORT RECEIPTS (additive). A receipt is written ONLY after a future,
+   successful user file input has been saved AND read back from storage:
+   photo upload, icon upload, TCX course (after Save to library + read-back),
+   TCX activity attachment, plan-package import. One new key, "fileReceipts".
+   A receipt failure never touches the item. Nothing here keeps the original
+   file, backfills history or changes any parser.
+   ============================================================ */
+const RCP = {KEY:"fileReceipts", MAX_N:200, MAX_BYTES:262144, SHA_MAX:25*1024*1024, q:Promise.resolve(), files:new WeakSet(), course:null, courseSeq:0, histSeq:{}, writes:0};
+const RCP_MSG_FAIL = "Item saved; import details could not be recorded.";
+const RCP_MSG_UNVERIFIED = "Could not verify the attachment was saved; no receipt recorded. Reload and check before trying again.";
+function rcpName(n){
+  if(typeof n!=="string") return null;
+  let s = n.replace(/[\u0000-\u001f\u007f]/g,"");
+  s = s.slice(Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"))+1).trim();
+  const cps = Array.from(s); if(cps.length>255) s = cps.slice(0,255).join("");
+  return s || null;
+}
+function rcpNewId(){ try{ if(window.crypto && crypto.randomUUID) return "rc_"+crypto.randomUUID(); }catch(e){} return uid("rc")+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function rcpFnv(str){ let h1=0x811c9dc5, h2=0x84222325; for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); h1=Math.imul(h1^c,0x01000193)>>>0; h2=Math.imul(h2^(c+i&255),0x01000193)>>>0; } return h1.toString(16).padStart(8,"0")+h2.toString(16).padStart(8,"0")+"-"+str.length.toString(16); }
+function rcpUtf8(s){ s = String(s); if(typeof TextEncoder!=="undefined") return new TextEncoder().encode(s); const b = unescape(encodeURIComponent(s)); const a = new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a; }
+function rcpHasSubtle(){ try{ return !!(window.crypto && crypto.subtle && typeof crypto.subtle.digest==="function"); }catch(e){ return false; } }
+function rcpHex(buf){ return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join(""); }
+async function rcpSha256(data){ if(!rcpHasSubtle()) return null; try{ return rcpHex(await crypto.subtle.digest("SHA-256", data)); }catch(e){ return null; } }
+/* fingerprint of a stored item's text; alg is recorded with it, never assumed later */
+async function rcpFp(scope, text){
+  const enc = rcpUtf8(text);
+  const h = await rcpSha256(enc);
+  return h ? {alg:"sha256", scope, value:h} : {alg:"kot-fnv1a64-len", scope, value:rcpFnv(String(text))};
+}
+/* recompute with a RECORDED algorithm: null when this browser cannot (never substitute another) */
+async function rcpFpWith(alg, text){
+  if(alg==="sha256") return await rcpSha256(rcpUtf8(text));
+  if(alg==="kot-fnv1a64-len") return rcpFnv(String(text));
+  return null;
+}
+function rcpReadBytes(file){
+  if(file && typeof file.arrayBuffer==="function") return file.arrayBuffer();
+  return new Promise((res,rej)=>{ const r = new FileReader(); r.onload = ()=>res(r.result); r.onerror = ()=>rej(r.error); r.readAsArrayBuffer(file); });
+}
+async function rcpSourceSha(file){
+  if(!file || !(file.size>=0) || file.size>RCP.SHA_MAX || !rcpHasSubtle()) return null;   /* skipped, never faked, never blocks the import */
+  try{ const buf = await Promise.race([rcpReadBytes(file), new Promise((_,rej)=>setTimeout(()=>rej(new Error("slow")),15000))]); return await rcpSha256(buf); }catch(e){ return null; }
+}
+/* one meta per file operation, keyed by the File object, consumed once */
+function rcpMeta(file, kind){
+  if(!file || typeof file!=="object" || RCP.files.has(file)) return null;
+  RCP.files.add(file);
+  const m = {receiptId:rcpNewId(), kind, name:rcpName(file.name), mime:(typeof file.type==="string" && file.type) ? file.type.slice(0,100) : null, size:(typeof file.size==="number" && file.size>=0) ? file.size : null, used:false};
+  m.shaP = rcpSourceSha(file).catch(()=>null);
+  return m;
+}
+/* strict reader: anything that is not exactly our own format is "unreadable" and is NEVER appended to or overwritten */
+function rcpValidStore(d){
+  if(!d || typeof d!=="object" || Array.isArray(d)) return false;
+  if(Object.keys(d).some(k=>k!=="schemaVersion" && k!=="trimmed" && k!=="receipts")) return false;       /* unknown top-level data is not ours to rewrite */
+  if(d.schemaVersion!==1) return false;
+  if(!Number.isInteger(d.trimmed) || d.trimmed<0) return false;                                       /* corrupt counter */
+  if(!Array.isArray(d.receipts)) return false;
+  const seen = new Set();
+  for(const x of d.receipts){
+    if(!x || typeof x!=="object" || Array.isArray(x) || typeof x.receiptId!=="string" || !x.receiptId) return false;
+    if(seen.has(x.receiptId)) return false;                                                           /* duplicate ids */
+    seen.add(x.receiptId);
+  }
+  return true;
+}
+async function rcpReadStore(){
+  let keys;
+  try{ const r = await window.storage.list(RCP.KEY, false); keys = (r && r.keys) || []; }catch(e){ return {state:"unreadable"}; }
+  if(!keys.includes(RCP.KEY)) return {state:"absent", data:{schemaVersion:1, trimmed:0, receipts:[]}};
+  try{
+    const r = await window.storage.get(RCP.KEY, false); const raw = r && r.value; if(typeof raw!=="string") return {state:"unreadable"};
+    const d = JSON.parse(raw);
+    if(d && typeof d==="object" && !Array.isArray(d) && typeof d.schemaVersion==="number" && d.schemaVersion>1) return {state:"newer"};
+    if(!rcpValidStore(d)) return {state:"unreadable"};
+    return {state:"ok", data:d, raw};
+  }catch(e){ return {state:"unreadable"}; }
+}
+function rcpBuild(prior, cand){
+  const receipts = prior.receipts.concat([cand]); let trimmed = prior.trimmed||0;
+  const size = ()=>rcpUtf8(JSON.stringify({schemaVersion:1, trimmed, receipts})).length;
+  while(receipts.length>1 && (receipts.length>RCP.MAX_N || size()>RCP.MAX_BYTES)){ receipts.shift(); trimmed++; }   /* oldest receipts only, never items */
+  return {schemaVersion:1, trimmed, receipts};
+}
+/* the read-back must equal the ENTIRE intended store: counter, order, count, ids and every receipt, compared on the raw parsed payload */
+function rcpVerify(back, expected){ return kmCanon(back)===kmCanon(JSON.parse(JSON.stringify(expected))); }
+function rcpSyncAfterVerified(){
+  try{ if(typeof scheduleDrivePush==="function") scheduleDrivePush(); }catch(e){}
+  try{ if(typeof scheduleGSync==="function") scheduleGSync(); }catch(e){}
+}
+function rcpDelay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function rcpWrite(cand){
+  for(let attempt=0; attempt<2; attempt++){                         /* the first try, then at most ONE retry, and only after a probe shows the store unchanged */
+    const rd = await rcpReadStore();
+    if(rd.state==="unreadable" || rd.state==="newer") return {ok:false, reason:rd.state};      /* malformed / duplicate / newer: nothing is appended */
+    const have = rd.data.receipts.find(r=>r.receiptId===cand.receiptId);
+    if(have) return kmCanon(have)===kmCanon(cand) ? {ok:true, existed:true} : {ok:false, reason:"id-conflict"};   /* idempotent */
+    const expected = rcpBuild(rd.data, cand);
+    RCP.writes++;
+    try{ await window.storage.set(RCP.KEY, JSON.stringify(expected), false); }catch(e){}
+    let back = null;
+    for(let i=0;i<3;i++){ back = await rcpReadStore(); if(back.state==="ok" || back.state==="absent") break; await rcpDelay(i*120); }
+    if(back.state==="ok" && rcpVerify(back.data, expected)){ rcpSyncAfterVerified(); return {ok:true}; }
+    if(back.state!=="ok" && back.state!=="absent") return {ok:false, reason:"unverifiable"};   /* cannot tell: never retry blind */
+    const prior = JSON.parse(JSON.stringify(rd.data));
+    const unchanged = back.state==="absent" ? rd.state==="absent" : kmCanon(back.data)===kmCanon(prior);
+    if(!unchanged) return {ok:false, reason:"mismatch"};             /* the store holds something that is neither the old data nor exactly ours: do not write again, do not roll back */
+    /* the probe shows the store is exactly as before: the write did not land; one retry on the next loop */
+  }
+  return {ok:false, reason:"not-saved"};
+}
+function rcpRun(fn){ const p = RCP.q.then(fn, fn); RCP.q = p.catch(()=>{}); return p; }
+/* the single entry point: consume the meta ONCE, then record */
+async function rcpFinish(meta, destination, scope, storedText){
+  if(!meta) return {ok:true, skipped:true};
+  if(meta.used) return {ok:true, skipped:true};
+  meta.used = true;
+  try{
+    const sha = await meta.shaP;
+    const fp = await rcpFp(scope, storedText);
+    const cand = {schemaVersion:1, receiptId:meta.receiptId, itemKind:meta.kind, originalFilename:meta.name, sourceBytes:meta.size, savedAt:new Date().toISOString(), destination, storedFingerprint:fp};
+    if(meta.mime) cand.originalMimeType = meta.mime;
+    if(sha) cand.sourceSha256 = sha;
+    return await rcpRun(()=>rcpWrite(cand));
+  }catch(e){ return {ok:false, reason:"error"}; }
+}
+function rcpNotice(text){
+  try{
+    let n = document.getElementById("kot-rcp-note");
+    if(!n){ n = document.createElement("div"); n.id = "kot-rcp-note"; n.setAttribute("role","status"); n.setAttribute("aria-live","polite"); document.body.appendChild(n); }
+    n.innerHTML = ""; const t = document.createElement("span"); t.textContent = text; const b = document.createElement("button"); b.type = "button"; b.textContent = "Close"; b.addEventListener("click",()=>n.remove()); n.appendChild(t); n.appendChild(b);
+  }catch(e){}
+}
+async function rcpGetKey(key){   /* read-only: list then get, so absence is not confused with a failed read */
+  try{ const r = await window.storage.list(key, false); const ks = (r && r.keys) || []; if(!ks.includes(key)) return {state:"absent"}; }catch(e){ return {state:"unknown"}; }
+  try{ const r = await window.storage.get(key, false); if(!r || r.value==null) return {state:"unknown"}; return {state:"present", value:JSON.parse(r.value)}; }catch(e){ return {state:"unknown"}; }
+}
+/* ---- photo / icon: the verified destination is A1's read-back record (returned by kmExec2 as r.stored) ---- */
+async function rcpAfterMedia(meta, kind, eventId, photoId, stored){
+  if(!meta) return {ok:true, skipped:true};
+  try{
+    if(!stored) return {ok:false, reason:"no-readback"};
+    if(kind==="photo"){ const p = (stored.photos||[]).find(x=>x.id===photoId); if(!p || typeof p.dataUrl!=="string") return {ok:false, reason:"no-readback"}; return await rcpFinish(meta, {eventId, photoId}, "photo.dataUrl", p.dataUrl); }
+    if(typeof stored.icon!=="string") return {ok:false, reason:"no-readback"};
+    return await rcpFinish(meta, {eventId}, "icon.dataUrl", stored.icon);
+  }catch(e){ return {ok:false, reason:"error"}; }
+}
+/* ---- TCX course: exact pending file tracked through the draft; recorded only after Save + our own read-back ---- */
+function rcpCourseSet(meta, parsed){ const draft = getEditingWorkoutDraft(); RCP.course = meta ? {meta, parsed, draft, editId:State.editingWorkoutId} : null; }
+function rcpCourseClear(){ RCP.course = null; RCP.courseSeq++; }          /* also invalidates a file that is still being read */
+function rcpCourseCtxFor(data, idOld){      /* called synchronously before the save: does THIS save carry the exact file-parsed course? */
+  const c = RCP.course; if(!c || !data || !data.course) return null;
+  if(c.parsed!==data.course || c.editId!==idOld || c.draft!==State._workoutDraft) return null;
+  return c;
+}
+/* the primary result is the SUBMITTED workout: the stored workout must equal it exactly before any receipt or "saved" claim */
+async function rcpAfterCourseSave(ctx, id, submitted){
+  if(!ctx) return;
+  if(RCP.course===ctx) RCP.course = null;                          /* consumed: one shot per file */
+  try{
+    const g = await rcpGetKey("workoutLibrary"); const w = g.state==="present" && g.value ? g.value[id] : null;
+    if(!w || !submitted || kmCanon(w)!==kmCanon(submitted) || !w.course || kmCanon(w.course)!==kmCanon(ctx.parsed)){ rcpNotice(RCP_MSG_UNVERIFIED); return; }
+    const r = await rcpFinish(ctx.meta, {workoutId:id}, "course.canonicalJSON", kmCanon(w.course));      /* the library fingerprint stays scoped to the course */
+    if(!r.ok) rcpNotice(RCP_MSG_FAIL);
+  }catch(e){ rcpNotice(RCP_MSG_UNVERIFIED); }
+}
+/* ---- TCX activity attachment: the primary result is the submitted day log; we read log:<date> back ---- */
+async function rcpAfterHistSave(meta, date, slotKey, parsed, submitted){
+  if(!meta) return;
+  try{
+    const g = await rcpGetKey("log:"+date); const lg = g.state==="present" ? g.value : null; const h = lg && lg.workouts && lg.workouts[slotKey] ? lg.workouts[slotKey].historyTcx : null;
+    if(!lg || !submitted || kmCanon(lg)!==kmCanon(submitted) || !h || kmCanon(h)!==kmCanon(parsed)){ rcpNotice(RCP_MSG_UNVERIFIED); return; }
+    const r = await rcpFinish(meta, {date, slotKey}, "historyTcx.canonicalJSON", kmCanon(h));
+    if(!r.ok) rcpNotice(RCP_MSG_FAIL);
+  }catch(e){ rcpNotice(RCP_MSG_UNVERIFIED); }
+}
+/* ---- plan package: bound to the exact record kotPkgCommit verified (res.rec); a differing read-back records nothing and never rolls back the plan ---- */
+async function rcpAfterPkg(meta, eid, verifiedRec){
+  if(!meta) return;
+  try{
+    if(!verifiedRec){ rcpNotice(RCP_MSG_FAIL); return; }
+    const g = await rcpGetKey(kotPkgKey(eid));
+    if(g.state!=="present" || !g.value || kmCanon(g.value)!==kmCanon(JSON.parse(JSON.stringify(verifiedRec)))){ rcpNotice(RCP_MSG_FAIL); return; }
+    const r = await rcpFinish(meta, {eventId:eid}, "planPackage.canonicalJSON", kmCanon(g.value));
+    if(!r.ok) rcpNotice(RCP_MSG_FAIL);
+  }catch(e){ rcpNotice(RCP_MSG_FAIL); }
+}
+
+/* ============================================================
+   B1 — FILE LIBRARY (read-only). A collapsed section on Profile & Zones that
+   lists what is ACTUALLY stored: resized images, parsed TCX data, Strava records,
+   Rouvy references, plan data and app-made archives. Opening it only READS
+   storage (get/list) — no writes, no sync, no network. Original filenames and
+   provenance that were never stored show "Unknown".
+   ============================================================ */
+const FL = {loading:false, seq:0, cats:[], rows:{}, shown:{}, err:null, stats:null, ok:false, n:0, reads:0, rc:null, rcOpen:false};
+const FL_PAGE = 10;
+const flEnc = (typeof TextEncoder!=="undefined") ? new TextEncoder() : null;
+function flBytes(s){ s = String(s==null?"":s); return flEnc ? flEnc.encode(s).length : s.length; }
+function flKB(n){ if(n==null) return "Unknown"; if(n<1024) return n+" B"; if(n<1048576) return (n/1024).toFixed(n<10240?1:0)+" KB"; return (n/1048576).toFixed(2)+" MB"; }
+function flDate(iso){ if(!iso || typeof iso!=="string") return "Unknown"; const d = iso.slice(0,10); try{ return fmtDate(d); }catch(e){ return d; } }
+function flJpegDims(u){
+  try{
+    const m = /^data:image\/(jpeg|jpg|png);base64,/i.exec(u||""); if(!m) return null;
+    const b64 = u.slice(m[0].length, m[0].length+87380); const bin = atob(b64.slice(0, b64.length - (b64.length%4)));
+    const g = i=>bin.charCodeAt(i);
+    if(/png/i.test(m[1])){ if(bin.length<24) return null; return {w:(g(16)<<24)|(g(17)<<16)|(g(18)<<8)|g(19), h:(g(20)<<24)|(g(21)<<16)|(g(22)<<8)|g(23)}; }
+    let i = 2;
+    while(i+9 < bin.length){
+      if(g(i)!==0xFF){ i++; continue; }
+      const mk = g(i+1); if(mk===0xFF){ i++; continue; }
+      if(mk>=0xC0 && mk<=0xCF && mk!==0xC4 && mk!==0xC8 && mk!==0xCC) return {h:(g(i+5)<<8)|g(i+6), w:(g(i+7)<<8)|g(i+8)};
+      if(mk===0xD8 || (mk>=0xD0&&mk<=0xD7) || mk===0x01){ i+=2; continue; }
+      i += 2 + ((g(i+2)<<8)|g(i+3));
+    }
+  }catch(e){}
+  return null;
+}
+async function flGet(key){
+  FL.reads++;
+  try{ const r = await window.storage.get(key, false); if(!r || r.value==null) return {st:"unreadable"}; const raw = String(r.value); try{ return {st:"ok", v:JSON.parse(raw), raw}; }catch(e){ return {st:"unreadable", raw}; } }
+  catch(e){ return {st:"unreadable"}; }
+}
+function flNewCat(id, title, note){ return {id, title, note:note||"", rows:[], err:null}; }
+function flRow(cat, o){ const id = "r"+(++FL.n); o.id = id; o.cat = cat.id; cat.rows.push(o); FL.rows[id] = o; return o; }
+function flCopyText(r){
+  if(r.copyText) return r.copyText;
+  return ["Name: "+r.name, "Category: "+r.catTitle, "Belongs to: "+(r.belongs||"Unknown"), "Kind: "+r.kind, "Original filename: "+(r.origName? r.origName+" (from an import receipt that matches the stored item exactly)" : "Unknown"), (r.dateLabel||"Date")+": "+r.dateText, "Stored size: "+flKB(r.bytes)+(r.sizeNote?" ("+r.sizeNote+")":""), "Detail: "+(r.detail||"Unknown")].join("\n");
+}
+async function flCollect(){
+  FL.n = 0; FL.rows = {}; FL.reads = 0;
+  const C = {
+    photos: flNewCat("photos","Photos and icons","Resized images as stored. The app keeps a resized copy (icons 160 px, photos up to 900 px), not the file you picked."),
+    tcx: flNewCat("tcx","TCX courses and ride history","Parsed data only: the stored name from inside the file, up to 400 downsampled points and summary stats. The .tcx file itself is not stored."),
+    strava: flNewCat("strava","Strava records","Activities pulled through the Strava connection and stored in the same parsed shape. These are not files you uploaded."),
+    rouvy: flNewCat("rouvy","Rouvy workout references","References only: a name, zones and sometimes a link. No Rouvy file or route is stored."),
+    plans: flNewCat("plans","Training plans","Stored plan data. A plan package is kept as normalized parsed data; the JSON file you chose is not kept."),
+    archives: flNewCat("archives","Archives","Snapshots the app made when a period was archived. These are app-made copies, separate from the live data.")
+  };
+  Object.values(C).forEach(c=>{ c.rows.length = 0; });
+  const cur = {photo:{}, icon:{}, course:{}, hist:{}, pkg:{}}; const bad = {events:false, wl:false, logs:new Set(), pkg:new Set()};
+  let keys = null;
+  try{ const r = await window.storage.list("", false); keys = (r && r.keys) || []; }catch(e){ return {err:"Storage could not be listed, so nothing is shown. Nothing was changed."}; }
+  const has = k=>keys.includes(k);
+  /* ---- events (icons, photos, banner) ---- */
+  let evList = null, evState = "absent";
+  if(has("events")){ const g = await flGet("events"); if(g.st==="ok" && Array.isArray(g.v)){ evList = g.v; evState = "ok"; } else evState = "unreadable"; }
+  const evById = {}; (evList||[]).forEach(e=>{ if(e && e.id) evById[e.id] = e; });
+  if(evState==="unreadable") bad.events = true;
+  if(evState==="unreadable") C.photos.err = "The saved Events could not be read, so current icons and photos are not listed. Nothing was changed.";
+  const bst = evList ? kmBannerState(evList.filter(e=>e && !e.isAdhoc)) : {state:"none"};
+  const evName = e=>(e.name||"Unnamed")+(e.hidden?" (hidden)":"");
+  const pushImage = (owner, kindOwner, item, isIcon, banner, archive)=>{
+    const url = isIcon ? item : item.dataUrl; if(typeof url!=="string" || !url) return;
+    const dims = flJpegDims(url); const payloadBytes = isIcon ? flBytes(url) : flBytes(JSON.stringify(item));
+    const badges = [];
+    if(!isIcon && banner){
+      if(archive){ if(banner.photoId===item.id) badges.push("Banner selection saved in this archive (not active)"); }
+      else if(owner.banner && owner.banner.photoId===item.id){ badges.push(bst.state==="active" && bst.rec.id===owner.id ? "Current header banner" : bst.state==="conflict" ? "Banner selection (several exist, none shown)" : "Banner selection"); }
+    }
+    const prow = flRow(C.photos, {name: isIcon ? "Icon" : (item.caption && String(item.caption).trim() ? String(item.caption).trim() : "Photo"), catTitle:C.photos.title, kind:"Resized image (as stored)",
+      belongs: kindOwner, owner: archive ? {type:"archive", id:archive} : {type:"event", id:owner.id}, dateLabel: isIcon?"Date":"Photo date (chosen by you)", dateText: isIcon ? "Unknown" : flDate(item.date), sortDate: isIcon?"":(item.date||""),
+      bytes: payloadBytes, sizeNote:"stored text; image data is about "+flKB(Math.round(Math.max(0,url.length-url.indexOf(",")-1)*0.75)), detail: dims ? dims.w+" × "+dims.h+" px (as stored)" : "Pixel size Unknown",
+      badges, payload:{dataUrl:url, isIcon, caption:isIcon?"":(item.caption||""), date:isIcon?"":(item.date||"")}, acts:["view","owner","copy","export-img"]});
+    if(!archive && owner){ const k = isIcon ? owner.id : owner.id+"|"+item.id; (isIcon?cur.icon:cur.photo)[k] = url; prow.rc = {kind:isIcon?"icon":"photo", key:k}; }
+  };
+  if(evList) evList.forEach(e=>{ if(!e || e.isAdhoc) return; const o = (e.isGFP?"General Fitness Period: ":"Event: ")+evName(e);
+    if(e.icon) pushImage(e, o, e.icon, true, null, null);
+    (e.photos||[]).forEach(p=>pushImage(e, o, p, false, e.banner, null)); });
+  /* ---- archives ---- */
+  const idxG = has("archives") ? await flGet("archives") : {st:"absent"};
+  const idx = (idxG.st==="ok" && Array.isArray(idxG.v)) ? idxG.v : [];
+  if(idxG.st==="unreadable") C.archives.err = "The archive list could not be read. Nothing was changed.";
+  const arcKeys = keys.filter(k=>/^archive:/.test(k));
+  const seenArc = new Set();
+  for(const a of idx.filter(a=>a && a.id).concat(arcKeys.map(k=>({id:k.slice(8), _orphan:true})).filter(a=>!idx.some(x=>x && x.id===a.id)))){
+    if(seenArc.has(a.id)) continue; seenArc.add(a.id);
+    const g = has("archive:"+a.id) ? await flGet("archive:"+a.id) : {st:"absent"};
+    const ar = g.st==="ok" && g.v && typeof g.v==="object" ? g.v : null;
+    const nm = (ar && ar.name) || a.name || "Archive";
+    const phs = ar && Array.isArray(ar.photos) ? ar.photos : [];
+    const logN = ar && ar.logs ? Object.keys(ar.logs).length : null;
+    flRow(C.archives, {name:nm, catTitle:C.archives.title, kind:"App-made snapshot", belongs: a._orphan ? "Not in the archive list" : "Archived "+(ar&&ar.periodType==="gfp"?"General Fitness Period":"Event"), owner:{type:"archive", id:a.id},
+      dateLabel:"Archived (app-recorded)", dateText: flDate((ar&&ar.archivedAt)||a.archivedAt), sortDate:(ar&&ar.archivedAt)||a.archivedAt||"", bytes: g.raw?flBytes(g.raw):null,
+      detail: ar ? ((a.dayCount!=null?a.dayCount+" days · ":"")+(flDate(ar.startDate))+" → "+flDate(ar.endDate)+" · "+phs.length+" photo"+(phs.length===1?"":"s")+(ar.icon?" · icon":"")+(logN!=null?" · "+logN+" logged day"+(logN===1?"":"s"):"")) : (g.st==="absent" ? "Archive data was not found in storage" : "Archive data could not be read"),
+      badges: [], payload:{archiveId:a.id}, acts: ar ? ["owner","copy","export-arc"] : ["copy"], archiveOk: !!ar});
+    if(ar){
+      const owner = "Archive: "+nm;
+      if(ar.icon) pushImage(null, owner, ar.icon, true, null, a.id);
+      phs.forEach(p=>pushImage(null, owner, p, false, ar.banner, a.id));
+    }
+  }
+  /* ---- workout library: TCX courses + Rouvy references ---- */
+  const wlG = has("workoutLibrary") ? await flGet("workoutLibrary") : {st:"absent"};
+  const wl = (wlG.st==="ok" && wlG.v && typeof wlG.v==="object") ? wlG.v : {};
+  if(wlG.st==="unreadable") bad.wl = true;
+  if(wlG.st==="unreadable"){ C.tcx.err = C.rouvy.err = "The saved workouts could not be read, so workout courses and references are not listed. Nothing was changed."; }
+  const tcxRow = (cat, c, belongs, owner, extra)=>{
+    const pts = Array.isArray(c.points) ? c.points.length : null; const st = c.stats||{};
+    return flRow(cat, Object.assign({name: c.name ? String(c.name) : "Unnamed", catTitle:cat.title, kind: cat.id==="strava" ? "Strava record (parsed track)" : "Parsed data only", belongs, owner,
+      dateLabel: cat.id==="strava" ? "Saved by the app" : "Parsed on upload", dateText: flDate(c.uploadedAt), sortDate:c.uploadedAt||"", bytes:flBytes(JSON.stringify(c)), sizeNote:"stored JSON",
+      detail: [st.distanceMi!=null ? (Math.round(st.distanceMi*10)/10)+" mi" : "distance Unknown", pts!=null ? pts+" stored points"+(pts>=400?" (downsampled)":"") : "points Unknown", c.kind ? "stored as "+c.kind : ""].filter(Boolean).join(" · "),
+      badges:[], payload:{track:c}, acts:["map","owner","copy"]}, extra||{}));
+  };
+  Object.keys(wl).forEach(id=>{ const w = wl[id]; if(!w || typeof w!=="object") return;
+    if(w.course && typeof w.course==="object"){ const cr = tcxRow(C.tcx, w.course, "Workout: "+(w.name||id), {type:"workout", id}, {mapKind:"course", mapName:(w.name||"Course")}); cur.course[id] = kmCanon(w.course); cr.rc = {kind:"tcx-course", key:id}; }
+    if(/rouvy/i.test(String(w.platform||"")) || String(w.source||"").toLowerCase()==="rouvy"){
+      const url = typeof w.url==="string" && /^https?:\/\//i.test(w.url) ? w.url : "";
+      flRow(C.rouvy, {name:w.name||id, catTitle:C.rouvy.title, kind:"Reference only", belongs:"Workout: "+(w.name||id), owner:{type:"workout", id}, dateLabel:"Date", dateText:"Unknown", sortDate:"", bytes:flBytes(JSON.stringify(w)), sizeNote:"stored JSON",
+        detail:[w.platform||"Rouvy", w.zoneText||"", w.timeMin?w.timeMin+" min":"", url?"link saved":"no link saved"].filter(Boolean).join(" · "), badges:[], payload:{url}, acts:(url?["open-link"]:[]).concat(["owner","copy"])}); }
+  });
+  /* ---- daily logs: TCX history + Strava records ---- */
+  let stravaLinked = 0, logsRead = 0, logsBad = 0;
+  const logKeys = keys.filter(k=>/^log:/.test(k)).sort();
+  for(let i=0;i<logKeys.length;i+=12){
+    const chunk = await Promise.all(logKeys.slice(i,i+12).map(k=>flGet(k).then(g=>({k,g}))));
+    chunk.forEach(({k,g})=>{ if(g.st!=="ok" || !g.v || typeof g.v!=="object"){ logsBad++; bad.logs.add(k.slice(4)); return; } logsRead++;
+      const date = k.slice(4); const ws = g.v.workouts && typeof g.v.workouts==="object" ? g.v.workouts : {};
+      Object.keys(ws).forEach(slot=>{ const w = ws[slot]; if(!w || typeof w!=="object") return;
+        if(w.stravaUrl || w.stravaName) stravaLinked++;
+        const h = w.historyTcx; if(!h || typeof h!=="object") return;
+        let wn = ""; try{ const dp = getDayPlan(date); const x = dp && dp.workouts && dp.workouts.find(y=>y.slotKey===slot); if(x) wn = x.name||""; }catch(e){}
+        const isStrava = h.source==="strava";
+        cur.hist[date+"|"+slot] = kmCanon(h);
+        const hr = tcxRow(isStrava?C.strava:C.tcx, h, "Logged day: "+flDate(date)+(wn?" · "+wn:""), {type:"day", id:date}, {mapKind:"history", mapName:(wn?wn+" — ":"")+flDate(date), strava: isStrava ? {name:w.stravaName||"", hasLink:!!w.stravaUrl} : null,
+          badges: (!isStrava && (w.stravaUrl||w.stravaName)) ? ["This day also has a Strava activity link (summary fields); this track is separate"] : []});
+        if(!isStrava) hr.rc = {kind:"tcx-history", key:date+"|"+slot};
+      }); });
+  }
+  C.strava.note += stravaLinked ? " "+stravaLinked+" logged workout"+(stravaLinked===1?"":"s")+" carry a Strava activity name or link (summary fields only; no track is stored for those unless listed here)." : "";
+  /* ---- plan data ---- */
+  const byEv = {};
+  keys.forEach(k=>{ const m = /^event:([^:]+):(.+)$/.exec(k); if(m){ (byEv[m[1]] = byEv[m[1]]||[]).push({k, part:m[2]}); } });
+  for(const eid of Object.keys(byEv).sort()){
+    const owner = evById[eid]; const own = owner ? {type:"event", id:eid} : null; const belongs = owner ? (owner.isGFP?"General Fitness Period: ":"Event: ")+evName(owner) : "Unknown (no current Event has this id)";
+    const pk = byEv[eid].find(x=>x.part==="planPackage");
+    if(pk){ const g = await flGet(pk.k); const r = g.st==="ok" && g.v ? g.v : null; if(g.st!=="ok") bad.pkg.add(eid); else cur.pkg[eid] = kmCanon(g.v);
+      const pr = flRow(C.plans, {name: r ? (r.name||"Plan package") : "Plan package", catTitle:C.plans.title, kind:"Parsed data only (normalized plan package)", belongs, owner:own, dateLabel:"Imported (app-recorded)", dateText: r ? flDate(r.importedAt) : "Unknown", sortDate:(r&&r.importedAt)||"", bytes:g.raw?flBytes(g.raw):null, sizeNote:"stored JSON",
+        detail: r ? [r.startDate&&r.endDate ? flDate(r.startDate)+" → "+flDate(r.endDate) : "", Array.isArray(r.dailyQueue)?r.dailyQueue.length+" scheduled days":"", r.workouts&&typeof r.workouts==="object"?Object.keys(r.workouts).length+" workouts":"", r.hash?"hash "+String(r.hash).slice(0,12):""].filter(Boolean).join(" · ") : "Could not be read",
+        badges:["The file you chose is not kept; this is the stored result"], payload:{raw:g.raw||"", name:r&&r.name||"plan"}, acts:(own?["owner"]:[]).concat(["copy"], g.raw?["export-plan"]:[])}); if(r) pr.rc = {kind:"plan-package", key:eid}; }
+    const rest = byEv[eid].filter(x=>x.part!=="planPackage"); if(rest.length){ let tot = 0; const parts = [];
+      for(const x of rest){ const g = await flGet(x.k); if(g.raw){ tot += flBytes(g.raw); parts.push(x.part+(Array.isArray(g.v)?" ("+g.v.length+")":"")); } }
+      flRow(C.plans, {name:"Plan schedule data", catTitle:C.plans.title, kind:"Derived by the app", belongs, owner:own, dateLabel:"Date", dateText:"Unknown", sortDate:"", bytes:tot, sizeNote:"stored JSON, all parts", detail:parts.join(", "), badges:[], payload:{}, acts:(own?["owner"]:[]).concat(["copy"])}); }
+  }
+  const legacy = ["planStart","dailyQueue","dayOverrides"].filter(has);
+  if(legacy.length){ let tot = 0; const parts = []; for(const k of legacy){ const g = await flGet(k); if(g.raw){ tot += flBytes(g.raw); parts.push(k+(Array.isArray(g.v)?" ("+g.v.length+")":"")); } }
+    flRow(C.plans, {name:"Default plan data", catTitle:C.plans.title, kind:"Derived by the app", belongs:"Unknown (not tied to an Event id)", owner:null, dateLabel:"Date", dateText:"Unknown", sortDate:"", bytes:tot, sizeNote:"stored JSON, all parts", detail:parts.join(", "), badges:[], payload:{}, acts:["copy"]}); }
+  /* ---- import receipts (read-only): state of each receipt against the CURRENT stored item ---- */
+  const rcStore = has("fileReceipts") || true ? await rcpReadStore() : {state:"absent"};
+  const rcItems = [];
+  if(rcStore.state==="ok"){
+    const wlName = id=>{ const w = wl[id]; return w && w.name ? w.name : null; };
+    for(const rc of rcStore.data.receipts){
+      const d = rc.destination && typeof rc.destination==="object" ? rc.destination : {}; const kind = rc.itemKind; let text, key, scope, unreadable = false, owner = null, ownerOk = false, dest = "Unknown";
+      if(kind==="photo"){ key = d.eventId+"|"+d.photoId; text = cur.photo[key]; scope = "photo.dataUrl"; unreadable = bad.events; owner = {type:"event", id:d.eventId}; ownerOk = !!evById[d.eventId]; dest = (evById[d.eventId]?evName(evById[d.eventId]):"Event "+d.eventId)+" · photo"; }
+      else if(kind==="icon"){ key = d.eventId; text = cur.icon[key]; scope = "icon.dataUrl"; unreadable = bad.events; owner = {type:"event", id:d.eventId}; ownerOk = !!evById[d.eventId]; dest = (evById[d.eventId]?evName(evById[d.eventId]):"Event "+d.eventId)+" · icon"; }
+      else if(kind==="tcx-course"){ key = d.workoutId; text = cur.course[key]; scope = "course.canonicalJSON"; unreadable = bad.wl; owner = {type:"workout", id:d.workoutId}; ownerOk = !!wl[d.workoutId]; dest = "Workout: "+(wlName(d.workoutId)||d.workoutId); }
+      else if(kind==="tcx-history"){ key = d.date+"|"+d.slotKey; text = cur.hist[key]; scope = "historyTcx.canonicalJSON"; unreadable = bad.logs.has(d.date); owner = {type:"day", id:d.date}; ownerOk = text!==undefined; dest = "Logged day: "+flDate(d.date); }
+      else if(kind==="plan-package"){ key = d.eventId; text = cur.pkg[key]; scope = "planPackage.canonicalJSON"; unreadable = bad.pkg.has(d.eventId); owner = {type:"event", id:d.eventId}; ownerOk = !!evById[d.eventId]; dest = (evById[d.eventId]?evName(evById[d.eventId]):"Event "+d.eventId)+" · plan package"; }
+      let st, why = "";
+      const sf = rc.storedFingerprint;
+      if(!scope){ st = "unverifiable"; why = "unknown item kind"; }
+      else if(unreadable){ st = "unverifiable"; why = "the stored data could not be read"; }
+      else if(text===undefined){ st = "missing"; }
+      else if(!sf || sf.scope!==scope || typeof sf.alg!=="string" || typeof sf.value!=="string"){ st = "unverifiable"; why = "unexpected fingerprint scope or algorithm"; }
+      else { const v = await rcpFpWith(sf.alg, text); if(v==null){ st = "unverifiable"; why = "this browser cannot compute "+sf.alg; } else st = v===sf.value ? "matches" : "changed"; }
+      const live = (st==="matches"||st==="changed") && ownerOk;       /* content binding (state) is separate from whether the owner exists */
+      rcItems.push({rc, state:st, why, kind, key, owner: live ? owner : null, orphan: (st==="matches"||st==="changed") && !ownerOk, dest});
+    }
+    /* B1 rows take an original filename ONLY from an exact current-content match (newest receipt wins) */
+    const best = {};
+    rcItems.filter(x=>x.state==="matches" && x.rc.originalFilename).forEach(x=>{ const k = x.kind+"::"+x.key; if(!best[k] || String(x.rc.savedAt)>String(best[k].rc.savedAt)) best[k] = x; });
+    Object.values(C).forEach(c=>c.rows.forEach(r=>{ if(r.rc){ const b = best[r.rc.kind+"::"+r.rc.key]; if(b) r.origName = b.rc.originalFilename; } }));
+  }
+  FL.rcMeta = {state:rcStore.state, trimmed: rcStore.data ? rcStore.data.trimmed : 0, count: rcStore.data ? rcStore.data.receipts.length : 0};
+  Object.values(C).forEach(c=>c.rows.sort((a,b)=> (b.sortDate||"").localeCompare(a.sortDate||"") || String(a.name).localeCompare(String(b.name))));
+  return {cats:[C.photos,C.tcx,C.strava,C.rouvy,C.plans,C.archives], receipts:rcItems, stats:{logsRead, logsBad, keys:keys.length, reads:FL.reads}};
+}
+function flActBtn(r, a){
+  const L = {view:"View", map:"View map", owner:"Go to", copy:"Copy details", "export-img":"Download resized copy", "export-arc":"Download archive copy", "export-plan":"Download stored plan data", "open-link":"Open Rouvy link"};
+  if(a==="open-link") return `<a class="fl-btn" href="${esc(r.payload.url)}" target="_blank" rel="noopener noreferrer">${L[a]}</a>`;
+  return `<button type="button" class="fl-btn" data-fl-act="${a}" data-fl-row="${r.id}">${L[a]}</button>`;
+}
+function flRowHtml(r){
+  const act2 = r.acts;
+  return `<div class="fl-row" data-fl-rowbox="${r.id}">
+    <div class="fl-top"><b class="fl-name">${esc(r.name)}</b><span class="fl-kind">${esc(r.kind)}</span></div>
+    ${(r.badges||[]).map(b=>`<div class="fl-badge">${esc(b)}</div>`).join("")}
+    <dl class="fl-grid">
+      <dt>Belongs to</dt><dd>${esc(r.belongs||"Unknown")}</dd>
+      <dt>Original filename</dt><dd>${r.origName ? esc(r.origName)+` <span class="fl-sub">(from an import receipt that matches the stored item exactly)</span>` : "Unknown"}</dd>
+      <dt>${esc(r.dateLabel||"Date")}</dt><dd>${esc(r.dateText||"Unknown")}</dd>
+      <dt>Stored size</dt><dd>${esc(flKB(r.bytes))}${r.sizeNote?` <span class="fl-sub">(${esc(r.sizeNote)})</span>`:""}</dd>
+      <dt>Detail</dt><dd>${esc(r.detail||"Unknown")}</dd>
+    </dl>
+    <div class="fl-actions">${act2.map(a=>flActBtn(r,a)).join("")}</div>
+  </div>`;
+}
+const FL_RC_LABEL = {photo:"Photo upload", icon:"Icon upload", "tcx-course":"TCX course (Save to library)", "tcx-history":"TCX activity attachment", "plan-package":"Plan package import"};
+const FL_RC_STATE = {matches:"Matches what is stored now", changed:"The stored item has changed since this import", missing:"The destination no longer exists", unverifiable:"Cannot be checked here"};
+function flRcRows(items){
+  FL.n = FL.n||0;
+  return items.slice().sort((a,b)=>String(b.rc.savedAt).localeCompare(String(a.rc.savedAt))).map((x,i)=>{
+    const rc = x.rc, sf = rc.storedFingerprint||{}; const id = "c"+(i+1);
+    const row = {id, cat:"receipts", name: rc.originalFilename || "Unknown", catTitle:"Import receipt", kind: FL_RC_LABEL[rc.itemKind]||String(rc.itemKind), belongs:x.dest, owner:x.owner, acts: x.owner?["owner","copy"]:["copy"], state:x.state, why:x.why};
+    row.copyText = ["Import receipt","Original filename: "+(rc.originalFilename||"Unknown"),"Kind: "+row.kind,"Original size as reported by the browser: "+(rc.sourceBytes!=null?flKB(rc.sourceBytes):"Unknown"),"Saved: "+(rc.savedAt||"Unknown"),"Destination: "+x.dest,"SHA-256 of the original file: "+(rc.sourceSha256||"not recorded"),"Stored-item fingerprint: "+(sf.alg||"?")+" · "+(sf.scope||"?")+" · "+(sf.value||"?"),"State now: "+FL_RC_STATE[x.state]+(x.why?" ("+x.why+")":"")+(x.orphan?" · retained data, owner unknown":"")].join("\n");
+    FL.rows[id] = row; return {row, x};
+  });
+}
+function flRcHtml(){
+  const m = FL.rcMeta || {state:"absent", trimmed:0, count:0}; const items = FL.receipts || [];
+  const disc = `Receipts exist only for files imported after this feature was added, so most items have none and show Unknown. A receipt records that the app processed the file and read the stored result back at that time. It does not keep the file, does not cover earlier history and does not prove the original still exists. Limit: ${RCP.MAX_N} receipts or 256 KiB; the oldest receipts are trimmed first and items are never touched.`;
+  let inner;
+  if(m.state==="unreadable" || m.state==="newer") inner = `<div class="fl-msg fl-err" role="status">${m.state==="newer" ? "The saved receipts use a newer format that this version does not read. They are left untouched." : "The saved receipts could not be read. Nothing was changed."}</div>`;
+  else { const rows = flRcRows(items); const n = FL.shown.receipts||FL_PAGE; const show = rows.slice(0,n); const rest = rows.length-show.length;
+    inner = `<p class="fl-note">Showing ${m.count} receipt${m.count===1?"":"s"}${m.trimmed?`; ${m.trimmed} older receipt${m.trimmed===1?" was":"s were"} trimmed`:""}.</p>`+
+      (rows.length ? show.map(({row,x})=>{ const rc = x.rc, sf = rc.storedFingerprint||{};
+        return `<div class="fl-row" data-fl-rowbox="${row.id}"><div class="fl-top"><b class="fl-name">${esc(rc.originalFilename||"Unknown")}</b><span class="fl-kind">${esc(row.kind)}</span></div>
+        <div class="fl-badge fl-st-${x.state}">${esc(FL_RC_STATE[x.state])}${x.why?" ("+esc(x.why)+")":""}</div>${x.orphan?`<div class="fl-badge fl-st-missing" data-fl-orphan="1">Retained data, owner unknown: no ${x.kind==="plan-package"||x.kind==="photo"||x.kind==="icon"?"Event":"owner"} with this id exists now</div>`:""}
+        <dl class="fl-grid"><dt>Destination</dt><dd>${esc(x.dest)}</dd><dt>Original size</dt><dd>${rc.sourceBytes!=null?esc(flKB(rc.sourceBytes)):"Unknown"} <span class="fl-sub">(as reported by the browser)</span></dd>
+        <dt>${rc.originalMimeType?"Type":"Type"}</dt><dd>${rc.originalMimeType?esc(rc.originalMimeType):"Not given"}</dd>
+        <dt>Saved and verified</dt><dd>${esc(rc.savedAt? new Date(rc.savedAt).toLocaleString() : "Unknown")}</dd>
+        <dt>SHA-256 of original</dt><dd>${rc.sourceSha256?esc(rc.sourceSha256.slice(0,16))+"…":"not recorded"}</dd>
+        <dt>Stored-item fingerprint</dt><dd>${esc(sf.alg||"?")} · ${esc(sf.scope||"?")} · ${esc(String(sf.value||"?").slice(0,16))}…</dd></dl>
+        <div class="fl-actions">${row.acts.map(a=>flActBtn(row,a)).join("")}</div></div>`; }).join("") : `<div class="fl-empty">No import receipts have been recorded yet.</div>`)+
+      (rest>0?`<button type="button" class="fl-btn fl-more" data-fl-more="receipts">Show ${Math.min(rest,25)} more (${rest} not shown)</button>`:""); }
+  return `<details class="fl-rcsec" id="kot-fl-rc" ${FL.rcOpen?"open":""}><summary><span>Import receipts</span><span class="fl-count">${m.count}</span></summary><p class="fl-note">${esc(disc)}</p>${inner}</details>`;
+}
+function flBodyHtml(){
+  if(FL.err) return `<div class="fl-msg fl-err" role="status">${esc(FL.err)}</div>`;
+  if(FL.loading && !FL.cats.length) return `<div class="fl-msg" role="status">Reading what is stored on this device…</div>`;
+  const tot = FL.cats.reduce((n,c)=>n+c.rows.length,0), bytes = FL.cats.reduce((n,c)=>n+c.rows.reduce((m,r)=>m+(r.bytes||0),0),0);
+  const intro = `<p class="fl-intro">This lists what is actually stored on this device. The app keeps resized or parsed copies, not your original files, so original filenames show <b>Unknown</b> unless an import receipt matches the stored item exactly. Sizes are stored bytes (JSON or image text), not original file sizes. Built-in workouts and exercises that ship with the app are not stored data and are not listed. Opening this list only reads storage: it changes nothing and uses no network.</p>
+    <div class="fl-legend"><span><b>Resized image</b>: reduced copy kept by the app</span><span><b>Parsed data only</b>: values read from a file, file not kept</span><span><b>Strava record</b>: pulled via the Strava connection</span><span><b>Reference only</b>: a name or link, no file</span><span><b>App-made snapshot</b>: copy the app made when archiving</span></div>
+    <div class="fl-total">${tot} item${tot===1?"":"s"} listed · about ${flKB(bytes)} as stored${FL.stats?` · ${FL.stats.logsRead} logged day${FL.stats.logsRead===1?"":"s"} read${FL.stats.logsBad?`, ${FL.stats.logsBad} unreadable`:""}`:""}</div>`;
+  const cats = FL.cats.map(c=>{ const n = FL.shown[c.id]||FL_PAGE; const rows = c.rows.slice(0,n); const rest = c.rows.length-rows.length;
+    const cb = c.rows.reduce((m,r)=>m+(r.bytes||0),0);
+    return `<section class="fl-cat" data-fl-cat="${c.id}"><h3>${esc(c.title)} <span class="fl-count">${c.rows.length} · ${flKB(cb)}</span></h3><p class="fl-note">${esc(c.note)}</p>
+      ${c.err?`<div class="fl-msg fl-err" role="status">${esc(c.err)}</div>`:""}
+      ${c.rows.length ? rows.map(flRowHtml).join("") : (c.err?"":`<div class="fl-empty">Nothing of this kind is stored.</div>`)}
+      ${rest>0?`<button type="button" class="fl-btn fl-more" data-fl-more="${c.id}">Show ${Math.min(rest,25)} more (${rest} not shown)</button>`:""}</section>`; }).join("");
+  const nt = `<section class="fl-cat" data-fl-cat="nottracked"><h3>Not tracked by the app</h3><p class="fl-note">Downloaded backup files, pre-import snapshots and downloaded archive files go to your browser's Downloads folder. The app is never told where they were saved or whether a download finished, so it cannot list them. Check your Downloads folder. The backup and restore controls already on this page are unchanged.</p>
+      <div class="fl-actions"><button type="button" class="fl-btn" data-fl-act="goto-backup">Go to backup and restore</button></div></section>`;
+  return intro+cats+flRcHtml()+nt+`<div class="fl-actions"><button type="button" class="fl-btn" data-fl-act="refresh">Re-read storage</button></div><div class="fl-live" id="fl-live" role="status" aria-live="polite"></div>`;
+}
+function flRender(){ const b = document.getElementById("kot-fl-body"); if(b) b.innerHTML = flBodyHtml(); }
+async function flLoad(){
+  const my = ++FL.seq; FL.loading = true; FL.err = null; flRender();
+  try{ const r = await flCollect(); if(my!==FL.seq) return; if(r.err){ FL.err = r.err; FL.cats = []; } else { FL.cats = r.cats; FL.stats = r.stats; FL.receipts = r.receipts; } }
+  catch(e){ if(my!==FL.seq) return; FL.err = "The library could not be built ("+(e&&e.message||e)+"). Nothing was changed."; FL.cats = []; }
+  FL.loading = false; flRender();
+}
+function flCardHtml(){
+  return `<details class="card fl-card" id="kot-fl"><summary><span class="fl-sum-t">File Library</span><span class="meta">What this device has stored · read-only</span></summary><div id="kot-fl-body" class="fl-body"><div class="fl-msg">Open this section to read what is stored. Nothing is read until then.</div></div></details>`;
+}
+function flLive(msg){ const l = document.getElementById("fl-live"); if(l) l.textContent = msg; }
+async function flCopy(text){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); return true; } }catch(e){}
+  try{ const t = document.createElement("textarea"); t.value = text; t.setAttribute("readonly",""); t.style.position="fixed"; t.style.opacity="0"; document.body.appendChild(t); t.select(); const ok = document.execCommand && document.execCommand("copy"); document.body.removeChild(t); return !!ok; }catch(e){ return false; }
+}
+function flDownloadDataUrl(name, u){
+  const m = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(u); if(!m) return false;
+  let blob; try{ if(m[2]){ const bin = atob(m[3]); const a = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); blob = new Blob([a],{type:m[1]}); } else blob = new Blob([decodeURIComponent(m[3])],{type:m[1]}); }catch(e){ return false; }
+  const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url), 1000); return true;
+}
+function flSlug(s){ return String(s||"item").replace(/[^a-z0-9]+/gi,"_").replace(/^_+|_+$/g,"").slice(0,40)||"item"; }
+function flCloseModal(){ const m = document.getElementById("kot-fl-modal"); if(m){ const back = m._back; m.remove(); document.removeEventListener("keydown", flEsc, true); if(back && back.focus) try{ back.focus(); }catch(e){} } }
+function flEsc(e){ if(e.key==="Escape"){ e.stopPropagation(); flCloseModal(); } }
+function flOpenImage(r, trigger){
+  flCloseModal(); const p = r.payload;
+  const m = document.createElement("div"); m.id = "kot-fl-modal"; m.className = "modal-backdrop"; m._back = trigger||null;
+  m.innerHTML = `<div class="modal-box fl-modal" role="dialog" aria-modal="true" aria-label="${esc(r.name)}"><h3>${esc(r.name)}</h3>
+    <p class="fl-modal-sub">${esc(r.belongs||"")} · ${esc(r.kind)} · ${esc(r.detail||"")} · ${esc(flKB(r.bytes))} stored</p>
+    <img class="fl-modal-img" alt="${esc(r.name)}" src="${esc(p.dataUrl)}">
+    <div class="save-row" style="justify-content:flex-end;margin-top:12px;"><button type="button" class="fl-btn" data-fl-close="1">Close</button></div></div>`;
+  m.addEventListener("click", ev=>{ if(ev.target===m || (ev.target.closest && ev.target.closest("[data-fl-close]"))) flCloseModal(); });
+  document.body.appendChild(m); document.addEventListener("keydown", flEsc, true); const c = m.querySelector("[data-fl-close]"); if(c) c.focus();
+}
+async function flWait(sel, ms){ const t0 = Date.now(); while(Date.now()-t0 < (ms||2500)){ const e = document.querySelector(sel); if(e) return e; await new Promise(r=>setTimeout(r,60)); } return null; }
+function flFlash(el){ if(!el) return; try{ el.scrollIntoView({block:"center", behavior:"smooth"}); }catch(e){ el.scrollIntoView(); } el.classList.add("fl-flash"); setTimeout(()=>el.classList.remove("fl-flash"), 1800); }
+async function flGoto(r){
+  const o = r.owner; if(!o) return;
+  if(o.type==="event"){ switchTab("events"); flFlash(await flWait('[data-km-card="'+o.id+'"]')); }
+  else if(o.type==="archive"){ const b = document.querySelector('[data-download-archive="'+o.id+'"]'); flFlash(b ? (b.closest(".tcx-panel")||b) : null); if(!b) flLive("That archive is not shown in Archived Training Plans."); }
+  else if(o.type==="workout"){ State.editorTab = "workouts"; State.editingWorkoutId = o.id; switchTab("editor"); await flWait(".app-header ~ *"); }
+  else if(o.type==="day"){ State.selectedDate = o.id; switchTab("dashboard"); }
+}
+function flMap(r){
+  const t = r.payload.track; if(!t) return;
+  State._tcxMapData = r.mapKind==="course" ? {course:t, history:null, workoutName:r.mapName} : {course:null, history:t, workoutName:r.mapName};
+  State._openModal = "tcxmap"; renderModalRoot();
+}
+async function flAct(act, id, el){
+  const r = FL.rows[id];
+  if(act==="refresh"){ flLoad(); return; }
+  if(act==="goto-backup"){ const b = document.querySelector("[data-kot-backup]"); flFlash(b ? (b.closest(".card")||b) : null); return; }
+  if(!r) return;
+  if(act==="view") flOpenImage(r, el);
+  else if(act==="map") flMap(r);
+  else if(act==="owner") await flGoto(r);
+  else if(act==="copy"){ const ok = await flCopy(flCopyText(r)); flLive(ok ? "Copied the details of "+r.name+"." : "Copy was not possible here. Nothing was changed."); }
+  else if(act==="export-img"){ const ext = /png/i.test(r.payload.dataUrl.slice(0,20)) ? "png" : "jpg"; const ok = flDownloadDataUrl("kot-"+flSlug(r.belongs)+"-"+(r.payload.isIcon?"icon":flSlug(r.payload.caption||"photo")+"-"+(r.payload.date||"undated"))+"-resized."+ext, r.payload.dataUrl); flLive(ok ? "Downloaded the resized copy as stored (not your original file)." : "Could not prepare the download."); }
+  else if(act==="export-arc"){ try{ await downloadArchiveFile(r.payload.archiveId); flLive("Downloaded the archive copy the app stored."); }catch(e){ flLive("Could not prepare the download."); } }
+  else if(act==="export-plan"){ try{ triggerBrowserDownload("kot-stored-plan-data-"+flSlug(r.payload.name)+".json", JSON.parse(r.payload.raw)); flLive("Downloaded the stored plan data. This is a data export, not a plan package you can import."); }catch(e){ flLive("Could not prepare the download."); } }
+}
+if(!window.__kotFlBound){
+  window.__kotFlBound = true;
+  document.addEventListener("toggle", ev=>{ const d = ev.target; if(d && d.id==="kot-fl" && d.open){ flLoad(); } else if(d && d.id==="kot-fl-rc"){ FL.rcOpen = d.open; } }, true);
+  document.addEventListener("click", ev=>{
+    const t = ev.target && ev.target.closest ? ev.target.closest("[data-fl-act],[data-fl-more]") : null; if(!t) return;
+    if(t.dataset.flMore){ FL.shown[t.dataset.flMore] = (FL.shown[t.dataset.flMore]||FL_PAGE)+25; flRender(); return; }
+    ev.preventDefault(); flAct(t.dataset.flAct, t.dataset.flRow, t);
+  });
+}
+
 /* ============================================================
    CENTURY READY — WEATHER
    Uses the Anthropic API (with web search) from inside the artifact
@@ -7495,6 +8440,7 @@ function render(){
     <div class="footer-note">Train smart, arrive ready · Data stays on this device</div>
   `;
   renderTabContent();
+  try{ kmApplyBanner(); }catch(e){}
 }
 
 function renderTcxPanel(tcxData, removeAttrHtml){
@@ -9057,6 +10003,7 @@ async function kotPkgConfirm(){
       catch(e){ say("Could not create the snapshot file, so nothing was imported. Untick the box to continue without it."); kotPkgSetBusy(false); const bb = document.querySelector("#kot-pkg-modal [data-kot-pkg-confirm]"); if(bb) bb.textContent = "Import"; return {ok:false, status:"failed", msg:"snapshot failed"}; }
     }
     const res = await kotPkgCommit(p.eid, r.norm);
+    if(res && res.ok){ const rcM = p.rcpMeta; p.rcpMeta = null; await rcpAfterPkg(rcM, p.eid, res.rec); }
     if(res.status==="committed"){
       kotPkgCloseModal();
       try{ cxToast("Imported "+r.norm.name+": "+r.norm.templates.length+" days."); }catch(e){}
@@ -9072,7 +10019,10 @@ async function kotPkgOpenFile(eid, file){
   try{
     if(file.size>KOT_PKG_MAXBYTES) throw new Error("File is larger than 2 MB.");
     const text = await file.text(); let pkg; try{ pkg = JSON.parse(text); }catch(e){ throw new Error("The file is not valid JSON."); }
-    return await kotPkgPreview(eid, pkg);
+    const rcMeta = rcpMeta(file, "plan-package");
+    const out = await kotPkgPreview(eid, pkg);
+    if(KOT_PKG.pending && KOT_PKG.pending.eid===eid && KOT_PKG.pending.pkg===pkg) KOT_PKG.pending.rcpMeta = rcMeta;
+    return out;
   }catch(e){
     kotPkgModal(`<h3 style="margin-bottom:6px;">This plan package can't be imported</h3><p style="font-size:13px;color:var(--red);margin-bottom:12px;">${kotPkgEsc(e.message)} Nothing has been written.</p><div class="save-row" style="justify-content:flex-end;"><button class="btn btn-primary" data-kot-pkg-cancel="1">Close</button></div>`);
     return {errors:[e.message]};
@@ -9489,25 +10439,7 @@ function renderEvents(){
   return renderEventsList();
 }
 
-function renderPhotoGallery(e){
-  const photos = (e.photos||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  return `
-  <div class="photo-gallery-section">
-    <div class="section-title" style="margin-bottom:8px;">Photos</div>
-    ${photos.length ? `<div class="photo-gallery-grid">
-      ${photos.map(p=>`
-        <div class="photo-thumb">
-          <img src="${esc(p.dataUrl)}" alt="${esc(p.caption||'')}">
-          <div class="photo-thumb-date">${esc(fmtDate(p.date))}</div>
-          <button type="button" class="photo-thumb-remove" data-remove-photo="${e.id}::${p.id}" title="Remove photo">×</button>
-        </div>`).join("")}
-    </div>` : `<p style="font-size:12px; color:var(--ink-600); margin-bottom:8px;">No photos yet.</p>`}
-    <div class="photo-upload-row">
-      <input type="date" class="photo-date-input" data-eventid="${e.id}" value="${esc(todayISO())}">
-      <input type="file" class="photo-file-input" data-eventid="${e.id}" accept="image/*">
-    </div>
-  </div>`;
-}
+function renderPhotoGallery(e){ return kmSectionHtml(e); }
 
 function renderEventsList(){
   const shown = Events.list.filter(e=>!e.isAdhoc);
@@ -9753,6 +10685,7 @@ async function renderProfile(){
   ${renderStravaCard()}
   ${await renderDataDiagnosticsCard()}
   ${await renderArchivesCard()}
+  ${flCardHtml()}
   <div class="profile-grid">
     <div class="card">
       <div class="card-header"><h2>Biometrics</h2><span class="meta">Update anytime — targets recalculate instantly</span></div>
@@ -10790,7 +11723,7 @@ function wireEditorEvents(el){
     State._importSourceId = null;
     renderTabContent();
   }));
-  el.querySelectorAll("[data-cancel-workout]").forEach(b=>b.addEventListener("click",()=>{ State.editingWorkoutId=null; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
+  el.querySelectorAll("[data-cancel-workout]").forEach(b=>b.addEventListener("click",()=>{ rcpCourseClear(); State.editingWorkoutId=null; State._workoutDraft=null; State._workoutDraftId=null; renderTabContent(); }));
   el.querySelectorAll("[data-removeex]").forEach(b=>b.addEventListener("click",()=>{
     const w = syncFormIntoDraft(); w.exercises.splice(parseInt(b.dataset.removeex),1); renderTabContent();
   }));
@@ -10854,13 +11787,15 @@ function wireEditorEvents(el){
   if(courseFileInput) courseFileInput.addEventListener("change", async ()=>{
     const file = courseFileInput.files[0];
     if(!file) return;
+    const seq = ++RCP.courseSeq; const ed0 = State.editingWorkoutId; const draft0 = getEditingWorkoutDraft(); const rcMeta = rcpMeta(file, "tcx-course");
     const preview = document.getElementById("wf-course-preview");
     preview.innerHTML = `<p style="font-size:12px;color:var(--ink-600);margin-top:6px;">Reading file…</p>`;
     try{
       const text = await readFileAsText(file);
       const parsed = parseTcxFile(text);
-      const draft = getEditingWorkoutDraft();
-      draft.course = parsed;
+      if(seq!==RCP.courseSeq || State.editingWorkoutId!==ed0 || State._workoutDraft!==draft0 || State._workoutDraftId!==ed0) return;     /* a newer file was chosen, the course was removed, or the editor was cancelled/reopened, while this one was still being read */
+      const draft = draft0;
+      draft.course = parsed; rcpCourseSet(rcMeta, parsed);
       renderTabContent();
     } catch(e){
       preview.innerHTML = `<p style="font-size:12px;color:var(--red);margin-top:6px;">${esc(e.message)}</p>`;
@@ -10869,7 +11804,7 @@ function wireEditorEvents(el){
   const removeCourseBtn = el.querySelector("[data-remove-course]");
   if(removeCourseBtn) removeCourseBtn.addEventListener("click",()=>{
     const draft = getEditingWorkoutDraft();
-    delete draft.course;
+    delete draft.course; rcpCourseClear();
     renderTabContent();
   });
   el.querySelectorAll("[data-view-tcx-map]").forEach(btn=>btn.addEventListener("click", async (e)=>{
@@ -10897,16 +11832,21 @@ function wireEditorEvents(el){
     const file = inp.files[0];
     if(!file) return;
     const uidStr = inp.dataset.uid, date = inp.dataset.date, slotKey = inp.dataset.slotkey;
+    const hk = date+"|"+slotKey; const hseq = RCP.histSeq[hk] = (RCP.histSeq[hk]||0)+1; const hMeta = rcpMeta(file, "tcx-history");
     const preview = el.querySelector(`.tcx-history-preview[data-uid="${uidStr}"]`);
     if(preview) preview.innerHTML = `<p style="font-size:12px;color:var(--ink-600);margin-top:6px;">Reading file…</p>`;
     try{
       const text = await readFileAsText(file);
       const parsed = parseTcxFile(text);
+      if(hseq!==RCP.histSeq[hk]) return;   /* superseded by a newer file for this slot */
       const log = await getLog(date);
+      if(hseq!==RCP.histSeq[hk]) return;
       log.workouts = log.workouts || {};
       log.workouts[slotKey] = Object.assign({}, log.workouts[slotKey]||{}, {historyTcx: parsed});
+      const hSub = hMeta ? JSON.parse(JSON.stringify(log)) : null;     /* the exact submitted day log */
       await saveLog(date, log);
       renderTabContent();
+      await rcpAfterHistSave(hMeta, date, slotKey, parsed, hSub);
     } catch(err){
       if(preview) preview.innerHTML = `<p style="font-size:12px;color:var(--red);margin-top:6px;">${esc(err.message)}</p>`;
     }
@@ -10914,6 +11854,7 @@ function wireEditorEvents(el){
   el.querySelectorAll("[data-remove-history]").forEach(btn=>btn.addEventListener("click", async ()=>{
     const uidStr = btn.dataset.removeHistory;
     const {date, slotKey} = parseUid(uidStr);
+    { const hk2 = date+"|"+slotKey; RCP.histSeq[hk2] = (RCP.histSeq[hk2]||0)+1; }     /* removal cancels any file still being read for this slot */
     const log = await getLog(date);
     if(log.workouts && log.workouts[slotKey]) delete log.workouts[slotKey].historyTcx;
     await saveLog(date, log);
@@ -11072,11 +12013,14 @@ async function saveWorkoutFromForm(){
     { const prev = (idOld && Lib.workouts[idOld]) || null; const sig = l=>JSON.stringify((l||[]).map(x=>[x.exId,String(x.sets),String(x.reps)])); if(prev && prev.plannedMin>0 && sig(prev.exercises)===sig(data.exercises)) data.plannedMin = prev.plannedMin; }
   }
   const id = isNew ? uid("wk") : idOld;
+  const rcCtx = rcpCourseCtxFor(data, idOld);      /* does THIS save carry the exact file-parsed course? decided before any await */
+  const rcSub = rcCtx ? JSON.parse(JSON.stringify(data)) : null;   /* the exact submitted workout, as it will be stored */
   await saveWorkout(id, data);
   State._workoutDraft = null;
   State._workoutDraftId = null;
   State.editingWorkoutId = null;
   renderTabContent();
+  await rcpAfterCourseSave(rcCtx, id, rcSub);
 }
 
 async function saveExerciseFromForm(){
@@ -11104,6 +12048,5 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
-
 
 
