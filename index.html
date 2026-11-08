@@ -1345,7 +1345,7 @@ async function loadLibraries(){
     }
     if(renamed) await saveJSON("workoutLibrary", wkCustom);
   }
-  Lib.workouts = Object.assign({}, WORKOUT_SEED, wkCustom);
+  Lib.workouts = Object.assign({}, WORKOUT_SEED, (typeof kotPkgOverlay==="function" ? await kotPkgOverlay() : {}), wkCustom);
 }
 async function saveExercise(id, data){
   const exCustom = (await loadJSON("exerciseLibrary")) || {};
@@ -1367,6 +1367,7 @@ async function saveWorkout(id, data){
   Lib.workouts[id] = data;
 }
 async function deleteWorkout(id){
+  if(typeof KOT_PKG!=="undefined" && KOT_PKG.owned[id] && !(await loadJSON("workoutLibrary")||{})[id]){ try{ alert("This workout belongs to an imported plan package. Remove the imported plan from its General Fitness Period card instead."); }catch(e){} return; }
   const wkCustom = (await loadJSON("workoutLibrary")) || {};
   delete wkCustom[id];
   await saveJSON("workoutLibrary", wkCustom);
@@ -1399,8 +1400,9 @@ function resolveWorkout(workoutId, overrides){
       const ex = Lib.exercises[ref.exId] || {name:"(missing exercise)", desc:"", bodyGroup:"", bodyParts:[]};
       return {exId:ref.exId, name:ex.name, desc:ex.desc, bodyGroup:ex.bodyGroup, bodyParts:ex.bodyParts, targetSets:ref.sets, targetReps:ref.reps};
     });
-    const timeMin = estimateStrengthMinutes(w.exercises||[], Lib.exercises);
-    return {kind:"strengthblock", id:workoutId, title:w.name, desc:w.desc, bodyGroup:w.bodyGroup, timeMin, items};
+    const pm = parseInt(w.plannedMin)||0;
+    const timeMin = pm>0 ? pm : estimateStrengthMinutes(w.exercises||[], Lib.exercises);
+    return {kind:"strengthblock", id:workoutId, title:w.name, desc:w.desc, bodyGroup:w.bodyGroup, timeMin, plannedMin:pm>0?pm:undefined, items};
   }
   if(w.kind==="flexrecovery" || w.kind==="other"){
     const items = (w.exercises||[]).map(ref=>{
@@ -1523,13 +1525,15 @@ async function initEventPlan(ev){
   if(!start){ start = ev.trainingStart || todayISO(); await saveJSON("event:"+key+":planStart", start); }
   const end = eventTrainingEnd(ev);
 
-  let templates, hasRealPlan;
+  let templates, hasRealPlan, pkg = null;
   if(ev.isLegacyCWC){
     templates = buildTemplateSequence(start, end); // untouched original generator
     hasRealPlan = true;
   } else {
-    const stored = (await loadJSON("event:"+key+":templates")) || [];
-    const importedStart = await loadJSON("event:"+key+":templatesStart");
+    pkg = ev.isGFP ? await loadJSON("event:"+key+":planPackage") : null;
+    if(pkg && !(pkg.v===1 && Array.isArray(pkg.templates) && pkg.templates.length)) pkg = null;
+    const stored = pkg ? pkg.templates : ((await loadJSON("event:"+key+":templates")) || []);
+    const importedStart = pkg ? pkg.startDate : await loadJSON("event:"+key+":templatesStart");
     hasRealPlan = stored.length > 0;
     if(stored.length && importedStart && importedStart !== start){
       const delta = daysBetween(importedStart, start);
@@ -1555,12 +1559,13 @@ async function initEventPlan(ev){
   const dqKey = "event:"+key+":dailyQueue";
   let dailyQueue = await loadJSON(dqKey);
   if(!dailyQueue || dailyQueue.length !== templates.length){
-    dailyQueue = templates.map((_,i)=>i);
+    dailyQueue = (pkg && Array.isArray(pkg.dailyQueue) && pkg.dailyQueue.length===templates.length) ? pkg.dailyQueue.slice() : templates.map((_,i)=>i);
     await saveJSON(dqKey, dailyQueue);
   }
   const dayOverrides = (await loadJSON("event:"+key+":dayOverrides")) || {};
+  if(pkg){ let ch = false; for(const d of Object.keys(dayOverrides)){ if(!cxIsEdited(dayOverrides[d])){ delete dayOverrides[d]; ch = true; } } if(ch) await saveJSON("event:"+key+":dayOverrides", dayOverrides); }
 
-  PlanByEvent[key] = {start, end, templates, templateByDate, dailyQueue, dayOverrides, hasRealPlan};
+  PlanByEvent[key] = {start, end, templates, templateByDate, dailyQueue, dayOverrides, hasRealPlan, fixedPlan:!!pkg, pkgName:pkg?pkg.name:null, pkgStart:pkg?pkg.startDate:null, pkgEnd:pkg?pkg.endDate:null, pkgHash:pkg?pkg.hash:null};
 }
 
 async function initAllEventPlans(){
@@ -1644,7 +1649,7 @@ function getEventDayPlan(eventId, date){
       }
       w.items = items;
       if(w.kind==="flexrecovery" || w.kind==="other"){ if(!(w.plannedMin>0)) w.timeMin = items.length ? estimateStrengthMinutesFromItems(items, Lib.exercises) : 20; }
-      else w.timeMin = estimateStrengthMinutesFromItems(items, Lib.exercises);
+      else if(!(w.plannedMin>0) || exAdd.length || exRemove.length) w.timeMin = estimateStrengthMinutesFromItems(items, Lib.exercises);
     }
     return w;
   }).filter(Boolean);
@@ -4091,7 +4096,7 @@ async function hbCollectKot(){
       const w = (day.workouts||[]).find(x=>x.slotKey===slotKey) || {kind:"strengthblock", name:""};
       let durMin = durationTotalMinutes(sw) || (parseFloat(sw.actualLenOverride)||0);
       const logged = sw.completed || (w.items ? workoutIsLogged(w, sw) : false);
-      if(!durMin && logged) durMin = w.timeMin || 0;
+      if(!durMin && logged && !(w.kind==="strengthblock" && w.plannedMin>0)) durMin = w.timeMin || 0;
       if(!logged && !durMin) continue; if(!(durMin > 0)) continue;
       (out.manual[date] = out.manual[date] || []).push({key:"kot:"+date+"|"+slotKey, slotKey, date, cat:hbCatFromKind(w.kind, w.name), durMin, avgHR:parseFloat(sw.avgHR)||0, rel:parseFloat(sw.relEffort)||0, name:w.name||"Workout", manual:true});
     }
@@ -4375,7 +4380,7 @@ async function pgManual(date){
     const w = (day.workouts||[]).find(x=>x.slotKey===slotKey) || {kind:"strengthblock", name:""};
     let durMin = durationTotalMinutes(sw) || (parseFloat(sw.actualLenOverride)||0);
     const logged = sw.completed || (w.items ? workoutIsLogged(w, sw) : false);
-    if(!durMin && logged) durMin = w.timeMin || 0;
+    if(!durMin && logged && !(w.kind==="strengthblock" && w.plannedMin>0)) durMin = w.timeMin || 0;
     if(!(durMin > 0)) continue;
     out.push({key:"kot:"+date+"|"+slotKey, slotKey, date, cat:hbCatFromKind(w.kind, w.name), durMin, avgHR:parseFloat(sw.avgHR)||0, rel:parseFloat(sw.relEffort)||0, name:w.name||"Workout", manual:true, distMi:parseFloat(sw.distance)||0, maxHR:parseFloat(sw.maxHR)||0});
   }
@@ -4397,7 +4402,7 @@ function pgActivePlans(){
 }
 async function pgPlanStats(e){
   const P = PlanByEvent[e.id]; if(!P) return null;
-  const today = todayISO(), end = e.isGFP ? today : P.end, dates = allDatesInRange(P.start, end);
+  const today = todayISO(), end = P.fixedPlan ? P.pkgEnd : (e.isGFP ? today : P.end), dates = allDatesInRange(P.start, end);
   let total = 0, done = 0, due = 0, missed = 0;
   for(const d of dates){
     const dp = getEventDayPlan(e.id, d); if(!dp || !dp.workouts.length) continue;
@@ -4407,7 +4412,7 @@ async function pgPlanStats(e){
       if(ok) done++; if(d <= today) due++; if(d < today && !ok) missed++;
     }
   }
-  return {id:e.id, name:e.name, color:e.color, total, done, due, missed, pct: total ? Math.round(done/total*100) : 0, isGFP:!!e.isGFP, start:P.start, end};
+  return {id:e.id, name:e.name, color:e.color, total, done, due, missed, pct: total ? Math.round(done/total*100) : 0, isGFP:!!e.isGFP, start:P.start, end, fixed:!!P.fixedPlan};
 }
 function pgBar(pct, label, color){
   const p = Math.max(0, Math.min(100, pct));
@@ -4416,6 +4421,8 @@ function pgBar(pct, label, color){
 function pgPlanBarHtml(s){
   if(!s) return "";
   if(!s.total) return `<div class="pg-planbar"><div class="pg-planbar-head"><b>${esc(s.name)}</b><span>No scheduled workouts yet</span></div></div>`;
+  if(s.fixed) return `<div class="pg-planbar"><div class="pg-planbar-head"><b>${esc(s.name)}</b><span>${s.start>todayISO() ? "Starts "+esc(fmtDate(s.start))+" · " : ""}${s.done} of ${s.total} workouts · ${s.pct}%</span></div>${pgBar(s.pct, s.name+" progress", s.color)}
+    <div class="pg-sub">${s.due} due so far · ${s.missed} missed · fixed plan, ${esc(fmtDate(s.start))} to ${esc(fmtDate(s.end))}</div></div>`;
   return `<div class="pg-planbar"><div class="pg-planbar-head"><b>${esc(s.name)}</b><span>${s.done} of ${s.total} workouts · ${s.pct}%</span></div>${pgBar(s.pct, s.name+" progress", s.color)}
     <div class="pg-sub">${s.due} due so far · ${s.missed} missed${s.isGFP?" · open-ended, counted to today":""}</div></div>`;
 }
@@ -5264,6 +5271,7 @@ function cxNames(items){ return items.map(i=>{ const w = Lib.workouts[i.workoutI
 async function cxGfpEnsure(manual){
   if(!CX.loaded) await cxLoad();
   const gfp = activeGFP(); if(!gfp) return {n:0, why:"no GFP"};
+  if(isFixedPlan(gfp.id)) return {n:0, why:"fixed"};
   if(!CX.prefs.gfp.auto && !manual) return {n:0, why:"off"};
   if(Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e))) return {n:0, why:"event"};
   const P = PlanByEvent[gfp.id]; if(!P) return {n:0, why:"no plan"};
@@ -5292,7 +5300,7 @@ async function cxGfpUndo(id){
   await cxRestore(c.eventId, c.date, c.snap); c.undone = true; CX.state.gfp.undone[c.date] = c.sig; await cxSaveState();
 }
 async function cxGfpTodayAdd(S){
-  const gfp = activeGFP(); if(!gfp || Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e))) return null;
+  const gfp = activeGFP(); if(!gfp || isFixedPlan(gfp.id) || Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e))) return null;
   if(S.today.sessions.length) return null; const lg = await getLog(S.date); if(lg.workouts && Object.keys(lg.workouts).length) return null;
   const P = PlanByEvent[gfp.id]; if(!P) return null; const ctx = {o:cxGfpOpts(), start:P.start, base:await cxBaseline()}, des = await cxGfpDesired(S.date, S, ctx);
   if(!des.items.length) return null;
@@ -5494,6 +5502,7 @@ function cxFmtChange(c){ return `${esc(fmtDate(c.date))}: ${esc(c.before.join(" 
 async function cxGfpPanel(){
   const gfp = activeGFP(), g = CX.prefs.gfp, real = Events.list.some(e=>!e.isGFP && !e.isAdhoc && !e.hidden && !isEventCompleted(e));
   if(!gfp) return `<p class="pg-empty">No General Fitness Period is active. Start one from the form above (choose "General fitness period").</p>`;
+  if(isFixedPlan(gfp.id)) return `<p class="pg-sub">${esc(gfp.name)} is a fixed plan, so the rolling schedule and \"Refresh schedule now\" are paused for it. Nothing is added or rewritten automatically. Commentary stays available, and any change is one you review and apply yourself.</p>`;
   const today = todayISO(), P = PlanByEvent[gfp.id]; let rows = "";
   for(let i=1;i<=CX_R.windowDays;i++){ const d = dateAdd(today,i), ov = P && P.dayOverrides[d], ws = ((getDayPlan(d).workouts)||[]).map(w=>w.name||w.title), lg = await getLog(d);
     const lock = g.pinned[d] ? "pinned" : (lg.workouts && Object.keys(lg.workouts).length) ? "logged" : cxIsEdited(ov) ? "edited" : ((ov&&ov.added||[]).some(a=>a.gen) ? "coach" : "");
@@ -7109,7 +7118,7 @@ function rtItemHTML(it, date, rec, idx, n, cf){
 }
 function rtWorkoutEntryHTML(date, w, wk, i, rec, exRecent, cf){
   const st = w.starts[wk.slotKey], dur = wk.kind==="rest" ? 0 : (wk.timeMin||30);
-  const custom = (rec.wt||{})[wk.slotKey]!=null;
+  const custom = (rec.wt||{})[wk.slotKey]!=null || (rec.wtAt||{})[wk.slotKey]!=null;
   return `<div class="rt-entry rt-wk" data-rt-now="1" data-rt-start="${st}" data-rt-end="${st+Math.max(dur,15)}">
     <div class="rt-wk-time"><span>🕑 ${rtFmt(st)}${dur?` – ${rtFmt(st+dur)}`:""}</span>
       <input type="time" data-rt-wt="${esc(wk.slotKey)}" value="${rtToHHMM(st)}" aria-label="Start time for ${esc(wk.name)} on this day">
@@ -7370,7 +7379,7 @@ async function rtAction(name, el){
     case "mute": { const it = rtItemById(date, id); if(it) await rtApplyEdit(date, it, {muted:!it.muted}, "all"); break; }
     case "up": await rtMoveItem(date, id, -1); break;
     case "down": await rtMoveItem(date, id, 1); break;
-    case "wtreset": { const rec = rtRec(date); if(rec.wt) delete rec.wt[el.dataset.slot]; await rtSaveDay(date); break; }
+    case "wtreset": { const rec = rtRec(date); if(rec.wt) delete rec.wt[el.dataset.slot]; if(rec.wtAt) delete rec.wtAt[el.dataset.slot]; await rtSaveDay(date); break; }
     case "assist": {
       const inp = document.getElementById("rt-assist-input"); const t = (inp.value||"").trim(); if(!t) return;
       inp.value = ""; await rtParse(date, t); break;
@@ -7611,9 +7620,10 @@ function wireModalEvents(m){
     const [eventId,date]=b.dataset.confirmSkip.split("::"); const n=parseInt(document.getElementById("skip-count-select").value);
     const res=skipDays(eventId,date,n); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
   }));
-  m.querySelectorAll("[data-confirm-swap]").forEach(b=>b.addEventListener("click",()=>{
+  m.querySelectorAll("[data-confirm-swap]").forEach(b=>b.addEventListener("click", async ()=>{
     const [eventId,dateA]=b.dataset.confirmSwap.split("::"); const dateB=document.getElementById("swap-target-select").value;
-    const res=swapDays(eventId,dateA,dateB); State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
+    const chk = await kotSwapCheck(eventId,dateA,dateB);
+    const res = chk.ok ? swapDays(eventId,dateA,dateB) : chk; State._openModal=null; render(); if(res && res.msg) setTimeout(()=>alert(res.msg),50);
   }));
 }
 
@@ -7652,7 +7662,7 @@ function renderHeader(){
         ${e.icon?`<img src="${esc(e.icon)}" alt="" class="ehr-icon">`:''}
         <div>
           <div class="ehr-name">${esc(e.name)}</div>
-          <div class="ehr-sub">Started ${esc(fmtDateLong(start))}</div>
+          <div class="ehr-sub">${(PlanByEvent[e.id] && PlanByEvent[e.id].fixedPlan && start>todayISO()) ? "Starts" : "Started"} ${esc(fmtDateLong(start))}</div>
         </div>
       </div>
       <div class="ehr-stats">
@@ -8588,7 +8598,7 @@ async function renderSchedule(){
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div>
         <h2 style="font-size:16px;">Weekly Plan Overview</h2>
-        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">${(()=>{ const evs=Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e)); if(evs.length) return evs.map(e=>esc(e.name)+' ('+esc(fmtDate(PlanByEvent[e.id]?PlanByEvent[e.id].start:e.trainingStart))+' → '+esc(fmtDate(e.date))+')').join(' · '); const gfp=activeGFP(); if(gfp) return esc(gfp.name)+' (started '+esc(fmtDate((PlanByEvent[gfp.id]&&PlanByEvent[gfp.id].start)||gfp.trainingStart))+')'; return 'No active Events — create one, or start a General Fitness Period, on the Events tab.'; })()}</p>
+        <p style="font-size:13px; color:var(--grey-600); margin-top:4px;">${(()=>{ const evs=Events.list.filter(e=>!e.isAdhoc && !e.isGFP && !e.hidden && !isEventCompleted(e)); if(evs.length) return evs.map(e=>esc(e.name)+' ('+esc(fmtDate(PlanByEvent[e.id]?PlanByEvent[e.id].start:e.trainingStart))+' → '+esc(fmtDate(e.date))+')').join(' · '); const gfp=activeGFP(); if(gfp){ const P15 = PlanByEvent[gfp.id], st15 = (P15&&P15.start)||gfp.trainingStart; if(P15 && P15.fixedPlan) return esc(gfp.name)+' · fixed plan, '+esc(fmtDate(P15.pkgStart))+' to '+esc(fmtDate(P15.pkgEnd))+' · showing <b>Week view, '+(view==='calendar'?'Calendar':'List')+'</b>'; return esc(gfp.name)+' (started '+esc(fmtDate(st15))+')'; } return 'No active Events — create one, or start a General Fitness Period, on the Events tab.'; })()}</p>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <div class="pill-toggle" role="group" aria-label="Schedule view"><button data-rt="mode" data-mode="day">Day</button><button class="active" data-rt="mode" data-mode="week">Week</button></div>
@@ -8637,6 +8647,555 @@ async function renderSchedule(){
   return html;
 }
 
+/* ============================================================
+   PHASE 10 — NAMED PLAN PACKAGES (fixed plans on a General Fitness Period)
+   One package = ONE storage key ("event:<id>:planPackage") that carries the
+   whole plan: new workout definitions, dated templates and the explicit
+   daily order. Committing it is a single key write, so it is all-or-nothing
+   by construction (no journal, no multi-key window for a crash or a Drive
+   sync to catch half-done). Workouts defined by a package are overlaid onto
+   the library at load time; they are never written into "workoutLibrary",
+   so later library edits can never be overwritten by an import or an undo.
+   Nothing here runs unless a package file is chosen on a GFP card.
+   ============================================================ */
+const KOT_PKG = {owned:{}, optional:{}, pending:null, undoPending:null};
+const KOT_PKG_MAXBYTES = 2*1024*1024;
+const KOT_PKG_TOP = ["kotPlanPackage","name","startDate","endDate","fixedPlan","dailyQueue","optionalWorkouts","workouts","templates","notes"];
+const KOT_PKG_WK = ["name","kind","bodyGroup","desc","plannedMin","timeMin","sessionType","platform","zoneText","exercises"];
+const KOT_PKG_TPL = ["date","title","weekNum","phase","phaseLabel","refs","notes"];
+const KOT_PKG_KINDS = ["strengthblock","flexrecovery","other","cycling"];
+const KOT_PKG_GROUPS = ["upper","lower","core","mobility","recovery"];
+function kotPkgKey(eid){ return "event:"+eid+":planPackage"; }
+function kotHash(s){ let h1 = 0x811c9dc5, h2 = 5381; for(let i=0;i<s.length;i++){ const c = s.charCodeAt(i); h1 ^= c; h1 = Math.imul(h1, 16777619)>>>0; h2 = ((h2<<5)+h2+c)>>>0; } return h1.toString(16).padStart(8,"0")+h2.toString(16).padStart(8,"0"); }
+function isFixedPlan(eid){ const P = PlanByEvent[eid]; return !!(P && P.fixedPlan); }
+function kotIsoOk(s){ return typeof s==="string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s+"T00:00:00Z")) && new Date(s+"T00:00:00Z").toISOString().slice(0,10)===s; }
+const kotIsInt = (v,lo,hi)=> (typeof v==="number" || (typeof v==="string" && /^\d+$/.test(v.trim()))) && Number.isInteger(Number(v)) && Number(v)>=lo && Number(v)<=hi;
+
+/* Library overlay: workouts owned by package records, merged under the user's own library entries */
+async function kotPkgOverlay(){
+  const out = {}; KOT_PKG.owned = {}; KOT_PKG.optional = {};
+  const keys = await listKeys("event:");
+  for(const k of keys){
+    if(!/^event:[^:]+:planPackage$/.test(k)) continue;
+    const rec = await loadJSON(k);
+    if(!rec || rec.v!==1 || !rec.workouts || typeof rec.workouts!=="object") continue;
+    const eid = k.split(":")[1];
+    for(const [id,def] of Object.entries(rec.workouts)){ out[id] = def; KOT_PKG.owned[id] = eid; }
+    (rec.optional||[]).forEach(id=>{ KOT_PKG.optional[id] = eid; });
+  }
+  return out;
+}
+
+function kotNormWorkout(d){
+  const o = {name:String(d.name||"").trim(), kind:d.kind, desc:d.desc==null ? "" : String(d.desc)};
+  if(d.kind!=="cycling"){ o.bodyGroup = d.bodyGroup; o.exercises = (d.exercises||[]).map(e=>({exId:String(e.exId), sets:String(e.sets).trim(), reps:String(e.reps).trim()})); }
+  if(d.kind==="strengthblock" && d.plannedMin!=null) o.plannedMin = Number(d.plannedMin);
+  if(d.kind!=="strengthblock" && d.timeMin!=null) o.timeMin = Number(d.timeMin);
+  if(d.kind==="flexrecovery" && d.sessionType) o.sessionType = String(d.sessionType);
+  if(d.kind==="cycling"){ o.platform = String(d.platform||""); o.zoneText = String(d.zoneText||""); }
+  return o;
+}
+function kotDefMin(def){
+  if(!def) return 0;
+  if(def.kind==="strengthblock") return Number(def.plannedMin)>0 ? Number(def.plannedMin) : estimateStrengthMinutes(def.exercises||[], Lib.exercises);
+  return Number(def.timeMin)||0;
+}
+function kotPkgTypeFor(defs){
+  if(!defs.length) return "rest";
+  const tot = {}; defs.forEach(d=>{ const c = classifyWorkout(d); tot[c] = (tot[c]||0) + kotDefMin(d); });
+  let best = "rest", bt = -1; Object.entries(tot).forEach(([c,t])=>{ if(t>bt){ best = c; bt = t; } }); return best;
+}
+
+/* Strict validation. Pure reads: never writes. Returns {errors, warnings, norm, fp}. */
+async function kotPkgValidate(pkg, eid){
+  const errors = [], warnings = [];
+  const E = m=>{ if(errors.length<40) errors.push(m); };
+  const norm = {name:"", startDate:"", endDate:"", templates:[], newWorkouts:{}, reused:[], optional:[], dailyQueue:[], hash:""};
+  if(!pkg || typeof pkg!=="object" || Array.isArray(pkg)){ E("The file is not a plan package (expected a JSON object)."); return {errors, warnings, norm, fp:""}; }
+  if(pkg.kotPlanPackage!==1) E("Missing or unsupported \"kotPlanPackage\" version (this app reads version 1).");
+  Object.keys(pkg).forEach(k=>{ if(!KOT_PKG_TOP.includes(k)) E("Unknown top-level field \""+k+"\"."); });
+  if(pkg.fixedPlan!==true) E("\"fixedPlan\" must be true for a plan package.");
+  const name = typeof pkg.name==="string" ? pkg.name.trim() : "";
+  if(!name || name.length>80) E("\"name\" must be 1-80 characters.");
+  if(!kotIsoOk(pkg.startDate)) E("\"startDate\" is not a real date (YYYY-MM-DD).");
+  if(!kotIsoOk(pkg.endDate)) E("\"endDate\" is not a real date (YYYY-MM-DD).");
+  const datesOk = kotIsoOk(pkg.startDate) && kotIsoOk(pkg.endDate);
+  if(datesOk && pkg.endDate<pkg.startDate) E("\"endDate\" is before \"startDate\".");
+  const span = datesOk ? daysBetween(pkg.startDate, pkg.endDate)+1 : 0;
+  if(datesOk && span>400) E("A plan package may cover at most 400 days.");
+
+  /* ---- target GFP (resolved from the card that was tapped, never hard-coded) ---- */
+  const ev = eid ? eventById(eid) : null;
+  let planStart = null, storedEv = null;
+  if(!ev) E("No target General Fitness Period was selected.");
+  else {
+    if(!ev.isGFP) E("The target is not a General Fitness Period.");
+    if(ev.hidden) E("The target General Fitness Period is hidden.");
+    if(!Events.list.includes(ev)) E("The target General Fitness Period is no longer active.");
+    /* the cached list is not authoritative: re-read the stored events entry for the target */
+    const pe = await kotProbe("events");
+    if(pe.state!=="present" || !Array.isArray(pe.value)) E("Could not read your stored events list, so the target cannot be confirmed. Nothing was written.");
+    else {
+      storedEv = pe.value.find(x=>x && x.id===eid) || null;
+      if(!storedEv) E("The target General Fitness Period is no longer in your stored events (it was removed or archived after the preview or the app was loaded).");
+      else {
+        if(!storedEv.isGFP) E("The stored target is not a General Fitness Period.");
+        if(storedEv.hidden) E("The stored target General Fitness Period is hidden.");
+        if(storedEv.trainingStart!==ev.trainingStart) E("The stored start date of the target ("+storedEv.trainingStart+") differs from what is loaded ("+ev.trainingStart+"). Reload the app and try again.");
+        if(storedEv.name!==ev.name) E("The stored name of the target differs from what is loaded. Reload the app and try again.");
+      }
+    }
+    if(await loadJSON(kotPkgKey(eid))) E("This General Fitness Period already has an imported plan package. A repeat import is refused (use Remove imported plan first, if that is allowed).");
+    const st = await loadJSON("event:"+eid+":templates"); if(st && st.length) E("The target already has a day-by-day plan; replacement imports are not supported.");
+    const dov = (await loadJSON("event:"+eid+":dayOverrides")) || {}, dEnt = Object.entries(dov), dEdited = dEnt.filter(([d,ov])=>cxIsEdited(ov)).length;
+    if(dEdited) E("The target already has "+dEdited+" edited day"+(dEdited===1?"":"s")+"; replacement imports are not supported.");
+    else if(dEnt.length) warnings.push(dEnt.length+" day"+(dEnt.length===1?" holds":"s hold")+" sessions the Coach rolling scheduler added to this new GFP. They are Coach suggestions, not your edits, and are cleared when the plan loads.");
+    planStart = (await loadJSON("event:"+eid+":planStart")) || ev.trainingStart;
+    if(datesOk && planStart!==pkg.startDate) E("The package starts "+pkg.startDate+" but this General Fitness Period starts "+planStart+". Create the GFP with the same start date.");
+    if(name && ev.name.trim().toLowerCase()!==name.toLowerCase() && !ev.name.trim().toLowerCase().endsWith(" - "+name.toLowerCase())) warnings.push("The General Fitness Period is named \""+ev.name+"\" but the package is named \""+name+"\". The GFP keeps its own name.");
+  }
+
+  /* ---- workouts ---- */
+  const wk = (pkg.workouts && typeof pkg.workouts==="object" && !Array.isArray(pkg.workouts)) ? pkg.workouts : null;
+  if(!wk) E("\"workouts\" must be an object of new workout definitions (it may be empty).");
+  const wkIds = wk ? Object.keys(wk) : [];
+  if(wkIds.length>80) E("Too many workout definitions (limit 80).");
+  const used = new Set();
+  for(const id of wkIds){
+    const d = wk[id], tag = "Workout \""+id+"\": ";
+    if(!/^[a-z][a-z0-9_]{2,60}$/.test(id)){ E(tag+"id must be lowercase letters, digits and underscores (3-61 characters)."); continue; }
+    if(!d || typeof d!=="object" || Array.isArray(d)){ E(tag+"definition must be an object."); continue; }
+    Object.keys(d).forEach(k=>{ if(!KOT_PKG_WK.includes(k)) E(tag+"unknown field \""+k+"\"."); });
+    if(!KOT_PKG_KINDS.includes(d.kind)){ E(tag+"kind must be one of "+KOT_PKG_KINDS.join(", ")+"."); continue; }
+    if(typeof d.name!=="string" || !d.name.trim() || d.name.length>80) E(tag+"name must be 1-80 characters.");
+    if(d.desc!=null && (typeof d.desc!=="string" || d.desc.length>2500)) E(tag+"desc must be text up to 2500 characters.");
+    if(d.kind==="strengthblock"){
+      if(!(d.plannedMin==null || kotIsInt(d.plannedMin,5,180))) E(tag+"plannedMin must be a whole number of minutes (5-180).");
+      if(d.timeMin!=null) E(tag+"strength blocks use plannedMin, not timeMin.");
+    } else {
+      if(d.plannedMin!=null) E(tag+"plannedMin is only for strength blocks.");
+      if(!kotIsInt(d.timeMin,5,300)) E(tag+"timeMin is required (5-300 whole minutes).");
+    }
+    if(d.kind==="cycling"){
+      if(typeof d.platform!=="string" || !d.platform.trim()) E(tag+"cycling workouts need a platform.");
+      if(d.exercises!=null || d.bodyGroup!=null) E(tag+"cycling workouts have no exercises or body group.");
+    } else {
+      if(!KOT_PKG_GROUPS.includes(d.bodyGroup)) E(tag+"bodyGroup must be one of "+KOT_PKG_GROUPS.join(", ")+".");
+      if(!Array.isArray(d.exercises) || !d.exercises.length || d.exercises.length>40) E(tag+"exercises must be a list of 1-40 items.");
+      else d.exercises.forEach((x,i)=>{
+        const xt = tag+"exercise #"+(i+1)+": ";
+        if(!x || typeof x!=="object"){ E(xt+"must be an object."); return; }
+        Object.keys(x).forEach(k=>{ if(!["exId","sets","reps"].includes(k)) E(xt+"unknown field \""+k+"\"."); });
+        if(typeof x.exId!=="string" || !Lib.exercises[x.exId]) E(xt+"exercise \""+x.exId+"\" is not in your library.");
+        if(!kotIsInt(x.sets,1,10)) E(xt+"sets must be a whole number 1-10.");
+        if(typeof x.reps!=="string" && typeof x.reps!=="number") E(xt+"reps is required."); else if(String(x.reps).trim()==="" || String(x.reps).length>40) E(xt+"reps must be 1-40 characters.");
+      });
+    }
+    if(Lib.workouts[id] && !KOT_PKG.owned[id]){
+      /* an existing library workout with this id: reusable only if identical, never overwritten */
+      let same = false; try{ same = JSON.stringify(kotNormWorkout(d)) === JSON.stringify(kotNormWorkout(Lib.workouts[id])); }catch(e){}
+      if(!same) E(tag+"conflicts with an existing library workout of the same id. Existing definitions are never overwritten; the package must use a new id.");
+      else norm.reused.push(id);
+    } else if(KOT_PKG.owned[id]) E(tag+"already belongs to another imported plan package.");
+    else { try{ norm.newWorkouts[id] = kotNormWorkout(d); }catch(e){ E(tag+"could not be read."); } }
+  }
+  const optIn = Array.isArray(pkg.optionalWorkouts) ? pkg.optionalWorkouts : (pkg.optionalWorkouts==null ? [] : (E("\"optionalWorkouts\" must be a list of workout ids."), []));
+  optIn.forEach(id=>{ if(!wkIds.includes(id)) E("optionalWorkouts lists \""+id+"\", which is not defined in this package."); });
+  norm.optional = optIn.filter(id=>norm.newWorkouts[id]);
+
+  /* ---- templates ---- */
+  const tpl = Array.isArray(pkg.templates) ? pkg.templates : null;
+  if(!tpl || !tpl.length) E("\"templates\" must be a non-empty list of dated days.");
+  else {
+    if(datesOk && tpl.length!==span) E("Expected one entry for every day from "+pkg.startDate+" to "+pkg.endDate+" ("+span+" days) but found "+tpl.length+".");
+    if(tpl.length>400) E("Too many days.");
+    const seen = new Set();
+    tpl.forEach((t,i)=>{
+      const tag = "Day #"+(i+1)+": ";
+      if(!t || typeof t!=="object" || Array.isArray(t)){ E(tag+"must be an object."); return; }
+      Object.keys(t).forEach(k=>{ if(!KOT_PKG_TPL.includes(k)) E(tag+"unknown field \""+k+"\"."); });
+      if(!kotIsoOk(t.date)){ E(tag+"\"date\" is not a real date."); return; }
+      if(seen.has(t.date)) E(tag+"duplicate date "+t.date+"."); seen.add(t.date);
+      if(datesOk){
+        if(t.date<pkg.startDate || t.date>pkg.endDate) E(tag+t.date+" is outside the package dates.");
+        else if(t.date!==dateAdd(pkg.startDate, i)) E(tag+"expected "+dateAdd(pkg.startDate, i)+" (days must be consecutive and in order) but found "+t.date+".");
+      }
+      if(typeof t.title!=="string" || t.title.length>100) E(tag+"title must be text up to 100 characters.");
+      else if(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(t.title)) E(tag+"title \""+t.title+"\" names a weekday; titles must not, so a day swap stays truthful.");
+      if(!(t.weekNum==null || kotIsInt(t.weekNum,1,100))) E(tag+"weekNum must be a whole number or omitted.");
+      ["phase","phaseLabel"].forEach(f=>{ if(!(t[f]==null || (typeof t[f]==="string" && t[f].length<=40))) E(tag+f+" must be short text."); });
+      if(!Array.isArray(t.refs)){ E(tag+"refs must be a list (empty for a rest day)."); return; }
+      t.refs.forEach((r,j)=>{
+        if(!r || typeof r!=="object"){ E(tag+"ref #"+(j+1)+" must be an object."); return; }
+        Object.keys(r).forEach(k=>{ if(k!=="workoutId") E(tag+"ref #"+(j+1)+": field \""+k+"\" is not supported (overrides are not allowed in a package)."); });
+        if(typeof r.workoutId!=="string" || !(norm.newWorkouts[r.workoutId] || norm.reused.includes(r.workoutId) || (Lib.workouts[r.workoutId] && !wkIds.includes(r.workoutId)))) E(tag+"workout \""+r.workoutId+"\" is neither defined in the package nor in your library (no placeholder workouts are ever created).");
+        else used.add(r.workoutId);
+      });
+    });
+  }
+  wkIds.forEach(id=>{ if((norm.newWorkouts[id] || norm.reused.includes(id)) && !used.has(id) && !optIn.includes(id)) E("Workout \""+id+"\" is defined but never scheduled and not listed in optionalWorkouts."); });
+
+  /* ---- explicit daily order ---- */
+  const n = tpl ? tpl.length : 0;
+  if(pkg.dailyQueue==null) E("\"dailyQueue\" is required: the explicit day order (a permutation of 0.."+(Math.max(n,1)-1)+").");
+  else if(!Array.isArray(pkg.dailyQueue) || pkg.dailyQueue.length!==n || !pkg.dailyQueue.every(v=>Number.isInteger(v) && v>=0 && v<n) || new Set(pkg.dailyQueue).size!==n) E("\"dailyQueue\" must be a permutation of 0.."+(n-1)+" with one entry per day.");
+  else norm.dailyQueue = pkg.dailyQueue.slice();
+
+  /* ---- no logged sessions already on the plan dates of this GFP ---- */
+  if(ev && datesOk && span<=400){
+    let clash = 0; for(let i=0;i<span;i++){ const l = await loadJSON("log:"+dateAdd(pkg.startDate,i)); if(l && l.workouts && Object.keys(l.workouts).length) clash++; }
+    if(clash) E(clash+" day"+(clash===1?"":"s")+" in this date range already have logged sessions; a fixed plan cannot be imported over existing logs.");
+  }
+
+  /* ---- build normalized templates (derives dow / type; never writes) ---- */
+  if(!errors.length){
+    const lookup = id=> norm.newWorkouts[id] || Lib.workouts[id];
+    norm.templates = tpl.map(t=>{
+      const defs = t.refs.map(r=>Object.assign({id:r.workoutId}, lookup(r.workoutId)));
+      return {date:t.date, dow:dowKey(t.date), dowLabel:dowShort(t.date), weekNum:t.weekNum==null ? null : Number(t.weekNum), phase:t.phase||null, phaseLabel:t.phaseLabel||null, title:t.title, type:kotPkgTypeFor(defs), refs:t.refs.map(r=>({workoutId:r.workoutId}))};
+    });
+    norm.name = name; norm.startDate = pkg.startDate; norm.endDate = pkg.endDate;
+    norm.hash = kotHash(JSON.stringify([norm.name, norm.startDate, norm.endDate, norm.templates, norm.newWorkouts, norm.reused, norm.optional, norm.dailyQueue]));
+  }
+  /* fingerprint of everything the preview depended on, re-checked at Confirm */
+  let fp = "";
+  if(!errors.length){
+    const refEx = {}; Object.values(norm.newWorkouts).forEach(w=>(w.exercises||[]).forEach(x=>{ refEx[x.exId] = Lib.exercises[x.exId]; }));
+    const refWk = {}; norm.templates.forEach(t=>t.refs.forEach(r=>{ if(!norm.newWorkouts[r.workoutId]) refWk[r.workoutId] = Lib.workouts[r.workoutId]; }));
+    fp = kotHash(JSON.stringify({h:norm.hash, e:[eid, ev.name, planStart, !!ev.hidden, storedEv&&[storedEv.id, storedEv.name, !!storedEv.isGFP, !!storedEv.hidden, storedEv.trainingStart]], x:refEx, w:refWk, nWk:Object.keys(Lib.workouts).length, nEx:Object.keys(Lib.exercises).length}));
+  }
+  return {errors, warnings, norm, fp};
+}
+
+/* Snapshot of ONLY this GFP's own keys (no credentials, no logs, no library). */
+async function kotPkgSnapshot(eid){
+  const out = {}; const ev = eventById(eid);
+  out["events:entry"] = ev ? Object.assign({}, ev) : null;
+  for(const s of ["planStart","templates","templatesStart","dailyQueue","dayOverrides"]){ const v = await loadJSON("event:"+eid+":"+s); if(v!==null) out["event:"+eid+":"+s] = v; }
+  return {kind:"kotPlanPackageSnapshot", takenAt:new Date().toISOString(), eventId:eid, data:out};
+}
+
+/* Probe a key without swallowing the difference between "absent", "present" and "cannot tell".
+   Real artifact storage throws on a missing key, so absence is confirmed through list(), not through a failed get(). */
+async function kotProbe(key){
+  let present;
+  try{ const r = await window.storage.list(key, false); const ks = (r && r.keys) || []; present = ks.includes(key); }
+  catch(e){ return {state:"unknown", why:"list failed"}; }
+  if(!present) return {state:"absent"};
+  try{ const r = await window.storage.get(key, false); if(!r || r.value==null) return {state:"unknown", why:"empty read"}; return {state:"present", value:JSON.parse(r.value)}; }
+  catch(e){ return {state:"unknown", why:"present but unreadable"}; }
+}
+function kotRecHash(rec){ return kotHash(JSON.stringify([rec.name, rec.startDate, rec.endDate, rec.templates, rec.workouts, rec.reused, rec.optional, rec.dailyQueue])); }
+function kotRecIntact(back, rec){
+  return !!back && back.v===1 && back.eventId===rec.eventId && back.hash===rec.hash && Array.isArray(back.templates) && back.templates.length===rec.templates.length && kotRecHash(back)===rec.hash;
+}
+function kotSyncSettled(){ try{ if(typeof scheduleDrivePush==="function") scheduleDrivePush(); if(typeof scheduleGSync==="function") scheduleGSync(); }catch(e){} }
+
+/* Outcomes (status):
+   "failed"     confirmed: the plan record is NOT in storage. Safe to retry.
+   "committed"  record saved and verified; derived schedule data rebuilt.
+   "committed-refresh"  record saved and verified, but rebuilding the in-app schedule failed or is incomplete: reload.
+   "uncertain"  could not confirm either way: the record may or may not be stored. Reload and check before doing anything else.
+   Cloud sync is only scheduled once the status is "committed*"; the importer never schedules it for "failed"/"uncertain". */
+async function kotPkgCommit(eid, norm){
+  const rec = {v:1, eventId:eid, name:norm.name, startDate:norm.startDate, endDate:norm.endDate, importedAt:new Date().toISOString(), hash:norm.hash, fixedPlan:true,
+    workouts:norm.newWorkouts, reused:norm.reused, optional:norm.optional, templates:norm.templates, dailyQueue:norm.dailyQueue};
+  if(kotRecHash(rec)!==rec.hash) return {ok:false, status:"failed", msg:"The plan changed while it was being prepared. Nothing was imported."};
+  const key = kotPkgKey(eid);
+  let wrote = false, werr = null;
+  try{ await window.storage.set(key, JSON.stringify(rec), false); wrote = true; }catch(e){ werr = e; }   /* raw write: no sync is scheduled yet */
+  if(!wrote){
+    const pr = await kotProbe(key);
+    if(pr.state==="absent") return {ok:false, status:"failed", msg:"Storage refused the write. Nothing was imported."};
+    return {ok:false, status:"uncertain", msg:"Storage reported an error while saving, and I could not confirm whether the plan was stored. Reload the app and check this card before importing again."};
+  }
+  const pr = await kotProbe(key);
+  if(pr.state==="present" && kotRecIntact(pr.value, rec)){
+    /* verified. Everything after this is derived from the record and rebuilt on every load. */
+    kotSyncSettled();
+    let refreshed = false;
+    try{ await loadLibraries(); const ev = eventById(eid); await initEventPlan(ev); refreshed = !!(PlanByEvent[eid] && PlanByEvent[eid].fixedPlan); }catch(e){ console.error("post-commit refresh", e); }
+    if(!refreshed) return {ok:true, status:"committed-refresh", rec, msg:"The plan was saved and verified, but the schedule could not be refreshed on screen. Reload the app to see it."};
+    /* derived writes inside initEventPlan swallow their own failures; confirm they landed so the report is truthful */
+    const dq = await kotProbe("event:"+eid+":dailyQueue");
+    const dov = await kotProbe("event:"+eid+":dayOverrides");
+    const dqOk = dq.state==="present" && JSON.stringify(dq.value)===JSON.stringify(rec.dailyQueue);
+    const dovOk = dov.state==="absent" || (dov.state==="present" && Object.values(dov.value||{}).every(o=>cxIsEdited(o)));
+    if(!dqOk || !dovOk) return {ok:true, status:"committed-refresh", rec, msg:"The plan was saved and verified. Some derived data (day order or cleared Coach suggestions) could not be saved yet; it is rebuilt automatically the next time the app loads."};
+    return {ok:true, status:"committed", rec};
+  }
+  /* written but read-back is wrong or unreadable: try to remove it, and only claim removal after verifying */
+  let delErr = null; try{ await window.storage.delete(key, false); }catch(e){ delErr = e; }
+  const after = await kotProbe(key);
+  if(after.state==="absent") return {ok:false, status:"failed", msg:"The plan could not be verified after saving, and the saved copy was removed (confirmed). Nothing was imported."};
+  if(after.state==="present" && kotRecIntact(after.value, rec)){
+    /* it is stored and is actually fine; only the first read-back was wrong */
+    kotSyncSettled();
+    return {ok:true, status:"committed-refresh", rec, msg:"The plan is saved and verified, but the first check failed. Reload the app to load it."};
+  }
+  return {ok:false, status:"uncertain", msg:"The plan was written but could not be verified, and I could not confirm it was removed ("+(delErr?"removal reported an error":"state unclear")+"). It may still be stored. Reload the app and check this card; if it shows a fixed plan, use Remove imported plan or re-export before doing anything else."};
+}
+
+/* ---- UI: file pick -> preview -> explicit confirm ---- */
+function kotPkgEsc(s){ return esc(String(s==null ? "" : s)); }
+function kotPkgCloseModal(){ const m = document.getElementById("kot-pkg-modal"); if(m) m.remove(); KOT_PKG.pending = null; KOT_PKG.undoPending = null; }
+function kotPkgCss(){
+  if(document.getElementById("kot-pkg-css")) return;
+  const st = document.createElement("style"); st.id = "kot-pkg-css";
+  st.textContent = `
+  #kot-pkg-modal .modal-box{display:flex; flex-direction:column; padding:0; width:calc(100vw - 24px); max-width:640px; max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); overflow:hidden;}
+  #kot-pkg-modal .kp-body{flex:1 1 auto; min-height:0; overflow:auto; padding:18px 18px 8px; -webkit-overflow-scrolling:touch;}
+  #kot-pkg-modal .kp-foot{flex:0 0 auto; padding:10px 18px 14px; border-top:1px solid rgba(128,128,128,.25); background:inherit;}
+  #kot-pkg-modal .kp-foot .save-row{margin:0; justify-content:flex-end; gap:8px;}
+  #kot-pkg-modal .kp-foot button{min-height:44px; min-width:96px;}
+  .kp-row{display:grid; grid-template-columns:104px minmax(0,1fr); gap:2px 12px; padding:7px 0; border-bottom:1px dashed rgba(128,128,128,.35); font-size:13px; align-items:start;}
+  .kp-row > span:first-child{color:var(--grey-600); font-size:12px; padding-top:1px;}
+  .kp-row > span:last-child{overflow-wrap:anywhere;}
+  .kp-box{margin:0 0 10px; padding:2px 12px; border:1px solid rgba(128,128,128,.3); border-radius:12px;}
+  .kp-box .kp-row:last-child{border-bottom:0;}
+  .kp-wk{border:1px solid rgba(128,128,128,.3); border-radius:10px; margin:0 0 8px; padding:0;}
+  .kp-wk > summary{cursor:pointer; padding:9px 12px; list-style-position:inside;}
+  .kp-wk .kp-t{font-weight:700; font-size:13.5px; overflow-wrap:anywhere;}
+  .kp-wk .kp-m{font-size:12px; color:var(--grey-600); margin-top:2px;}
+  .kp-wk .kp-in{padding:2px 12px 10px; font-size:12.5px;}
+  .kp-wk ol{margin:6px 0 0; padding-left:20px;} .kp-wk li{margin:0 0 7px; overflow-wrap:anywhere;}
+  .kp-wk .kp-g{display:block; color:var(--grey-600); font-size:12px; margin-top:1px;}
+  .kp-h{font-weight:700; font-size:13px; margin:12px 0 6px;}
+  `;
+  document.head.appendChild(st);
+}
+function kotPkgModal(inner){
+  kotPkgCss();
+  let m = document.getElementById("kot-pkg-modal");
+  if(!m){ m = document.createElement("div"); m.id = "kot-pkg-modal"; m.className = "modal-backdrop"; document.body.appendChild(m); }
+  /* the action row (and the status message above it) stays pinned; only the body scrolls */
+  let cut = inner.indexOf('<div id="kot-pkg-msg"'); if(cut<0) cut = inner.lastIndexOf('<div class="save-row"');
+  const body = cut>=0 ? inner.slice(0,cut) : inner, foot = cut>=0 ? inner.slice(cut) : "";
+  m.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true"><div class="kp-body">${body}</div>${foot?`<div class="kp-foot">${foot}</div>`:""}</div>`;
+}
+function kotPkgSetBusy(on, label){
+  const m = document.getElementById("kot-pkg-modal"); if(!m) return;
+  m.querySelectorAll("button").forEach(b=>{ b.disabled = !!on; if(on && b.hasAttribute("data-kot-pkg-confirm") && label) b.textContent = label; if(on && b.hasAttribute("data-kot-pkg-undo-confirm") && label) b.textContent = label; });
+}
+function kotPkgExName(id){ const x = Lib.exercises[id]; return x ? x.name : id; }
+function kotPkgWkDetail(id, def, tag){
+  if(!def) return `<div class="kp-wk"><div class="kp-t" style="padding:9px 12px;">${kotPkgEsc(id)} <span class="kp-m">(not found)</span></div></div>`;
+  const mins = kotDefMin(def), exs = def.exercises||[];
+  const kindLbl = {strengthblock:"Strength", flexrecovery:"Flexibility / recovery", other:"Other", cycling:"Cycling"}[def.kind] || def.kind;
+  const nSets = exs.reduce((t,x)=>t+(parseInt(x.sets)||0),0);
+  const meta = [kindLbl, def.kind==="cycling" ? (def.platform||"") : exs.length+" exercise"+(exs.length===1?"":"s")+(def.kind==="strengthblock" ? ", "+nSets+" sets" : ""), mins+" min"+(def.kind==="strengthblock" ? (Number(def.plannedMin)>0 ? " (planned)" : " (estimated)") : ""), tag].filter(Boolean).join(" · ");
+  let inner = "";
+  if(def.desc) inner += `<div style="margin:2px 0 4px;">${kotPkgEsc(def.desc)}</div>`;
+  if(def.kind==="cycling") inner += `<div>${kotPkgEsc(def.zoneText||"")}</div>`;
+  else inner += `<ol>${exs.map(x=>{ const lx = Lib.exercises[x.exId]; return `<li><b>${kotPkgEsc(kotPkgExName(x.exId))}</b> &mdash; ${kotPkgEsc(x.sets)} &times; ${kotPkgEsc(x.reps)}${lx&&lx.desc?`<span class="kp-g">${kotPkgEsc(lx.desc)}</span>`:""}</li>`; }).join("")}</ol>`;
+  return `<details class="kp-wk"><summary><span class="kp-t">${kotPkgEsc(def.name||id)}</span><div class="kp-m">${kotPkgEsc(meta)}</div></summary><div class="kp-in">${inner}</div></details>`;
+}
+async function kotPkgPreview(eid, pkg){
+  await loadLibraries();
+  const r = await kotPkgValidate(pkg, eid);
+  const ev = eventById(eid);
+  if(r.errors.length){
+    KOT_PKG.pending = null;
+    kotPkgModal(`<h3 style="margin-bottom:6px;">This plan package can't be imported</h3>
+      <p style="font-size:12.5px;color:var(--grey-600);margin-bottom:10px;">Nothing has been written. Fix the file and choose it again.</p>
+      <ul style="font-size:13px;padding-left:18px;margin-bottom:14px;">${r.errors.map(e=>`<li style="margin-bottom:4px;color:var(--red);">${kotPkgEsc(e)}</li>`).join("")}</ul>
+      <div class="save-row" style="justify-content:flex-end;"><button class="btn btn-primary" data-kot-pkg-cancel="1">Close</button></div>`);
+    return r;
+  }
+  const n = r.norm;
+  const trainDays = n.templates.filter(t=>t.refs.length).length;
+  const dayRows = n.templates.map(t=>{
+    const defs = t.refs.map(x=>n.newWorkouts[x.workoutId] || Lib.workouts[x.workoutId]); const mins = defs.reduce((s,d)=>s+kotDefMin(d),0);
+    return `<div style="display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:8px;font-size:12px;padding:3px 0;"><span style="color:var(--grey-600);">${kotPkgEsc(t.dowLabel+" "+fmtDate(t.date))}</span><span>${kotPkgEsc(t.title||"Rest")}</span><span style="color:var(--grey-600);">${t.refs.length? mins+" min":""}</span></div>`;
+  }).join("");
+  const newCards = Object.entries(n.newWorkouts).map(([id,w])=>kotPkgWkDetail(id, w, n.optional.includes(id) ? "optional, not scheduled" : "")).join("");
+  const reusedIds = [...new Set([].concat(n.reused, n.templates.flatMap(t=>t.refs.map(x=>x.workoutId)).filter(id=>!n.newWorkouts[id])))];
+  const reusedCards = reusedIds.map(id=>kotPkgWkDetail(id, Lib.workouts[id], "existing in your library")).join("");
+  KOT_PKG.pending = {eid, pkg, fp:r.fp, hash:n.hash};
+  kotPkgModal(`<h3 style="margin-bottom:4px;">Import plan package</h3>
+    <p style="font-size:12.5px;color:var(--grey-600);margin-bottom:10px;">Nothing is written until you press Import. Your logs, existing workouts, archives and settings are not touched.</p>
+    <div class="kp-box">
+      <div class="kp-row"><span>Into</span><span>${kotPkgEsc(ev.name)}</span></div>
+      <div class="kp-row"><span>Package</span><span>${kotPkgEsc(n.name)}</span></div>
+      <div class="kp-row"><span>Dates</span><span>${kotPkgEsc(fmtDateLong(n.startDate))} to ${kotPkgEsc(fmtDateLong(n.endDate))}</span></div>
+      <div class="kp-row"><span>Days</span><span>${n.templates.length} (${trainDays} with sessions)</span></div>
+      <div class="kp-row"><span>New workouts</span><span>${Object.keys(n.newWorkouts).length}</span></div>
+      <div class="kp-row"><span>Existing workouts reused</span><span>${reusedIds.length}</span></div>
+      <div class="kp-row"><span>Coach rolling schedule</span><span>Off for this plan</span></div>
+    </div>
+    ${r.warnings.length?`<ul style="font-size:12.5px;padding-left:18px;margin-bottom:10px;">${r.warnings.map(w=>`<li style="color:var(--amber, #b7791f);">${kotPkgEsc(w)}</li>`).join("")}</ul>`:""}
+    <div class="kp-h">New workouts (${Object.keys(n.newWorkouts).length}) <span style="font-weight:400;color:var(--grey-600);font-size:12px;">tap one to see its exercises</span></div>${newCards||'<div style="font-size:12.5px;">None</div>'}
+    <div class="kp-h">Existing workouts used (${reusedIds.length})</div>${reusedCards||'<div style="font-size:12.5px;">None</div>'}
+    <details style="margin:10px 0;"><summary style="font-weight:700;font-size:13px;cursor:pointer;">Day-by-day schedule</summary><div style="margin-top:6px;">${dayRows}</div></details>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:8px 0 6px;"><input type="checkbox" id="kot-pkg-snap" checked style="margin-top:3px;"> <span>Download a snapshot of this General Fitness Period's current settings first (no logs, no credentials)</span></label>
+    <div id="kot-pkg-msg" style="font-size:12.5px;color:var(--red);margin-bottom:8px;" role="status"></div>
+    <div class="save-row"><button class="btn btn-ghost" data-kot-pkg-cancel="1">Cancel</button><button class="btn btn-primary" data-kot-pkg-confirm="1">Import</button></div>`);
+  return r;
+}
+function kotPkgResultPanel(title, text, tone){
+  KOT_PKG.pending = null; KOT_PKG.undoPending = null;
+  kotPkgModal(`<h3 style="margin-bottom:6px;">${kotPkgEsc(title)}</h3><p style="font-size:13px;margin:8px 0 12px;${tone==="warn"?"color:var(--red);":""}">${kotPkgEsc(text)}</p><div class="save-row"><button class="btn btn-primary" data-kot-pkg-cancel="1">Close</button></div>`);
+}
+async function kotPkgConfirm(){
+  if(KOT_PKG.busy) return {ok:false, busy:true, msg:"An import is already running."};
+  const p = KOT_PKG.pending; const msg = document.getElementById("kot-pkg-msg");
+  const say = t=>{ if(msg) msg.textContent = t; };
+  if(!p) return {ok:false, msg:"No preview is open."};
+  KOT_PKG.busy = true; kotPkgSetBusy(true, "Importing...");
+  try{
+    /* re-read storage and re-validate: a stale preview can never commit */
+    await loadLibraries();
+    const r = await kotPkgValidate(p.pkg, p.eid);
+    if(r.errors.length || r.fp!==p.fp){
+      const why = r.errors.length ? r.errors[0] : "Something changed since the preview (the General Fitness Period or your library).";
+      kotPkgResultPanel("Import cancelled", why+" Nothing was written. Choose the file again to review the current state.");
+      return {ok:false, stale:true, msg:why};
+    }
+    const wantSnap = document.getElementById("kot-pkg-snap");
+    if(wantSnap && wantSnap.checked){
+      try{ triggerBrowserDownload("kot-pre-import-snapshot-"+todayISO()+".json", await kotPkgSnapshot(p.eid)); }
+      catch(e){ say("Could not create the snapshot file, so nothing was imported. Untick the box to continue without it."); kotPkgSetBusy(false); const bb = document.querySelector("#kot-pkg-modal [data-kot-pkg-confirm]"); if(bb) bb.textContent = "Import"; return {ok:false, status:"failed", msg:"snapshot failed"}; }
+    }
+    const res = await kotPkgCommit(p.eid, r.norm);
+    if(res.status==="committed"){
+      kotPkgCloseModal();
+      try{ cxToast("Imported "+r.norm.name+": "+r.norm.templates.length+" days."); }catch(e){}
+      try{ State.logs = {}; render(); }catch(e){}
+      return res;
+    }
+    if(res.status==="failed"){ say(res.msg+" You can press Import to try again."); kotPkgSetBusy(false); const bb = document.querySelector("#kot-pkg-modal [data-kot-pkg-confirm]"); if(bb) bb.textContent = "Import"; return res; }
+    if(res.status==="committed-refresh"){ try{ State.logs = {}; render(); }catch(e){} kotPkgResultPanel("Plan saved: reload needed", res.msg); return res; }
+    kotPkgResultPanel("Could not confirm the import", res.msg, "warn"); return res;
+  } finally { KOT_PKG.busy = false; }
+}
+async function kotPkgOpenFile(eid, file){
+  try{
+    if(file.size>KOT_PKG_MAXBYTES) throw new Error("File is larger than 2 MB.");
+    const text = await file.text(); let pkg; try{ pkg = JSON.parse(text); }catch(e){ throw new Error("The file is not valid JSON."); }
+    return await kotPkgPreview(eid, pkg);
+  }catch(e){
+    kotPkgModal(`<h3 style="margin-bottom:6px;">This plan package can't be imported</h3><p style="font-size:13px;color:var(--red);margin-bottom:12px;">${kotPkgEsc(e.message)} Nothing has been written.</p><div class="save-row" style="justify-content:flex-end;"><button class="btn btn-primary" data-kot-pkg-cancel="1">Close</button></div>`);
+    return {errors:[e.message]};
+  }
+}
+
+/* Date-bound per-session timeline records (routine:day:<date>.wt / wtAt, keyed "<eventId>|<slot>") belong to a date, not to a workout.
+   Moving or removing the workouts underneath them would silently re-time or orphan them, so they block the operation. */
+function kotSlotRefs(rec, eid){
+  if(!rec || typeof rec!=="object") return [];
+  const out = [], pre = eid+"|";
+  ["wt","wtAt"].forEach(f=>{ const o = rec[f]; if(o && typeof o==="object") Object.keys(o).forEach(k=>{ if(k.startsWith(pre) && !out.includes(k)) out.push(k); }); });
+  return out;
+}
+async function kotRoutineSlotsOn(eid, date){
+  const refs = new Set();
+  try{ const mem = (typeof RT!=="undefined" && RT.days) ? RT.days[date] : null; kotSlotRefs(mem, eid).forEach(k=>refs.add(k)); }catch(e){}
+  kotSlotRefs(await loadJSON("routine:day:"+date), eid).forEach(k=>refs.add(k));
+  return [...refs];
+}
+
+/* ---- Undo: refuses whenever anything could be lost; otherwise removes exactly the package record ---- */
+async function kotPkgUndoCheck(eid){
+  const rec = await loadJSON(kotPkgKey(eid)); const blockers = [];
+  if(!rec) return {ok:false, blockers:["This General Fitness Period has no imported plan."], rec:null};
+  const dov = await loadJSON("event:"+eid+":dayOverrides")||{}, nOv = Object.values(dov).filter(ov=>cxIsEdited(ov)).length;
+  if(nOv) blockers.push(nOv+" day"+(nOv===1?" has":"s have")+" been edited since the import ("+Object.keys(dov).filter(d=>cxIsEdited(dov[d])).sort().slice(0,4).map(d=>fmtDate(d)).join(", ")+(nOv>4?", ...":"")+"). Undo would erase those edits, so it is refused.");
+  const dq = await loadJSON("event:"+eid+":dailyQueue");
+  if(dq && JSON.stringify(dq)!==JSON.stringify(rec.dailyQueue)) blockers.push("Days have been swapped or moved since the import. Swap them back first.");
+  const ids = Object.keys(rec.workouts||{});
+  const skip = ["event:"+eid+":","gsync:","coach","driveSyncMeta","driveConfig","stravaConfig","gsyncConfig","weather","load:","weightHistory","profile","events","archives","flexRecoveryMigrated","otherCategoryMigrated"];
+  const keys = await listKeys(""); let logged = 0; const refs = new Set();
+  for(const k of keys){
+    if(skip.some(p=>k.startsWith(p))) continue;
+    let raw = ""; try{ const r = await window.storage.get(k, false); raw = (r && r.value) || ""; }catch(e){ continue; }
+    if(k.startsWith("log:")){ if(raw.indexOf('"'+eid+'|')>=0) logged++; }
+    for(const id of ids){ if(raw.indexOf('"'+id+'"')>=0) refs.add(k.startsWith("log:") ? "a logged day" : k.startsWith("archive:") ? "an archive" : k==="workoutLibrary" ? "your workout library (an edited copy)" : k.startsWith("event:") ? "another plan" : "other data ("+k+")"); }
+  }
+  const rkeys = await listKeys("routine:day:"); const timed = [];
+  for(const k of rkeys){ const rec = await loadJSON(k); if(kotSlotRefs(rec, eid).length) timed.push(k.slice("routine:day:".length)); }
+  if(typeof RT!=="undefined" && RT.days) Object.keys(RT.days).forEach(d=>{ if(kotSlotRefs(RT.days[d], eid).length && !timed.includes(d)) timed.push(d); });
+  if(timed.length) blockers.push("Custom start times on the Day timeline are set for this plan's sessions on "+timed.sort().slice(0,4).map(d=>fmtDate(d)).join(", ")+(timed.length>4?", ...":"")+". They are tied to those dates, so removing the plan would leave them pointing at nothing. Reset those times on the Day timeline first.");
+  if(logged) blockers.push(logged+" logged day"+(logged===1?"":"s")+" belong to this plan's sessions. Undo would orphan that history, so it is refused.");
+  if(refs.size) blockers.push("Imported workouts are referenced by: "+[...refs].join(", ")+".");
+  const names = ids.map(id=>rec.workouts[id].name);
+  return {ok:!blockers.length, blockers, rec, willRemove:{days:rec.templates.length, workouts:names}};
+}
+async function kotPkgUndoOpen(eid){
+  const c = await kotPkgUndoCheck(eid);
+  if(!c.ok){
+    kotPkgModal(`<h3 style="margin-bottom:6px;">Remove imported plan</h3><p style="font-size:13px;margin-bottom:8px;">This can't be undone automatically right now, so nothing was changed:</p>
+      <ul style="font-size:13px;padding-left:18px;margin-bottom:14px;">${c.blockers.map(b=>`<li style="margin-bottom:4px;">${kotPkgEsc(b)}</li>`).join("")}</ul><div class="save-row" style="justify-content:flex-end;"><button class="btn btn-primary" data-kot-pkg-cancel="1">Close</button></div>`);
+    return c;
+  }
+  KOT_PKG.undoPending = {eid, hash:c.rec.hash};
+  kotPkgModal(`<h3 style="margin-bottom:6px;">Remove imported plan</h3>
+    <p style="font-size:13px;margin-bottom:8px;">This removes exactly: the ${c.willRemove.days}-day schedule of <b>${kotPkgEsc(c.rec.name)}</b> and its ${c.willRemove.workouts.length} plan workout${c.willRemove.workouts.length===1?"":"s"}. Nothing else changes: no logs, no existing library workouts, no archives. The General Fitness Period returns to a blank schedule and the Coach rolling scheduler is allowed to run again. It does <b>not</b> restore anything that existed before the import (for example Coach suggestions that were cleared when the plan loaded); the optional snapshot file holds those if you took one, but the app has no automatic restore from it.</p>
+    <details style="margin-bottom:12px;"><summary style="font-size:13px;cursor:pointer;">Workouts that will be removed</summary><ul style="font-size:12.5px;padding-left:18px;">${c.willRemove.workouts.map(n=>`<li>${kotPkgEsc(n)}</li>`).join("")}</ul></details>
+    <div id="kot-pkg-msg" style="font-size:12.5px;color:var(--red);margin-bottom:8px;"></div>
+    <div class="save-row" style="justify-content:flex-end;"><button class="btn btn-ghost" data-kot-pkg-cancel="1">Cancel</button><button class="btn btn-primary" data-kot-pkg-undo-confirm="1" style="background:var(--red);">Remove plan</button></div>`);
+  return c;
+}
+async function kotPkgUndoConfirm(){
+  if(KOT_PKG.busy) return {ok:false, busy:true};
+  const p = KOT_PKG.undoPending; if(!p) return {ok:false, msg:"No preview is open."};
+  KOT_PKG.busy = true; kotPkgSetBusy(true, "Removing...");
+  try{
+    const c = await kotPkgUndoCheck(p.eid);                    /* re-check at the moment of confirming */
+    if(!c.ok || c.rec.hash!==p.hash){ kotPkgResultPanel("Nothing was removed", c.ok ? "The plan changed since the preview." : c.blockers[0]); return {ok:false, blockers:c.blockers}; }
+    const key = kotPkgKey(p.eid);
+    let derr = null; try{ await window.storage.delete(key, false); }catch(e){ derr = e; }
+    const pr = await kotProbe(key);
+    if(pr.state==="present"){ kotPkgResultPanel("Nothing was removed", "Storage did not remove the plan record. The plan is still in place.", "warn"); return {ok:false, status:"failed"}; }
+    if(pr.state==="unknown"){ kotPkgResultPanel("Could not confirm the removal", "Storage reported "+(derr?"an error":"an unclear state")+" and I could not tell whether the plan record is gone. Reload the app and check the General Fitness Period card before doing anything else.", "warn"); return {ok:false, status:"uncertain"}; }
+    kotSyncSettled();
+    try{ await loadLibraries(); await initEventPlan(eventById(p.eid)); }
+    catch(e){ console.error("post-undo refresh", e); try{ State.logs = {}; render(); }catch(_){} kotPkgResultPanel("Plan removed: reload needed", "The plan record is gone (confirmed), but the screen could not be refreshed. Reload the app."); return {ok:true, status:"removed-refresh"}; }
+    kotPkgCloseModal(); try{ cxToast("Imported plan removed."); }catch(e){} try{ State.logs = {}; render(); }catch(e){}
+    return {ok:true, status:"removed"};
+  } finally { KOT_PKG.busy = false; }
+}
+
+/* ---- Day swaps on a fixed plan: whole-day moves only; block anything that could split or mis-file history ---- */
+async function kotSwapCheck(eid, dateA, dateB){
+  if(!isFixedPlan(eid)) return {ok:true};
+  const P = PlanByEvent[eid];
+  for(const d of [dateA, dateB]){
+    const ov = P.dayOverrides[d];
+    if(ov && typeof cxIsEdited==="function" && cxIsEdited(ov)) return {ok:false, msg:fmtDate(d)+" has edits (added, removed or reordered sessions). Edits stay on their date and can't travel with the day, so this swap would split the day's sessions. Reset that day first, then swap."};
+    const slots = await kotRoutineSlotsOn(eid, d);
+    if(slots.length) return {ok:false, msg:fmtDate(d)+" has a custom start time set on the Day timeline for this plan's sessions. That time belongs to the date, so moving the day would give it to a different workout. Reset the time on the Day timeline (the Reset time button beside that session), then swap."};
+    const lg = await getLog(d);
+    if(lg && lg.workouts && Object.keys(lg.workouts).length) return {ok:false, msg:fmtDate(d)+" already has logged sessions. Logs are tied to their date, so swapping would attach them to different workouts. Swap only days that have no logged sessions."};
+  }
+  return {ok:true};
+}
+
+/* ---- wiring (delegated; no change to existing handlers) ---- */
+if(!window.__kotPkgBound){
+  window.__kotPkgBound = true;
+  document.addEventListener("click", e=>{
+    const t = e.target && e.target.closest ? e.target.closest("[data-kot-pkg-import],[data-kot-pkg-undo],[data-kot-pkg-confirm],[data-kot-pkg-cancel],[data-kot-pkg-undo-confirm]") : null; if(!t) return;
+    if(t.hasAttribute("data-kot-pkg-cancel")){ kotPkgCloseModal(); return; }
+    if(t.hasAttribute("data-kot-pkg-confirm")){ kotPkgConfirm(); return; }
+    if(t.hasAttribute("data-kot-pkg-undo-confirm")){ kotPkgUndoConfirm(); return; }
+    if(t.hasAttribute("data-kot-pkg-undo")){ kotPkgUndoOpen(t.getAttribute("data-kot-pkg-undo")); return; }
+    if(t.hasAttribute("data-kot-pkg-import")){
+      const eid = t.getAttribute("data-kot-pkg-import");
+      const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,application/json"; inp.style.display = "none"; inp.id = "kot-pkg-file";
+      inp.addEventListener("change", ()=>{ const f = inp.files && inp.files[0]; inp.remove(); if(f) kotPkgOpenFile(eid, f); });
+      document.body.appendChild(inp); inp.click();
+    }
+  });
+}
+window.KOTPKG = {probe:kotProbe, recHash:kotRecHash, validate:kotPkgValidate, preview:kotPkgPreview, confirm:kotPkgConfirm, commit:kotPkgCommit, undoCheck:kotPkgUndoCheck, undoOpen:kotPkgUndoOpen, undoConfirm:kotPkgUndoConfirm, swapCheck:kotSwapCheck, openFile:kotPkgOpenFile, snapshot:kotPkgSnapshot, state:KOT_PKG};
+
+function kotPkgCardHtml(e){
+  kotPkgCss();
+  const P = PlanByEvent[e.id];
+  if(P && P.fixedPlan) return `<div class="kp-box" style="margin:8px 0;"><div class="kp-row"><span>Fixed plan</span><span>${esc(P.pkgName||"")}</span></div><div class="kp-row"><span>Dates</span><span>${esc(fmtDate(P.pkgStart))} to ${esc(fmtDate(P.pkgEnd))}</span></div><div class="kp-row"><span>Coach rolling schedule</span><span>Paused for this plan</span></div></div><div class="save-row" style="margin-top:0;"><button class="btn btn-ghost" data-kot-pkg-undo="${e.id}">Remove imported plan</button></div>`;
+  return `<div class="save-row" style="margin:8px 0;"><button class="btn btn-ghost" data-kot-pkg-import="${e.id}">Import plan package</button></div>`;
+}
+
 /* ---------------- GENERAL FITNESS PERIOD WEEKLY SCHEDULE ----------------
    No fixed-length plan, no phase/week_meta concept — just open-ended
    Week 1, Week 2, Week 3... blocks from the GFP's start date, where each
@@ -8644,19 +9203,23 @@ async function renderSchedule(){
 async function renderGFPWeeklySchedule(gfp){
   const start = (PlanByEvent[gfp.id] && PlanByEvent[gfp.id].start) || gfp.trainingStart;
   const today = todayISO();
-  const weekCount = Math.max(1, Math.floor(daysBetween(start, today)/7) + 1);
+  const P14 = PlanByEvent[gfp.id], fixed = !!(P14 && P14.fixedPlan);
+  const lastD = fixed ? P14.templates[P14.templates.length-1].date : today;
+  const weekCount = Math.max(1, Math.floor(daysBetween(start, lastD)/7) + 1);
+  const curWeek = Math.min(weekCount, Math.max(1, Math.floor(daysBetween(start, today)/7) + 1));
   let html = "";
   for(let wn=1; wn<=weekCount; wn++){
     const weekStart = dateAdd(start, (wn-1)*7);
     const weekEnd = dateAdd(weekStart, 6);
-    const weekDates = allDatesInRange(weekStart, weekEnd);
-    const isOpen = State.openGFPWeek!=null ? State.openGFPWeek===wn : wn===weekCount;
+    let weekDates = allDatesInRange(weekStart, weekEnd);
+    if(fixed) weekDates = weekDates.filter(d=>P14.templateByDate[d]!==undefined);
+    const isOpen = State.openGFPWeek!=null ? State.openGFPWeek===wn : wn===(fixed ? curWeek : weekCount);
     html += `
     <div class="week-block">
       <div class="week-block-head" data-togglegfpweek="${wn}">
         <div>
-          <div class="wtitle">Week ${wn} — ${esc(gfp.name)}</div>
-          <div class="wsub">${esc(fmtDate(weekStart))} – ${esc(fmtDate(weekEnd))}</div>
+          <div class="wtitle">Week ${wn} — ${esc(gfp.name)}${fixed && weekDates.length ? ' · '+esc((P14.templates[P14.templateByDate[weekDates[0]]]||{}).phaseLabel||'') : ''}</div>
+          <div class="wsub">${esc(fmtDate(weekDates.length?weekDates[0]:weekStart))} – ${esc(fmtDate(weekDates.length?weekDates[weekDates.length-1]:weekEnd))}</div>
         </div>
         <svg class="chev ${isOpen?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--grey-600)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -8960,9 +9523,10 @@ function renderEventsList(){
             ${e.icon?`<img src="${esc(e.icon)}" alt="" class="event-card-icon">`:''}
             <h2>${esc(e.name)} ${e.hidden?'<span class="badge badge-rest">Hidden</span>':''}</h2>
           </div>
-          <span class="meta">Started ${esc(fmtDateLong(start))}</span>
+          <span class="meta">${(PlanByEvent[e.id] && PlanByEvent[e.id].fixedPlan && start>todayISO()) ? "Starts" : "Started"} ${esc(fmtDateLong(start))}</span>
         </div>
         <div data-pg-plan="${e.id}" style="margin:8px 0;"></div>
+        ${kotPkgCardHtml(e)}
         ${renderPhotoGallery(e)}
         <div class="save-row" style="margin-top:12px;">
           <button class="btn btn-ghost" data-hide-event="${e.id}">${e.hidden?'Unhide':'Hide'}</button>
@@ -9616,6 +10180,7 @@ function wireTabEvents(scopeEl){
     try{
       const text = await file.text();
       const parsed = JSON.parse(text);
+      if(parsed && typeof parsed==="object" && (parsed.kotPlanPackage!==undefined || (parsed.fixedPlan!==undefined && parsed.workouts && typeof parsed.workouts==="object" && !Array.isArray(parsed.workouts)))) throw new Error("This is a named plan package, not a Training Plan file, so nothing was imported. Use \"Import plan package\" on a General Fitness Period card instead.");
       if(!parsed || !Array.isArray(parsed.templates) || !parsed.templates.length) throw new Error("This file doesn't look like a Training Plan export (missing a \"templates\" list).");
       const ev = eventById(State._eventPlanForId);
       if(!ev) throw new Error("No Event selected.");
@@ -10023,7 +10588,7 @@ function renderWorkoutForm(id, w, isNew){
   const isRideOrRun = isCycling || isRun;
   const isFlexKind = w.kind==="flexrecovery";
   const isOtherKind = w.kind==="other";
-  const liveTime = isRideOrRun ? w.timeMin : estimateStrengthMinutes(w.exercises||[], Lib.exercises);
+  const liveTime = isRideOrRun ? w.timeMin : ((w.kind==="strengthblock" && w.plannedMin>0) ? w.plannedMin : estimateStrengthMinutes(w.exercises||[], Lib.exercises));
   return `
   <div class="card">
     <div class="card-header"><h2>${isNew?'New Workout':'Edit Workout'}</h2>${!isNew&&isCycling?cxZwoBtn(Object.assign({id},w),"",true):""}${!isNew?`<button class="btn btn-ghost" data-delete-workout="${id}" style="color:var(--red); border-color:var(--red-pale);">Delete</button>`:''}</div>
@@ -10504,6 +11069,7 @@ async function saveWorkoutFromForm(){
   } else {
     const draft = syncFormIntoDraft();
     data = {name, kind, desc, bodyGroup:document.getElementById("wf-bodygroup").value, exercises:draft.exercises};
+    { const prev = (idOld && Lib.workouts[idOld]) || null; const sig = l=>JSON.stringify((l||[]).map(x=>[x.exId,String(x.sets),String(x.reps)])); if(prev && prev.plannedMin>0 && sig(prev.exercises)===sig(data.exercises)) data.plannedMin = prev.plannedMin; }
   }
   const id = isNew ? uid("wk") : idOld;
   await saveWorkout(id, data);
@@ -10538,5 +11104,6 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
 
 
