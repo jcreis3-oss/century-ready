@@ -1059,6 +1059,35 @@ body.theme-light #kot-rcp-note{background:#fff;color:#111827;border-color:#1f293
 #kot-arc-view .arc-note{font-size:12px;margin-top:3px;}
 #kot-arc-view .arc-more{margin-top:8px;min-height:44px;}
 
+/* ---- C1: workout export review (calendar repair) ---- */
+#kot-gsr .modal-box{display:flex;flex-direction:column;padding:0;width:calc(100vw - 24px);max-width:680px;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow:hidden;}
+#kot-gsr .gsr-body{flex:1 1 auto;min-height:0;overflow:auto;padding:18px 16px 8px;-webkit-overflow-scrolling:touch;}
+#kot-gsr .gsr-foot{flex:0 0 auto;padding:10px 16px 14px;border-top:1px solid rgba(128,128,128,.25);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+#kot-gsr .gsr-foot button{min-height:44px;min-width:96px;}
+#kot-gsr h3{margin:0 0 4px;font-size:17px;}
+#kot-gsr .gsr-sub{font-size:12.5px;color:var(--ink-600,#64748b);margin:4px 0 8px;line-height:1.45;}
+#kot-gsr .gsr-msg{margin:10px 0;padding:9px 11px;border-radius:10px;font-size:12.5px;font-weight:600;line-height:1.4;border:1.5px solid rgba(128,128,128,.4);}
+#kot-gsr .gsr-msg.ok{background:rgba(22,163,74,.16);} #kot-gsr .gsr-msg.warn{background:rgba(217,119,6,.2);} #kot-gsr .gsr-msg.bad{background:rgba(220,38,38,.16);}
+#kot-gsr .gsr-list{list-style:none;margin:8px 0;padding:0;}
+#kot-gsr .gsr-row{border:1px solid rgba(128,128,128,.28);border-radius:10px;margin:6px 0;padding:0;font-size:13px;display:flex;align-items:stretch;flex-wrap:wrap;}
+#kot-gsr .gsr-row.gsr-warn{border-color:rgba(217,119,6,.6);} #kot-gsr .gsr-row.gsr-bad{border-color:rgba(220,38,38,.55);}
+#kot-gsr .gsr-lab{display:flex;align-items:flex-start;gap:10px;flex:1 1 220px;min-height:44px;padding:9px 11px;cursor:pointer;}
+#kot-gsr .gsr-lab input[type=checkbox]{width:22px;height:22px;margin:1px 0 0;flex:0 0 auto;}
+#kot-gsr .gsr-nochk{width:22px;height:22px;flex:0 0 auto;}
+#kot-gsr .gsr-t{display:flex;flex-direction:column;gap:2px;min-width:0;padding:0;}
+#kot-gsr .gsr-row > .gsr-t{padding:9px 11px;}
+#kot-gsr .gsr-when{font-size:12px;color:var(--ink-600,#64748b);}
+#kot-gsr .gsr-badge{font-size:12px;font-weight:600;}
+#kot-gsr .gsr-why{font-size:12px;color:var(--ink-600,#64748b);}
+#kot-gsr .gsr-ack{display:flex;gap:10px;align-items:center;min-height:44px;margin:10px 0;font-size:13px;font-weight:600;}
+#kot-gsr .gsr-ack input{width:22px;height:22px;flex:0 0 auto;}
+#kot-gsr .gsr-mini{min-height:44px;margin:0 8px 6px;font-size:12px;}
+#kot-gsr .gsr-det{margin:10px 0;font-size:12.5px;color:var(--ink-600,#64748b);} #kot-gsr .gsr-det summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:600;}
+#kot-gsr .gsr-det li{margin:4px 0;line-height:1.45;}
+#gs-card .gsr-card-msg{font-size:12px;margin:8px 0;padding:8px 10px;border-radius:8px;background:rgba(100,116,139,.16);}
+#gs-card .gsr-card-msg.warn{background:rgba(217,119,6,.2);} #gs-card .gsr-card-msg.bad{background:rgba(220,38,38,.16);}
+#kot-gsr .gsr-tools{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px;} #kot-gsr .gsr-tools button{min-height:44px;}
+
 </style>
 </head>
 <body class="theme-dark">
@@ -3935,7 +3964,7 @@ async function exportAllData(){
   const keys = await listKeys("");
   const bundle = {};
   for(const k of keys){
-    if(k==="driveConfig" || k==="stravaConfig" || k==="gsyncConfig" || k==="coachApiKey" || k==="coachRelayToken") continue;
+    if(k==="driveConfig" || k==="stravaConfig" || k==="gsyncConfig" || k==="coachApiKey" || k==="coachRelayToken" || k==="gsync:repair" || k==="gsync:repair.bak") continue;
     bundle[k] = await loadJSON(k);
   }
   return {updatedAt: new Date().toISOString(), data: bundle};
@@ -3943,7 +3972,8 @@ async function exportAllData(){
 async function importAllData(payload){
   if(!payload || !payload.data) return;
   for(const [k,v] of Object.entries(payload.data)){
-    if(k==="coachApiKey" || k==="coachRelayToken") continue; /* on-device only */
+    if(k==="coachApiKey" || k==="coachRelayToken" || k==="gsync:repair" || k==="gsync:repair.bak") continue; /* on-device only */
+    if(GSR.busy && String(k).startsWith("gsync")) continue;       /* a Drive pull never overwrites Calendar mapping/config while a repair holds the lock */
     await saveJSONRaw(k, v);
   }
   State.logs = {}; // clear in-memory log cache so re-reads pick up imported data
@@ -4155,9 +4185,11 @@ async function gsLoadState(){
   GS.map = {ev:m.ev||{}, tk:m.tk||{}};
   GS.mapStr = JSON.stringify(GS.map);
   GS.metaCore = gsMetaCore();
+  await gsrRefresh();
 }
 function gsMetaCore(){ return JSON.stringify(Object.assign({}, GS.meta, {calToken:0, tasksMin:0, lastSync:0})); }
-async function gsSaveState(force){
+async function gsSaveState(force, tok){
+  await gsrWaitIdle(tok);
   const ms = JSON.stringify(GS.map);
   if(ms !== GS.mapStr){ GS.mapStr = ms; await saveJSON("gsync:map", GS.map); }
   const core = gsMetaCore(), now = Date.now();
@@ -4207,7 +4239,7 @@ async function gsEnsureToken(interactive){
     GS.token = null; GS.tokenExp = 0; GS.blocked = true;
     throw gsErr("Signed in as "+email+", but KoT Calendar & Tasks is set up for "+GS.meta.email+". Not syncing. Reconnect with "+GS.meta.email+" (or use Switch account).", "account");
   }
-  if(!GS.meta.email && email){ GS.meta.email = email; await gsSaveState(true); }
+  if(!GS.meta.email && email){ GS.meta.email = email; await gsSaveState(true, GS.cycleTok); }
   GS.blocked = false;
   return true;
 }
@@ -4239,7 +4271,7 @@ async function gsEnsureContainers(){
     const r = await gsApi("POST", GS_CAL_API+"/calendars", {summary:GS_CAL_NAME, description:"Planned workouts from Keep on Training", timeZone:tz});
     if(!r.ok || !r.json || !r.json.id) throw gsErr("Couldn't create the KoT Training calendar (HTTP "+r.status+").", "api", r.status);
     GS.meta.calId = r.json.id; GS.meta.calToken = null; GS.calChecked = true;
-    await gsSaveState(true);                                          /* share the new id with the other device right away */
+    await gsSaveState(true, GS.cycleTok);                             /* share the new id with the other device right away */
     if(typeof Drive!=="undefined" && Drive.connected){ try{ await pushToDrive(); }catch(e){} }
   }
   if(gsRoutineOn() && !GS.meta.listId){
@@ -4255,32 +4287,33 @@ async function gsEnsureContainers(){
 /* ---------- desired state computed from KoT ---------- */
 function gsLocalISO(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function gsStartEpoch(date, min){ const [y,m,d] = date.split("-").map(Number); return new Date(y, m-1, d, 0, Math.round(min)).getTime(); }
+async function gsDesiredDay(date, out){
+  await rtLoadDay(date);
+  const day = getDayPlan(date), items = rtItemsFor(date), starts = rtWorkoutStarts(date, items, day), rec = rtRec(date);
+  (day.workouts||[]).forEach(w=>{
+    if(w.kind==="rest" || starts[w.slotKey]==null) return;
+    const st = starts[w.slotKey], dur = Math.max(5, Math.round(w.timeMin||30));
+    const ln = w.name || "Workout", name = kotWorkoutExportTitle(w), kotId = date+"|"+w.slotKey;      /* ln = the title KoT wrote before; the change hash keeps using it so existing events are NOT rewritten wholesale */
+    const desc = "KoT: "+(w.eventName||"Training")+" · "+(w.kind||"workout")+" · "+dur+" min";
+    const t0 = gsStartEpoch(date, st);
+    out.ev[kotId] = {kotId, date, sk:w.slotKey, name, ln, lab:gsHash128("lab1\u0001"+name), desc, st, dur, t0, h: gsHash128([ln,desc,t0,dur].join("\u0001"))};
+  });
+  const seen = {};
+  items.forEach(it=>{
+    if(!it.checkable || it.group==="workout" || seen[it.key]) return; seen[it.key] = 1;
+    const title = rtFmt(it.start)+" - "+it.name, due = date+"T00:00:00.000Z", kotId = date+"|"+it.key;
+    out.tk[kotId] = {kotId, date, key:it.key, title, due, done: !!(rec.c||{})[it.key], h: gsHash128(title+"\u0001"+due)};
+  });
+}
 async function gsDesired(){
   const out = {ev:{}, tk:{}}, today = todayISO();
-  for(let i=0;i<=GS_DAYS;i++){
-    const date = dateAdd(today, i);
-    await rtLoadDay(date);
-    const day = getDayPlan(date), items = rtItemsFor(date), starts = rtWorkoutStarts(date, items, day), rec = rtRec(date);
-    (day.workouts||[]).forEach(w=>{
-      if(w.kind==="rest" || starts[w.slotKey]==null) return;
-      const st = starts[w.slotKey], dur = Math.max(5, Math.round(w.timeMin||30));
-      const name = w.name || "Workout", kotId = date+"|"+w.slotKey;
-      const desc = "KoT: "+(w.eventName||"Training")+" · "+(w.kind||"workout")+" · "+dur+" min";
-      const t0 = gsStartEpoch(date, st);
-      out.ev[kotId] = {kotId, date, sk:w.slotKey, name, desc, st, dur, t0, h: gsHash128([name,desc,t0,dur].join("\u0001"))};
-    });
-    const seen = {};
-    items.forEach(it=>{
-      if(!it.checkable || it.group==="workout" || seen[it.key]) return; seen[it.key] = 1;
-      const title = rtFmt(it.start)+" - "+it.name, due = date+"T00:00:00.000Z", kotId = date+"|"+it.key;
-      out.tk[kotId] = {kotId, date, key:it.key, title, due, done: !!(rec.c||{})[it.key], h: gsHash128(title+"\u0001"+due)};
-    });
-  }
+  for(let i=0;i<=GS_DAYS;i++) await gsDesiredDay(dateAdd(today, i), out);
   return out;
 }
 
 /* ---------- pull: Google -> KoT ---------- */
 async function gsPullEvents(D, again){
+  if(gsrStateBlocksAll()){ GS.notes.push("Calendar event sync is paused because the workout repair record on this device can't be used. Nothing was changed."); return []; }
   const base = GS_CAL_API+"/calendars/"+gsEnc(GS.meta.calId)+"/events";
   let items = [], page = null, next = null, reset = false;
   for(;;){
@@ -4303,6 +4336,7 @@ async function gsPullEvents(D, again){
   for(const ev of items){
     const kotId = ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.kotId;
     const e = kotId && GS.map.ev[kotId]; if(!e || e.id !== ev.id) continue;
+    if(gsrIsBlocked(kotId)) continue;                                 /* unfinished repair for this workout: nothing is applied until it is reconciled */
     if(ev.status === "cancelled"){ e.unl = true; continue; }          /* deleted in Google -> unlink, workout stays */
     if(e.unl) continue;
     const s = ev.start && ev.start.dateTime; if(!s) continue;
@@ -4365,18 +4399,20 @@ function gsEvBody(d, withId){
   return b;
 }
 async function gsPushEvents(D, appliedIds){
+  if(gsrStateBlocksAll()) return;
   const base = GS_CAL_API+"/calendars/"+gsEnc(GS.meta.calId)+"/events", today = todayISO();
   for(const k of appliedIds){ if(GS.map.ev[k] && D.ev[k]) GS.map.ev[k].h = D.ev[k].h; }   /* Google already holds this time */
   for(const k of Object.keys(D.ev)){
     const d = D.ev[k]; let e = GS.map.ev[k];
     if(e && e.unl) continue;
+    if(gsrIsBlocked(k)) continue;
     if(!e){
       const body = gsEvBody(d, true), r = await gsApi("POST", base, body);
       if(r.status === 409){                                           /* already exists (other device, or lost mapping) */
         const g = await gsApi("GET", base+"/"+body.id);
         e = GS.map.ev[k] = {id:body.id, d:d.date, sk:d.sk, st:d.st, t0:d.t0, h:null};
         if(g.json && g.json.status === "cancelled"){ e.unl = true; continue; }
-      } else if(r.ok){ GS.map.ev[k] = {id:body.id, d:d.date, sk:d.sk, st:d.st, t0:d.t0, h:d.h}; continue; }
+      } else if(r.ok){ GS.map.ev[k] = {id:body.id, d:d.date, sk:d.sk, st:d.st, t0:d.t0, h:d.h, lab:d.lab}; continue; }
       else throw gsErr("Calendar create failed (HTTP "+r.status+").", "api", r.status);
     }
     if(e.h !== d.h || e.snap || e.t0 !== d.t0){
@@ -4384,12 +4420,15 @@ async function gsPushEvents(D, appliedIds){
       if(r.status === 404 || r.status === 410){ e.unl = true; continue; }
       if(!r.ok) throw gsErr("Calendar update failed (HTTP "+r.status+").", "api", r.status);
       e.h = d.h; e.st = d.st; e.t0 = d.t0; e.d = d.date; e.snap = false;
+      if(r.json && r.json.summary === d.name) e.lab = d.lab;
+    } else if(e.lab !== d.lab){
+      await gsLabelMigrate(base, k, d, e);                              /* title only: read the real record, PATCH summary only, verify */
     }
   }
   for(const k of Object.keys(GS.map.ev)){
     const e = GS.map.ev[k];
     if(e.d < dateAdd(today, -7)){ delete GS.map.ev[k]; continue; }
-    if(!D.ev[k] && e.d >= today && !e.unl){
+    if(!D.ev[k] && e.d >= today && !e.unl && !gsrIsBlocked(k)){
       await gsApi("DELETE", base+"/"+e.id); delete GS.map.ev[k];
     }
   }
@@ -4449,9 +4488,9 @@ async function gsPushTasks(D){
 
 /* ---------- the sync cycle (pull Drive -> pull Google -> apply -> push -> save) ---------- */
 async function gsCycle(reason){
-  if(!GS.cfg.enabled || GS.blocked || GS.running) return;
+  if(!GS.cfg.enabled || GS.blocked || GS.running || GSR.busy) return;
   if(typeof navigator!=="undefined" && navigator.onLine === false) return;
-  GS.running = true; GS.notes = []; gsRenderUI();
+  GS.running = true; GS.cycleTok = {}; const tok = GS.cycleTok; GS.notes = []; gsRenderUI();
   try{
     if(typeof Drive!=="undefined" && Drive.connected){                /* pull-before-push so both devices share one mapping */
       try{ if(Drive.dirtySincePush) await pushToDrive(); await pullFromDrive(); }catch(e){}
@@ -4466,16 +4505,16 @@ async function gsCycle(reason){
     const D = await gsDesired();                                      /* recompute after applying Google's changes */
     await gsPushEvents(D, appliedEv);
     if(gsRoutineOn()) await gsPushTasks(D);
-    await gsSaveState(false);
+    await gsSaveState(false, tok);
     try{ await gsGcalCycle(); }catch(e){}
     GS.lastSyncAt = new Date().toISOString(); GS.lastError = null; GS.errCode = null; GS.fails = 0;
     if(appliedEv.length && typeof renderTabContent==="function") renderTabContent();
   }catch(e){
     GS.lastError = e.message || String(e); GS.errCode = e.gsCode || "api"; GS.fails++;
-    try{ await gsSaveState(false); }catch(_){}
+    try{ await gsSaveState(false, tok); }catch(_){}
     if(GS.errCode === "retry" || GS.errCode === "api" || GS.errCode === "auth") gsScheduleRetry();
     console.warn("GS sync:", GS.lastError);
-  }finally{ GS.running = false; gsRenderUI(); }
+  }finally{ GS.running = false; GS.cycleTok = null; gsRenderUI(); }
 }
 function gsScheduleRetry(){
   if(GS.retryTimer) clearTimeout(GS.retryTimer);
@@ -4506,6 +4545,7 @@ async function gsInit(){
 
 /* ---------- connect / disconnect ---------- */
 async function gsConnect(base){
+  if(GSR.busy){ GS.lastError = "A workout repair is running in this browser. Connect again when it has finished. Nothing was changed."; GS.errCode = "busy"; gsRenderUI(); return; }
   GS.baseOnly = base === true; GS.lastError = null; GS.errCode = null; GS.blocked = false; GS.calChecked = false;
   const inp = document.getElementById("gs-hint-input");
   try{
@@ -4526,22 +4566,574 @@ async function gsConnect(base){
   gsRenderUI();
 }
 async function gsDisconnect(){
+  if(GSR.busy) return;
   GS.cfg.enabled = false; await saveJSONRaw("gsyncConfig", GS.cfg);
   GS.token = null; GS.tokenExp = 0; GS.blocked = false; GS.lastError = null;
   [GS.timer, GS.retryTimer].forEach(t=>t&&clearTimeout(t)); if(GS.pollTimer){ clearInterval(GS.pollTimer); GS.pollTimer = null; }
   gsRenderUI();
 }
 async function gsSwitchAccount(){
+  if(GSR.busy) return;
   if(!confirm("Switch the Google account used for Calendar & Tasks? KoT will forget the current KoT Training calendar / KoT Routine list links (existing items stay in Google) and set up fresh ones in the new account.")) return;
   GS.meta = {}; GS.map = {ev:{}, tk:{}}; GS.mapStr = ""; GS.blocked = false; GS.lastError = null; GS.metaCore = "";
   await saveJSON("gsync:map", GS.map); await saveJSON("gsync:meta", GS.meta);
   GS.cfg.hint = ""; await saveJSONRaw("gsyncConfig", GS.cfg);
   gsRenderUI();
 }
-async function gsResetUnlinks(){
-  Object.keys(GS.map.ev).forEach(k=>{ if(GS.map.ev[k].unl) delete GS.map.ev[k]; });
-  Object.keys(GS.map.tk).forEach(k=>{ if(GS.map.tk[k].unl) delete GS.map.tk[k]; });
-  await gsSaveState(true); gsCycle("relink");
+/* ============================================================
+   CALENDAR SYNC REPAIR (C1)
+   - Workout titles: one shared name/emoji helper (kotWorkoutExportTitle), used for every KoT-exported workout event.
+   - A summary-only, owned-record title migration for events KoT already exported (gsLabelMigrate).
+   - A guided, user-confirmed recovery for workout events that Google reports as cancelled (deleted) or that are missing:
+     preview (read-only) -> explicit confirmation -> one new event per selected workout under a new, generation-hashed id.
+   Device-local repair ledger: storage key "gsync:repair" (never exported, never sent to Drive, never imported).
+   No credentials and no data about other calendars or events are ever stored in it.
+   Drive's last-writer-wins sync is NOT a lock; only this browser's in-memory repair lock serialises work here.
+   Repair never creates, renames, deletes or switches calendars and never touches meetings, tasks or non-KoT events.
+   ============================================================ */
+const GSR_KEY = "gsync:repair", GSR_BAK = "gsync:repair.bak";
+const GSR_MAX_GEN = 3;                         /* bounded: generations 0 (original id) .. 3 */
+const GSR_PROBES = 3;                          /* bounded read-back probes after an uncertain write */
+const GSR_STATES = ["queued","intent","created","stopped","done"];
+const GSR = {busy:null, writing:false, state:"absent", ledger:{v:1, rev:0, items:{}, batch:null}, rev:0, ui:null, results:null, delays:[0,300,700], last:null};
+window.GSR = GSR;
+
+/* ---------- shared workout title helpers ---------- */
+function kotLeadingEmoji(s){ return /^\s*(?:\p{Extended_Pictographic}|\p{Regional_Indicator})/u.test(String(s == null ? "" : s)); }
+function kotWorkoutLabelName(w){ return String((w && w.name) || "").trim() || String((w && w.title) || "").trim() || "Workout"; }
+function kotWorkoutExportTitle(w){ const n = kotWorkoutLabelName(w); return kotLeadingEmoji(n) ? n : kotWorkoutEmoji(w) + " " + n; }
+
+/* Writers wait while a repair holds the lock. Two phases: DRAINING (busy set, writing false: new starts are refused but the sync cycle already running may finish its OWN saves, proven by its cycle token) and EXCLUSIVE (writing true: nobody writes calendar state but the repair). */
+async function gsrWaitIdle(tok){ const t0 = Date.now(); while(GSR.busy){ if(!GSR.writing && tok && GS.running && tok === GS.cycleTok) return; if(Date.now() - t0 > 120000) throw gsErr("A workout repair is still running; nothing was saved.", "retry"); await rcpDelay(100); } }
+/* ---------- ids ---------- */
+function gsrGenId(kotId, gen){ return gen === 0 ? gsEventId(kotId) : "kot" + gsHash128(kotId + "\u0002gen" + gen); }
+function gsrGenOf(kotId, id){ for(let g=0; g<=GSR_MAX_GEN; g++) if(gsrGenId(kotId, g) === id) return g; return null; }
+function gsrKey(acct, cal, kotId){ return String(acct||"").toLowerCase() + "|" + cal + "|" + kotId; }
+function gsrAbort(msg){ const e = new Error(msg); e.gsrAbort = true; return e; }
+function gsrSkip(msg){ const e = new Error(msg); e.gsrSkip = true; return e; }
+
+/* ---------- ledger: strict read, verified write ---------- */
+async function gsrRawRead(key){
+  let ks;
+  try{ const r = await window.storage.list(key, false); ks = (r && r.keys) || []; }catch(e){ return {state:"unknown"}; }
+  if(!ks.includes(key)) return {state:"absent"};
+  try{ const r = await window.storage.get(key, false); if(!r || typeof r.value !== "string") return {state:"unknown"}; return {state:"present", raw:r.value}; }catch(e){ return {state:"unknown"}; }
+}
+function gsrParseLedger(raw){
+  let j; try{ j = JSON.parse(raw); }catch(e){ return {state:"corrupt"}; }
+  if(!j || typeof j !== "object" || Array.isArray(j) || typeof j.v !== "number") return {state:"corrupt"};
+  if(j.v > 1) return {state:"newer", v:j.v};
+  if(j.v !== 1 || typeof j.rev !== "number" || !j.items || typeof j.items !== "object" || Array.isArray(j.items)) return {state:"corrupt"};
+  for(const k of Object.keys(j.items)){
+    const it = j.items[k];
+    if(!it || typeof it !== "object" || typeof it.kotId !== "string" || typeof it.acct !== "string" || typeof it.cal !== "string" || !GSR_STATES.includes(it.state) ||
+       !Number.isInteger(it.gen) || it.gen < 0 || it.gen > GSR_MAX_GEN || k !== gsrKey(it.acct, it.cal, it.kotId)) return {state:"corrupt"};
+  }
+  return {state:"ok", ledger:j};
+}
+async function gsrLedgerRead(){
+  const r = await gsrRawRead(GSR_KEY);
+  if(r.state === "absent") return {state:"absent", ledger:{v:1, rev:0, items:{}, batch:null}};
+  if(r.state !== "present") return {state:"unknown"};
+  const p = gsrParseLedger(r.raw); p.raw = r.raw; return p;
+}
+async function gsrRefresh(){
+  try{
+    const rd = await gsrLedgerRead();
+    GSR.state = rd.state;
+    if(rd.state === "ok" || rd.state === "absent"){ GSR.ledger = rd.ledger; GSR.rev = rd.ledger.rev; }
+  }catch(e){ GSR.state = "unknown"; }
+}
+/* the single write path: read, compare revision, write, read the WHOLE value back and compare */
+async function gsrCommit(mutate){
+  const rd = await gsrLedgerRead();
+  if(rd.state !== "ok" && rd.state !== "absent") return {ok:false, reason:rd.state};
+  if(rd.ledger.rev !== GSR.rev) return {ok:false, reason:"conflict"};
+  const next = JSON.parse(JSON.stringify(rd.ledger)); mutate(next);
+  next.v = 1; next.rev = rd.ledger.rev + 1; next.at = new Date().toISOString();
+  const str = JSON.stringify(next);
+  try{ await window.storage.set(GSR_KEY, str, false); }catch(e){}
+  let back = null;
+  for(let i=0; i<3; i++){ back = await gsrLedgerRead(); if(back.state === "ok") break; await rcpDelay(i*120); }
+  if(back.state === "ok" && arcCanon(back.ledger) === arcCanon(next)){ GSR.ledger = next; GSR.rev = next.rev; GSR.state = "ok"; return {ok:true, ledger:next}; }
+  return {ok:false, reason: back.state === "ok" ? "mismatch" : "unverifiable"};
+}
+function gsrStateBlocksAll(){ return GSR.state === "corrupt" || GSR.state === "newer" || GSR.state === "unknown"; }
+function gsrScope(){ return {acct:String((GS.meta && GS.meta.email) || "").toLowerCase(), cal:(GS.meta && GS.meta.calId) || ""}; }
+function gsrIsBlocked(kotId){
+  if(GSR.state !== "ok") return false;
+  const sc = gsrScope(), it = GSR.ledger.items[gsrKey(sc.acct, sc.cal, kotId)];
+  return !!it && it.state !== "done";
+}
+function gsrUnfinished(){
+  const sc = gsrScope(); if(GSR.state !== "ok") return [];
+  return Object.keys(GSR.ledger.items).map(k=>GSR.ledger.items[k]).filter(it=>it.acct === sc.acct && it.cal === sc.cal && it.state !== "done");
+}
+
+/* ---------- Google reads ---------- */
+function gsrIsOurs(x, kotId){ const ep = x && x.extendedProperties && x.extendedProperties.private; return !!ep && ep.kotApp === "keep-on-training" && ep.kotId === kotId; }
+function gsrMatchTime(x, d){ return Date.parse(x && x.start && x.start.dateTime) === d.t0 && Date.parse(x && x.end && x.end.dateTime) === d.t0 + d.dur*60000; }
+function gsrBody(d, id, gen){
+  const b = gsEvBody(d, false); b.id = id; b.extendedProperties.private.kotGen = String(gen); return b;
+}
+async function gsrGetEvent(ctx, id){
+  const base = GS_CAL_API + "/calendars/" + gsEnc(ctx.cal) + "/events";
+  const r = await gsApi("GET", base + "/" + gsEnc(id));
+  if(r.status === 404) return {status:"absent"};
+  if(r.status === 410) return {status:"cancelled", gone:true};
+  if(!r.ok) throw gsErr("Calendar read failed (HTTP " + r.status + ").", "api", r.status);
+  const j = r.json;
+  if(!j || typeof j !== "object" || Array.isArray(j) || !["confirmed","tentative","cancelled"].includes(j.status)) return {status:"malformed"};
+  return j;
+}
+/* read what Google holds for one workout: the ids KoT knows about, plus every confirmed record carrying this exact kotApp/kotId */
+async function gsrReadItem(ctx, d, e, L){
+  const ids = []; [e && e.id, L && L.id, gsrGenId(d.kotId, 0)].forEach(x=>{ if(x && !ids.includes(x)) ids.push(x); });
+  const recs = {};
+  try{
+    for(const id of ids) recs[id] = await gsrGetEvent(ctx, id);
+    const q = new URLSearchParams({maxResults:"10", singleEvents:"true", showDeleted:"false"});
+    q.append("privateExtendedProperty", "kotId=" + d.kotId); q.append("privateExtendedProperty", "kotApp=keep-on-training");
+    const lr = await gsApi("GET", GS_CAL_API + "/calendars/" + gsEnc(ctx.cal) + "/events?" + q.toString());
+    if(!lr.ok) return {err:"HTTP " + lr.status};
+    const items = ((lr.json && lr.json.items) || []).filter(x=>x.status !== "cancelled");
+    if(lr.json && lr.json.nextPageToken) return {err:"too many matching records"};
+    return {recs, ours:items.filter(x=>gsrIsOurs(x, d.kotId))};
+  }catch(err){ return {err:(err && err.message) || String(err)}; }
+}
+function gsrClassify(d, e, L, rd){
+  if(rd.err) return {cls:"uncertain", why:rd.err};
+  const ours = rd.ours, unf = L && L.state !== "done";
+  const cand = [e && e.id, L && L.id, gsrGenId(d.kotId, 0)].filter((x,i,a)=>x && a.indexOf(x) === i).map(id=>({id, r:rd.recs[id]}));
+  if(ours.length > 1) return {cls:"multiple", why:ours.length + " confirmed events carry this workout's marker"};
+  if(ours.length === 1){
+    const m = ours[0], tm = gsrMatchTime(m, d);
+    if(e && !e.unl && e.id === m.id && !unf) return {cls: tm ? "ok" : "drift", id:m.id};
+    if(!tm) return {cls:"uncertain", why:"a matching event exists but at a different time", id:m.id};
+    return {cls: unf ? "unfinished" : "adoptable", id:m.id};
+  }
+  const live = c=>c.r && c.r.status !== "absent" && c.r.status !== "cancelled";
+  if(cand.some(c=>live(c) && gsrIsOurs(c.r, d.kotId))) return {cls:"uncertain", why:"Google's list and direct read disagree"};
+  if(cand.some(c=>live(c))) return {cls:"foreign", why:"the id is held by an event that is not a KoT export"};
+  if(unf) return {cls:"unfinished", why:L.state};
+  if(cand.some(c=>c.r && c.r.status === "cancelled")) return {cls:"cancelled"};
+  return {cls:"missing"};
+}
+function gsrFp(d, e, L, rd, c){
+  return arcCanon({t0:d.t0, dur:d.dur, title:d.name, e:e ? {id:e.id, unl:!!e.unl, gen:e.gen == null ? null : e.gen} : null, L:L ? {s:L.state, g:L.gen, id:L.id} : null, cls:c.cls,
+    ours:(rd.ours || []).map(x=>x.id + "|" + (x.updated || "")).sort(), recs:Object.keys(rd.recs || {}).sort().map(id=>id + ":" + rd.recs[id].status + ":" + (rd.recs[id].updated || ""))});
+}
+const GSR_SELECTABLE = ["cancelled","missing","adoptable","unfinished"];
+
+/* ---------- context + guards ---------- */
+async function gsrContext(){
+  if(!GS.cfg.enabled) throw gsrAbort("Google Calendar sync isn't connected.");
+  if(GS.blocked) throw gsrAbort("Calendar sync is paused because the wrong Google account is signed in.");
+  await gsLoadState();
+  if(GSR.state === "corrupt") throw gsrAbort("The repair record on this device can't be read, so nothing was changed.");
+  if(GSR.state === "newer") throw gsrAbort("The repair record on this device was written by a newer version of KoT, so nothing was changed. Update KoT first.");
+  if(GSR.state !== "ok" && GSR.state !== "absent") throw gsrAbort("The repair record on this device couldn't be read right now, so nothing was changed. Try again.");
+  if(!GS.meta.email) throw gsrAbort("No Google account is recorded for Calendar sync yet. Run Sync Now first.");
+  await gsEnsureToken(false);
+  const acct = String(GS.meta.email || "").toLowerCase();
+  if(!acct || !GS.acctEmail || GS.acctEmail.toLowerCase() !== acct) throw gsrAbort("Couldn't confirm which Google account is signed in, so nothing was changed.");
+  const cal = GS.meta.calId;
+  if(!cal) throw gsrAbort("No output calendar is set up yet. Run Sync Now first. Repair never creates a calendar.");
+  const r = await gsApi("GET", GS_CAL_API + "/calendars/" + gsEnc(cal));
+  if(r.status !== 200) throw gsrAbort("The output calendar couldn't be confirmed in Google (HTTP " + r.status + "), so nothing was changed. Repair never creates or replaces calendars.");
+  return {acct, cal, tail:String(cal).replace(/@.*$/, "").slice(-8)};
+}
+async function gsrGuard(ctx, d){
+  if(!GS.cfg.enabled || GS.blocked) throw gsrAbort("Calendar sync was disconnected or paused during the repair.");
+  const meta = (await loadJSON("gsync:meta")) || {};
+  if(String(meta.email || "").toLowerCase() !== ctx.acct || meta.calId !== ctx.cal) throw gsrAbort("The Google account or the output calendar changed during the repair.");
+  if(!GS.acctEmail || GS.acctEmail.toLowerCase() !== ctx.acct) throw gsrAbort("The signed-in Google account no longer matches.");
+  if(d){
+    const day = {ev:{}, tk:{}}; await gsDesiredDay(d.date, day); const cur = day.ev[d.kotId];
+    if(!cur || cur.t0 !== d.t0 || cur.dur !== d.dur || cur.name !== d.name) throw gsrSkip("This workout changed in KoT after the preview, so it was not written.");
+  }
+}
+/* the in-browser repair lock: taken synchronously (a second click sees it at once), THEN we wait for a running sync, and it is held through finalization */
+async function gsrLock(label, fn){
+  if(GSR.busy) return {busy:true};
+  GSR.busy = label; gsRenderUI();
+  try{
+    const t0 = Date.now();
+    while(GS.running){ if(Date.now() - t0 > 45000) throw gsrAbort("A sync is still running. Nothing was changed. Try again in a moment."); await rcpDelay(100); }
+    GSR.writing = true;                                                /* synchronous with the drain loop ending: no gap for another writer */
+    return {busy:false, value:await fn()};
+  } finally { GSR.busy = null; GSR.writing = false; try{ scheduleGSync(); }catch(e){} gsRenderUI(); gsrRenderModal(); }
+}
+
+/* ---------- preview (read-only) ---------- */
+async function gsrBuildPreview(ctx){
+  const D = await gsDesired(), rows = [], items = GSR.ledger.items;
+  for(const kotId of Object.keys(D.ev)){
+    const d = D.ev[kotId], e = GS.map.ev[kotId] || null, ik = gsrKey(ctx.acct, ctx.cal, kotId), L = items[ik] || null;
+    const rd = await gsrReadItem(ctx, d, e, L), c = gsrClassify(d, e, L, rd);
+    rows.push({ik, kotId, date:d.date, sk:d.sk, title:d.name, t0:d.t0, dur:d.dur, st:d.st, cls:c.cls, why:c.why || "", fp:gsrFp(d, e, L, rd, c), selectable:GSR_SELECTABLE.includes(c.cls),
+      releasable:!!L && L.state !== "done" && (L.state === "queued" || L.state === "stopped")});
+  }
+  Object.keys(items).forEach(ik=>{
+    const L = items[ik];
+    if(L.acct === ctx.acct && L.cal === ctx.cal && L.state !== "done" && !D.ev[L.kotId])
+      rows.push({ik, kotId:L.kotId, date:L.date, sk:L.sk, title:L.title || "Workout", t0:L.t0, dur:L.dur, cls:"unfinished-out", why:"no longer in the sync window", fp:"", selectable:false, releasable:true});
+  });
+  rows.sort((a,b)=>(a.t0 - b.t0) || (a.kotId < b.kotId ? -1 : 1));
+  const today = todayISO();
+  return {ctx, rows, rev:GSR.rev, today, last:dateAdd(today, GS_DAYS), at:new Date().toISOString()};
+}
+async function gsrPreview(){
+  const res = await gsrLock("preview", async ()=>{ const ctx = await gsrContext(); return gsrBuildPreview(ctx); });
+  return res;
+}
+
+/* ---------- mapping write (whole store verified, unrelated mappings preserved) ---------- */
+async function gsrWriteMapping(d, id, gen, exact){
+  const rd = await gsrRawRead("gsync:map");
+  let fresh;
+  if(rd.state === "absent") fresh = {ev:{}, tk:{}};
+  else if(rd.state === "present"){ try{ fresh = JSON.parse(rd.raw); }catch(e){ return {ok:false, reason:"map-unreadable"}; } if(!fresh || typeof fresh !== "object" || Array.isArray(fresh)) return {ok:false, reason:"map-unreadable"}; }
+  else return {ok:false, reason:"unverifiable"};
+  const isObj = x=>x && typeof x === "object" && !Array.isArray(x);
+  const okCont = c=>c === undefined || (isObj(c) && Object.keys(c).every(k=>isObj(c[k])));
+  if(!okCont(fresh.ev) || !okCont(fresh.tk)) return {ok:false, reason:"map-malformed"};     /* never write over a store we cannot understand */
+  const intended = JSON.parse(JSON.stringify(fresh)); intended.ev = intended.ev || {}; intended.tk = intended.tk || {};
+  const ent = {id, d:d.date, sk:d.sk, st:d.st, t0:d.t0, h:exact && exact.h === false ? null : d.h};
+  if(exact && exact.lab) ent.lab = d.lab; else if(!exact) ent.lab = d.lab;
+  if(gen != null) ent.gen = gen;
+  intended.ev[d.kotId] = ent;
+  try{ await window.storage.set("gsync:map", JSON.stringify(intended), false); }catch(e){}
+  let back = null;
+  for(let i=0; i<3; i++){ back = await gsrRawRead("gsync:map"); if(back.state === "present") break; await rcpDelay(i*120); }
+  if(back.state !== "present") return {ok:false, reason:"unverifiable"};
+  let p = null; try{ p = JSON.parse(back.raw); }catch(e){}
+  if(!p || arcCanon(p) !== arcCanon(intended)) return {ok:false, reason:"mismatch"};
+  if(!p.ev || !isObj(p.ev) || !p.ev[d.kotId] || arcCanon(p.ev[d.kotId]) !== arcCanon(ent)) return {ok:false, reason:"mismatch"};   /* the target link itself must exist and equal what we meant to save */
+  GS.map = {ev:intended.ev, tk:intended.tk}; GS.mapStr = JSON.stringify(GS.map);
+  try{ rcpSyncAfterVerified(); }catch(e){}
+  return {ok:true};
+}
+
+/* ---------- one workout ---------- */
+async function gsrProbe(ctx, d, id){
+  let absent = 0;
+  for(let i=0; i<GSR_PROBES; i++){
+    await rcpDelay(GSR.delays[Math.min(i, GSR.delays.length-1)]);
+    let g; try{ g = await gsrGetEvent(ctx, id); }catch(err){ return {err:(err && err.message) || String(err)}; }
+    if(g.status === "absent"){ absent++; continue; }
+    if(g.status === "cancelled") return {tombstone:true};
+    if(!gsrIsOurs(g, d.kotId)) return {foreign:true};
+    return {found:g};
+  }
+  return {absent:true, n:absent};
+}
+async function gsrDoItem(ctx, d, ik){
+  const R = (outcome, msg, extra)=>Object.assign({ik, kotId:d.kotId, title:d.name, date:d.date, st:d.st, dur:d.dur, t0:d.t0, outcome, msg}, extra || {});
+  const base = GS_CAL_API + "/calendars/" + gsEnc(ctx.cal) + "/events";
+  const e = GS.map.ev[d.kotId] || null; let L = GSR.ledger.items[ik] || null;
+  const newItem = (gen, id, state, note)=>({kotId:d.kotId, acct:ctx.acct, cal:ctx.cal, date:d.date, sk:d.sk, title:d.name, t0:d.t0, dur:d.dur, gen, id, state, note:note || ""});
+  const setState = async (state, note, extra)=>gsrCommit(led=>{ const it = led.items[ik] || newItem(L ? L.gen : 0, L ? L.id : "", state); it.state = state; if(note != null) it.note = note; Object.assign(it, extra || {}); led.items[ik] = it; });
+  const rd = await gsrReadItem(ctx, d, e, L);
+  if(rd.err) return R("unverifiable", "Couldn't read Google (" + rd.err + "). Nothing was written; sync for this workout stays paused until you resume.");
+  /* reconcile first: adopt only an unambiguous, matching, confirmed KoT record */
+  if(rd.ours.length > 1){ await setState("stopped", "multiple"); return R("stopped-multiple", "More than one confirmed event carries this workout's marker, so KoT stopped and wrote nothing."); }
+  const finish = async (id, gen, adopted, rec)=>{
+    const g1 = await setState("created", "", {id, gen});                      /* not fatal if this fails: the ledger still holds the earlier intent */
+    try{ await gsrGuard(ctx, d); }catch(err){ return R("saved-map-unverified", "Google has the event, but the repair stopped before KoT saved the link (" + err.message + "). Sync for this workout is paused until you resume."); }
+    const exact = rec ? {h: (rec.description || "") === d.desc, lab: rec.summary === d.name} : null;
+    const mp = await gsrWriteMapping(d, id, gen, exact ? {h: exact.h ? true : false, lab: exact.lab} : null);
+    if(!mp.ok) return R("saved-map-unverified", "Google saved the event, but KoT couldn't verify its saved link (" + mp.reason + "). Sync for this workout is paused until you resume; resuming checks again and does not create another event.", {id});
+    const g2 = await setState("done", "");
+    return R(adopted ? "adopted" : "created", adopted ? "A matching event already existed, so KoT linked it instead of creating another." : "Created in Google; the link was saved and verified.", {id, ledgerOk:!!g2.ok});
+  };
+  if(rd.ours.length === 1){
+    const m = rd.ours[0];
+    if(!gsrMatchTime(m, d)){ await setState("stopped", "different-time"); return R("stopped-uncertain", "A matching event exists but at a different time, so KoT left it and wrote nothing."); }
+    return finish(m.id, gsrGenOf(d.kotId, m.id) == null ? (L ? L.gen : 0) : gsrGenOf(d.kotId, m.id), true, m);
+  }
+  const live = c=>c && c.status !== "absent" && c.status !== "cancelled";
+  if(Object.keys(rd.recs).some(id=>rd.recs[id].status === "malformed")){ await setState("stopped", "uncertain"); return R("stopped-uncertain", "A Google record for this workout could not be understood, so KoT stopped and wrote nothing."); }
+  if(Object.keys(rd.recs).some(id=>live(rd.recs[id]) && gsrIsOurs(rd.recs[id], d.kotId))){ await setState("stopped", "uncertain"); return R("stopped-uncertain", "Google's list and a direct read disagree about this workout, so KoT stopped and wrote nothing."); }
+  if(Object.keys(rd.recs).some(id=>live(rd.recs[id]) && !gsrIsOurs(rd.recs[id], d.kotId))){ await setState("stopped", "foreign"); return R("stopped-foreign", "An id KoT would use is held by an event that is not a KoT export, so KoT stopped and wrote nothing."); }
+  /* create: choose the first generation that is not known to be taken, record a durable intent, then POST */
+  let gen = L ? L.gen : 0;
+  if(!L || L.state === "queued") while(gen <= GSR_MAX_GEN && (((rd.recs[gsrGenId(d.kotId, gen)] || {}).status === "cancelled") || (e && e.id === gsrGenId(d.kotId, gen)))) gen++;
+  let started = false;
+  while(gen <= GSR_MAX_GEN){
+    const id = gsrGenId(d.kotId, gen);
+    if(!(L && L.state === "intent" && L.gen === gen && L.id === id)){
+      const c = await gsrCommit(led=>{ led.items[ik] = newItem(gen, id, "intent"); });
+      if(!c.ok) return R(started ? "ledger-failed-mid" : "ledger-failed", "KoT couldn't record the repair intent on this device (" + c.reason + "), so it sent nothing to Google for this workout.");
+      L = c.ledger.items[ik];
+    }
+    await gsrGuard(ctx, d);                                                    /* last check immediately before the Google write */
+    started = true;
+    let r = null, err = null;
+    try{ r = await gsApi("POST", base, gsrBody(d, id, gen)); }catch(x){ err = x; }
+    if(err){
+      const definitive = typeof err.status === "number" && err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429;
+      if(definitive) return R("not-saved", "Google refused the request (HTTP " + err.status + "). The same intent and id are kept for a later retry.");
+      const p = await gsrProbe(ctx, d, id);                                    /* unknown outcome: never advance, never blind-retry */
+      if(p.found && gsrMatchTime(p.found, d)) return finish(id, gen, false, p.found);
+      if(p.found) { await setState("stopped", "different-time"); return R("stopped-uncertain", "The event exists at a different time than planned, so KoT stopped and wrote nothing more."); }
+      if(p.absent) return R("not-found", "The event was not found during " + p.n + " checks, but Google may still have saved it. KoT kept the same intent and id; resuming checks that id first and never advances.");
+      return R("unverifiable", "KoT couldn't tell whether Google saved the event (" + (p.err || (p.foreign ? "foreign record" : "tombstone")) + "). Sync for this workout stays paused; resuming checks the same id first and never advances.");
+    }
+    if(r.ok){
+      let g = null; try{ g = await gsrGetEvent(ctx, id); }catch(x){}
+      if(g && g.status === "confirmed" && gsrIsOurs(g, d.kotId) && gsrMatchTime(g, d)) return finish(id, gen, false, g);
+      const p = await gsrProbe(ctx, d, id);
+      if(p.found && gsrMatchTime(p.found, d)) return finish(id, gen, false, p.found);
+      return R("unverifiable", "Google accepted the request, but KoT couldn't verify the saved event. Sync for this workout stays paused; resuming checks the same id first.");
+    }
+    if(r.status === 409){
+      let g = null; try{ g = await gsrGetEvent(ctx, id); }catch(x){ return R("unverifiable", "Google said the id exists, but KoT couldn't read it (" + x.message + "). Sync for this workout stays paused; resuming checks the same id first."); }
+      if(g.status === "confirmed" && gsrIsOurs(g, d.kotId) && gsrMatchTime(g, d)) return finish(id, gen, true, g);
+      if(g.status === "absent") return R("unverifiable", "Google said the id exists but then returned nothing for it. KoT stopped and kept the same intent and id; resuming checks that id first.");
+      if(g.status === "cancelled"){ gen++; L = null; continue; }                  /* ONLY a definite cancelled/410 record advances: the next generation needs its own verified durable intent */
+      if(g.status === "malformed"){ await setState("stopped", "uncertain"); return R("stopped-uncertain", "Google said the id exists but its record could not be understood, so KoT stopped and wrote nothing more."); }
+      if(gsrIsOurs(g, d.kotId)){ await setState("stopped", "different-time"); return R("stopped-uncertain", "A KoT event for this workout already exists at a different time or in a different form, so KoT stopped. It will not create a second event."); }
+      await setState("stopped", "foreign"); return R("stopped-foreign", "The id is held by an event that is not a KoT export, so KoT stopped and wrote nothing more.");
+    }
+    return R("not-saved", "Google answered HTTP " + r.status + ". The same intent and id are kept for a later check or retry.");
+  }
+  await setState("stopped", "exhausted");
+  return R("stopped-exhausted", "All " + (GSR_MAX_GEN + 1) + " ids KoT may try for this workout are already taken in Google, so it stopped. Nothing was created.");
+}
+
+/* ---------- confirm / resume ---------- */
+async function gsrConfirm(model, selected){
+  GSR.ui.phase = "running"; GSR.ui.progress = {done:0, total:selected.length}; gsrRenderModal();
+  const res = await gsrLock("repair", async ()=>{
+    const results = [];
+    const ctx = await gsrContext();
+    if(ctx.acct !== model.ctx.acct || ctx.cal !== model.ctx.cal) throw gsrAbort("The Google account or the output calendar is not the one you reviewed. Nothing was changed. Review again.");
+    if(GSR.rev !== model.rev) throw gsrAbort("The repair record changed after your review (another tab?). Nothing was changed. Review again.");
+    const D = await gsDesired(), todo = [];
+    for(const row of model.rows.filter(r=>selected.includes(r.ik))){
+      const d = D.ev[row.kotId]; if(!d || !row.selectable){ results.push({ik:row.ik, kotId:row.kotId, title:row.title, date:row.date, t0:row.t0, dur:row.dur, outcome:"skipped-changed", msg:"No longer in the plan. Not written."}); continue; }
+      const e = GS.map.ev[row.kotId] || null, L = GSR.ledger.items[row.ik] || null;
+      const rd = await gsrReadItem(ctx, d, e, L), c = gsrClassify(d, e, L, rd);
+      if(gsrFp(d, e, L, rd, c) !== row.fp){ results.push({ik:row.ik, kotId:row.kotId, title:row.title, date:row.date, t0:row.t0, dur:row.dur, outcome:"skipped-changed", msg:"Changed since the preview (in Google, in KoT or by another device). Not written. Review again."}); continue; }
+      todo.push({row, d});
+    }
+    if(todo.length){
+      const b = await gsrCommit(led=>{
+        todo.forEach(({row, d})=>{ if(!led.items[row.ik]) led.items[row.ik] = {kotId:d.kotId, acct:ctx.acct, cal:ctx.cal, date:d.date, sk:d.sk, title:d.name, t0:d.t0, dur:d.dur, gen:0, id:"", state:"queued", note:""}; });
+        led.batch = {id:"b" + Date.now().toString(36), at:new Date().toISOString(), state:"running", n:todo.length};
+      });
+      if(!b.ok){ todo.forEach(({row, d})=>results.push({ik:row.ik, kotId:row.kotId, title:d.name, date:d.date, t0:d.t0, dur:d.dur, outcome:"ledger-failed", msg:"KoT couldn't record the repair batch on this device (" + b.reason + "), so nothing was sent to Google."})); todo.length = 0; }
+    }
+    let aborted = null;
+    for(const {row, d} of todo){
+      if(aborted){ results.push({ik:row.ik, kotId:row.kotId, title:d.name, date:d.date, t0:d.t0, dur:d.dur, outcome:"not-started", msg:"Not started: " + aborted}); continue; }
+      try{ results.push(await gsrDoItem(ctx, d, row.ik)); }
+      catch(err){
+        if(err && err.gsrAbort){ aborted = err.message; results.push({ik:row.ik, kotId:row.kotId, title:d.name, date:d.date, t0:d.t0, dur:d.dur, outcome:"not-started", msg:"Not written: " + err.message}); }
+        else if(err && err.gsrSkip) results.push({ik:row.ik, kotId:row.kotId, title:d.name, date:d.date, t0:d.t0, dur:d.dur, outcome:"skipped-changed", msg:err.message});
+        else results.push({ik:row.ik, kotId:row.kotId, title:d.name, date:d.date, t0:d.t0, dur:d.dur, outcome:"unverifiable", msg:"Something went wrong (" + ((err && err.message) || err) + "). Sync for this workout stays paused; resume checks again."});
+      }
+      GSR.ui.progress.done++; gsrRenderModal();
+    }
+    /* finalize inside the lock: drop finished items, record the batch outcome */
+    const allDone = results.length && results.every(r=>["created","adopted"].includes(r.outcome));
+    await gsrCommit(led=>{
+      Object.keys(led.items).forEach(k=>{ if(led.items[k].state === "done") delete led.items[k]; });
+      if(led.batch) led.batch.state = Object.keys(led.items).length ? "partial" : "complete";
+    });
+    return {results, aborted, allDone};
+  });
+  return res;
+}
+async function gsrRelease(ik){
+  return gsrLock("release", async ()=>{
+    await gsrRefresh();
+    const L = GSR.ledger.items[ik]; if(!L) return {ok:true};
+    if(!(L.state === "queued" || L.state === "stopped" || GSR.ui && GSR.ui.model && GSR.ui.model.rows.some(r=>r.ik === ik && r.cls === "unfinished-out"))) return {ok:false, reason:"Only items that never sent anything, or that are no longer in the plan, can be released."};
+    const c = await gsrCommit(led=>{ delete led.items[ik]; });
+    return {ok:c.ok, reason:c.reason};
+  });
+}
+async function gsrSetAside(){
+  return gsrLock("setaside", async ()=>{
+    await gsrRefresh();
+    if(GSR.state !== "corrupt") return {ok:false, reason:"The repair record isn't corrupt."};
+    const r = await gsrRawRead(GSR_KEY); if(r.state !== "present") return {ok:false, reason:"unreadable"};
+    try{ await window.storage.set(GSR_BAK, r.raw, false); }catch(e){}
+    const b = await gsrRawRead(GSR_BAK); if(b.state !== "present" || b.raw !== r.raw) return {ok:false, reason:"backup copy could not be verified; nothing was removed"};
+    try{ await window.storage.delete(GSR_KEY, false); }catch(e){}
+    const a = await gsrRawRead(GSR_KEY); await gsrRefresh();
+    return {ok:a.state === "absent", reason:a.state === "absent" ? "" : "removal could not be verified"};
+  });
+}
+
+/* ---------- label migration for events KoT already exported (summary only, owned records only) ---------- */
+async function gsLabelMigrate(base, k, d, e){
+  if(!e || !e.id) return;
+  const g = await gsApi("GET", base + "/" + e.id);
+  if(g.status === 404 || g.status === 410){ e.unl = true; return; }              /* gone in Google: same as the ordinary behaviour */
+  if(!g.ok) throw gsErr("Calendar read failed (HTTP " + g.status + ").", "api", g.status);
+  const rec = g.json || {};
+  if(rec.status === "cancelled"){ e.unl = true; return; }
+  const ep = (rec.extendedProperties && rec.extendedProperties.private) || {};
+  if(ep.kotApp !== "keep-on-training" || ep.kotId !== k){ e.lab = d.lab; GS.notes.push("A Google event for one workout isn't a KoT export; its title was left alone."); return; }
+  if(rec.summary === d.name){ e.lab = d.lab; return; }                           /* already right: no write at all */
+  if(rec.summary !== d.ln){ e.lab = d.lab; GS.notes.push("A workout event was renamed in Google, so KoT left its title alone."); return; }   /* a title KoT did not write: keep the person's edit */
+  const before = {s:Date.parse(rec.start && rec.start.dateTime), e:Date.parse(rec.end && rec.end.dateTime), desc:rec.description || "", rem:JSON.stringify(rec.reminders || null), kg:ep.kotApp + "|" + ep.kotId};
+  const r = await gsApi("PATCH", base + "/" + e.id, {summary:d.name});
+  if(!r.ok) throw gsErr("Calendar title update failed (HTTP " + r.status + ").", "api", r.status);
+  const v = await gsApi("GET", base + "/" + e.id), a = v.ok ? v.json : null;
+  const aep = (a && a.extendedProperties && a.extendedProperties.private) || {};
+  if(a && a.status !== "cancelled" && a.summary === d.name && Date.parse(a.start && a.start.dateTime) === before.s && Date.parse(a.end && a.end.dateTime) === before.e &&
+     (a.description || "") === before.desc && JSON.stringify(a.reminders || null) === before.rem && aep.kotApp + "|" + aep.kotId === before.kg) e.lab = d.lab;
+  else GS.notes.push("A workout title update couldn't be verified; it will be checked again on the next sync.");
+}
+
+/* ---------- UI ---------- */
+function gsrWhen(r){
+  const s = new Date(r.t0), e = new Date(r.t0 + r.dur*60000), tf = x=>x.toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit"});
+  return s.toLocaleDateString("en-US", {weekday:"short", month:"short", day:"numeric"}) + " · " + tf(s) + "–" + tf(e) + " (" + r.dur + " min)";
+}
+const GSR_BADGE = {
+  ok:["Matches in Google","ok"], drift:["In Google at a different time (normal sync handles this)","ok"], cancelled:["Deleted in Google (cancelled)","warn"], missing:["Not in Google","warn"],
+  adoptable:["A matching event already exists. KoT will link it, not create another","warn"], multiple:["Several matching events. Left alone","bad"], foreign:["The id is used by something that isn't a KoT export. Left alone","bad"],
+  uncertain:["Couldn't be read or compared. Left alone","bad"], unfinished:["Unfinished repair. You can resume it","warn"], "unfinished-out":["Unfinished repair for a workout no longer in the window","bad"]
+};
+const GSR_OUT = {created:["Created","ok"], adopted:["Linked an existing event","ok"], "skipped-changed":["Skipped: changed since preview","warn"], "stopped-multiple":["Stopped: several matches","bad"], "stopped-foreign":["Stopped: id not a KoT export","bad"],
+  "stopped-uncertain":["Stopped: uncertain","bad"], "stopped-exhausted":["Stopped: no free id","bad"], "not-saved":["Refused by Google","warn"], "not-found":["Not found during checks","warn"], "saved-map-unverified":["Google saved it, link not verified","bad"], unverifiable:["Couldn't verify","bad"],
+  "ledger-failed":["Not started: couldn't record intent","bad"], "ledger-failed-mid":["Stopped: couldn't record intent","bad"], "not-started":["Not started","warn"]};
+function gsrNoteHtml(){
+  return `<details class="gsr-det"><summary>What this does and doesn't do</summary><ul>
+    <li>Google can refuse to accept the id of an event you deleted (it answers &ldquo;already exists&rdquo;), so KoT doesn't try to reuse it. For each workout you select it creates ONE new event under a new id derived from the workout and a generation number. The old cancelled event is left as it is. KoT can't promise how long Google keeps a deleted id.</li>
+    <li>The same generation gives the same id on one device, but a device that hasn't caught up can pick a different one, so devices are not guaranteed to agree. Close KoT on every other tab and device while repairing.</li>
+    <li>Google Drive sync keeps whichever device wrote last. That is not a lock.</li>
+    <li>Writes are limited to calendars KoT created (the calendar.app.created permission). The normal connection also asks to read your calendar list and events. Those permissions are not why there are several calendars named &ldquo;KoT Training&rdquo;, and repair never creates, renames, deletes or switches calendars.</li>
+    <li>Meetings, other calendars, routine tasks and past days are never touched. Your workouts, dates, times and logs don't change.</li></ul></details>`;
+}
+function gsrViewHtml(ui){
+  const m = ui.model, ctx = m && m.ctx;
+  const who = ctx ? `<p class="gsr-sub">Account <b>${esc(ctx.acct)}</b> · calendar ending <b>…${esc(ctx.tail)}</b></p>` : "";
+  let b = "";
+  if(ui.phase === "loading") b = `<h3>Review workout exports</h3><p class="gsr-sub" role="status">Reading Google… This only reads. Nothing is changed.</p>`;
+  else if(ui.phase === "error") b = `<h3>Review workout exports</h3><p class="gsr-msg bad" role="alert">${esc(ui.error)}</p><p class="gsr-sub">Nothing was changed.</p>${GSR.state === "corrupt" ? `<p class="gsr-sub">Event sync stays paused until the unreadable record is dealt with. Setting it aside keeps a copy and removes it from use; it does not touch Google.</p><button type="button" class="btn btn-ghost" data-gsr="setaside">Set the unreadable record aside</button>` : ""}`;
+  else if(ui.phase === "preview"){
+    const sel = ui.sel.size, canSel = m.rows.filter(r=>r.selectable).length;
+    const blk = GSR.state === "corrupt" ? `<p class="gsr-msg bad" role="alert">The repair record on this device can't be read, so event sync is paused. <button type="button" class="btn btn-ghost" data-gsr="setaside">Set the unreadable record aside</button></p>` : "";
+    b = `<h3>Review workout exports</h3>${who}
+      <p class="gsr-sub">Preview only. Nothing has been changed and nothing is selected. Window: ${esc(m.today)} to ${esc(m.last)}, today plus ${GS_DAYS} days. Some of these may have been deleted in Google on purpose. Leave those unselected.</p>${blk}
+      <div class="gsr-tools"><button type="button" class="btn btn-ghost" data-gsr="selall" ${canSel ? "" : "disabled"}>Select all repairable</button><button type="button" class="btn btn-ghost" data-gsr="reread">Read again</button></div>
+      <ul class="gsr-list">${m.rows.length ? m.rows.map((r,i)=>{
+        const bd = GSR_BADGE[r.cls] || [r.cls, "bad"], id = "gsr-r" + i;
+        const left = r.selectable ? `<input type="checkbox" id="${id}" data-gsr-sel="${esc(r.ik)}" ${ui.sel.has(r.ik) ? "checked" : ""}>` : `<span class="gsr-nochk" aria-hidden="true"></span>`;
+        const rel = r.releasable ? ` <button type="button" class="btn btn-ghost gsr-mini" data-gsr-release="${esc(r.ik)}">Release without changes</button>` : "";
+        return `<li class="gsr-row gsr-${bd[1]}"><${r.selectable ? "label" : "div"} ${r.selectable ? `for="${id}"` : ""} class="gsr-lab">${left}<span class="gsr-t"><b>${esc(r.title)}</b><span class="gsr-when">${esc(gsrWhen(r))}</span><span class="gsr-badge">${esc(bd[0])}${r.why && r.cls !== "adoptable" && r.cls !== "unfinished" ? " (" + esc(r.why) + ")" : ""}</span></span></${r.selectable ? "label" : "div"}>${rel}</li>`;
+      }).join("") : `<li class="gsr-sub">No workouts are planned in this window.</li>`}</ul>${gsrNoteHtml()}`;
+    ui.canSel = canSel; ui.nSel = sel;
+  }
+  else if(ui.phase === "confirm"){
+    const rows = m.rows.filter(r=>ui.sel.has(r.ik));
+    b = `<h3>Confirm</h3>${who}
+      <p class="gsr-sub">KoT will create or link ${rows.length} workout event${rows.length === 1 ? "" : "s"} in this calendar. It won't delete or change any existing event, your workouts, dates, times or logs.</p>
+      <ul class="gsr-list">${rows.map(r=>`<li class="gsr-row"><span class="gsr-t"><b>${esc(r.title)}</b><span class="gsr-when">${esc(gsrWhen(r))}</span></span></li>`).join("")}</ul>
+      <label class="gsr-ack"><input type="checkbox" data-gsr-ack="1" ${ui.ack ? "checked" : ""}> I have closed KoT on my other tabs and devices.</label>
+      <p class="gsr-sub">If Google doesn't answer clearly, KoT won't guess or retry blindly. It will check the same id and tell you what it found.</p>`;
+  }
+  else if(ui.phase === "running") b = `<h3>Repairing…</h3>${who}<p class="gsr-sub" role="status">${ui.progress ? ui.progress.done + " of " + ui.progress.total + " checked" : "Working…"} Please keep this page open.</p>`;
+  else if(ui.phase === "results"){
+    const rs = ui.results || [], ok = rs.filter(r=>["created","adopted"].includes(r.outcome)).length;
+    const bad = rs.length - ok;
+    b = `<h3>${bad ? "Finished with items that need attention" : "Done"}</h3>${who}
+      <p class="gsr-msg ${bad ? "warn" : "ok"}" role="status">${ok} of ${rs.length} workout${rs.length === 1 ? "" : "s"} repaired${bad ? ". " + bad + " not finished" : ""}.</p>
+      <ul class="gsr-list">${rs.map(r=>{ const bd = GSR_OUT[r.outcome] || [r.outcome, "bad"];
+        return `<li class="gsr-row gsr-${bd[1]}"><span class="gsr-t"><b>${esc(r.title)}</b><span class="gsr-when">${esc(gsrWhen(r))}</span><span class="gsr-badge">${esc(bd[0])}</span><span class="gsr-why">${esc(r.msg)}</span></span></li>`; }).join("")}</ul>
+      ${ui.aborted ? `<p class="gsr-msg bad">${esc(ui.aborted)}</p>` : ""}
+      <p class="gsr-sub">Nothing was deleted or rolled back. Items that are not finished keep their own sync paused until you review them again.</p>`;
+  }
+  return b;
+}
+function gsrFooter(ui){
+  const bt = (a, t, cls, dis)=>`<button type="button" class="btn ${cls || "btn-ghost"}" data-gsr="${a}" ${dis ? "disabled" : ""}>${t}</button>`;
+  if(ui.phase === "loading" || ui.phase === "running") return bt("close", "Close", "btn-ghost", ui.phase === "running");
+  if(ui.phase === "error") return bt("close", "Close") + bt("reread", "Try again", "btn-primary");
+  if(ui.phase === "preview"){
+    const n = ui.sel.size, unf = ui.model.rows.some(r=>r.cls === "unfinished" && r.selectable);
+    return bt("close", "Close") + bt("next", n ? "Review " + n + " selected" : "Choose workouts", "btn-primary", !n);
+  }
+  if(ui.phase === "confirm") return bt("back", "Back") + bt("confirm", "Create " + ui.sel.size + " workout event" + (ui.sel.size === 1 ? "" : "s"), "btn-primary", !ui.ack);
+  return bt("close", "Close", "btn-primary") + (ui.results && ui.results.some(r=>!["created","adopted"].includes(r.outcome)) ? bt("reread", "Review again") : "");
+}
+function gsrRenderModal(){
+  const ui = GSR.ui; let m = document.getElementById("kot-gsr");
+  if(!ui){ if(m) m.remove(); return; }
+  if(!m){
+    m = document.createElement("div"); m.id = "kot-gsr"; m.className = "modal-backdrop";
+    m.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true" aria-label="Review workout exports"><div class="gsr-body"></div><div class="gsr-foot"></div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener("click", gsrOnClick); m.addEventListener("change", gsrOnChange);
+    try{ const bx = m.querySelector(".modal-box"); bx.setAttribute("tabindex", "-1"); bx.focus(); }catch(e){}
+  }
+  const body = m.querySelector(".gsr-body"), top = body.scrollTop;
+  body.innerHTML = gsrViewHtml(ui); m.querySelector(".gsr-foot").innerHTML = gsrFooter(ui); body.scrollTop = top;
+}
+function gsrOnChange(e){
+  const ui = GSR.ui; if(!ui) return;
+  const s = e.target.closest && e.target.closest("[data-gsr-sel]"), a = e.target.closest && e.target.closest("[data-gsr-ack]");
+  if(s){ const k = s.getAttribute("data-gsr-sel"); if(s.checked) ui.sel.add(k); else ui.sel.delete(k); gsrRenderModal(); }
+  if(a){ ui.ack = a.checked; gsrRenderModal(); }
+}
+async function gsrOnClick(e){
+  const ui = GSR.ui; if(!ui) return;
+  if(e.target.classList && e.target.classList.contains("modal-backdrop") && ui.phase !== "running"){ GSR.ui = null; gsrRenderModal(); return; }
+  const rel = e.target.closest && e.target.closest("[data-gsr-release]");
+  if(rel){ const r = await gsrRelease(rel.getAttribute("data-gsr-release")); if(r.busy) return; gsrLoadPreview(); return; }
+  const t = e.target.closest && e.target.closest("[data-gsr]"); if(!t || t.disabled) return;
+  const a = t.getAttribute("data-gsr");
+  if(a === "close"){ if(ui.phase !== "running"){ GSR.ui = null; gsrRenderModal(); } }
+  else if(a === "reread") gsrLoadPreview();
+  else if(a === "selall"){ ui.model.rows.filter(r=>r.selectable).forEach(r=>ui.sel.add(r.ik)); gsrRenderModal(); }
+  else if(a === "next"){ if(ui.sel.size){ ui.phase = "confirm"; ui.ack = false; gsrRenderModal(); } }
+  else if(a === "back"){ ui.phase = "preview"; gsrRenderModal(); }
+  else if(a === "setaside"){ const r = await gsrSetAside(); if(r.busy) return; if(!r.value || !r.value.ok){ ui.phase = "error"; ui.error = "Couldn't set the record aside: " + ((r.value && r.value.reason) || "unknown") + "."; gsrRenderModal(); } else gsrLoadPreview(); }
+  else if(a === "confirm") gsrRunConfirm();
+}
+async function gsrLoadPreview(){
+  const ui = GSR.ui || (GSR.ui = {}); ui.phase = "loading"; ui.sel = new Set(); ui.ack = false; gsrRenderModal();
+  try{
+    const r = await gsrPreview();
+    if(r.busy){ ui.phase = "error"; ui.error = "A repair or review is already running in this browser."; }
+    else{ ui.model = r.value; ui.phase = "preview"; }
+  }catch(err){ ui.phase = "error"; ui.error = (err && err.message) || String(err); }
+  gsrRenderModal(); return ui;
+}
+async function gsrRunConfirm(){
+  const ui = GSR.ui; if(!ui || ui.phase !== "confirm" || !ui.ack || GSR.busy) return;
+  const selected = Array.from(ui.sel);
+  try{
+    const r = await gsrConfirm(ui.model, selected);
+    if(r.busy){ ui.phase = "confirm"; return; }
+    ui.results = r.value.results; ui.aborted = r.value.aborted; ui.phase = "results"; GSR.last = r.value;
+    if(r.value.results.some(x=>["created","adopted"].includes(x.outcome))) setTimeout(()=>{ try{ gsCycle("repair"); }catch(e){} }, 300);
+  }catch(err){ ui.phase = "error"; ui.error = (err && err.message) || String(err); }
+  gsrRenderModal();
+}
+async function gsrOpen(){
+  if(!GS.cfg || !GS.cfg.enabled) return;
+  if(GSR.busy){ if(!GSR.ui){ GSR.ui = {phase:"error", sel:new Set(), error:"A repair step is already running in this browser. Try again in a moment."}; gsrRenderModal(); } return; }
+  GSR.ui = {phase:"loading", sel:new Set(), ack:false}; gsrRenderModal();
+  return gsrLoadPreview();
+}
+/* the old "Reset unlinks" path is gone: it re-created the same cancelled id and looped. Workout unlinks are only handled by the reviewed repair. Routine-task mappings are never reset. */
+async function gsResetUnlinks(){ return gsrOpen(); }
+function gsrCardHtml(){
+  const un = gsrUnfinished();
+  let h = "";
+  if(GSR.state === "corrupt") h += `<p class="gsr-card-msg bad">The workout repair record on this device can't be read, so Calendar event sync is paused to stay safe. Open &ldquo;Review workout exports&rdquo; to set it aside.</p>`;
+  else if(GSR.state === "newer") h += `<p class="gsr-card-msg bad">The workout repair record on this device was written by a newer version of KoT, so Calendar event sync is paused. Update KoT.</p>`;
+  else if(GSR.state === "unknown") h += `<p class="gsr-card-msg bad">The workout repair record couldn't be read just now, so Calendar event sync is paused. It will retry.</p>`;
+  if(un.length) h += `<p class="gsr-card-msg warn">Unfinished workout repair: ${un.length} workout${un.length === 1 ? "" : "s"} paused. Open &ldquo;Review workout exports&rdquo; to resume.</p>`;
+  if(GSR.busy) h += `<p class="gsr-card-msg">A workout repair step is running in this browser. Sync resumes right after.</p>`;
+  return h;
 }
 
 /* ---------- UI ---------- */
@@ -4558,12 +5150,13 @@ function renderGSCard(){
       </div>
       ${GS.lastError?`<p style="font-size:12px; color:var(--red); margin-top:8px;">${esc(GS.lastError)}</p>`:""}
       ${(GS.notes||[]).map(n=>`<p style="font-size:12px; color:var(--ink-600); margin-top:6px;">${esc(n)}</p>`).join("")}
+      ${gsrCardHtml()}
       <div class="save-row">
         <button class="btn btn-primary" data-gs-sync="1">${GS.running?'Syncing…':'Sync Now'}</button>
         ${GS.blocked||GS.errCode==='auth'||GS.errCode==='scope'?`<button class="btn btn-primary" data-gs-connect="1">Reconnect</button>`:""}
         ${GS.extFailed?`<button class="btn btn-ghost" data-gs-connectbase="1">Connect without calendar reading</button>`:""}
         ${GS.blocked?`<button class="btn btn-ghost" data-gs-switch="1">Switch account</button>`:""}
-        <button class="btn btn-ghost" data-gs-relink="1" title="Re-create events/tasks you deleted in Google">Reset unlinks</button>
+        <button class="btn btn-ghost" data-gs-review="1" ${GSR.busy?'disabled':''} title="See which workout events are cancelled or missing in Google, and re-create only the ones you choose">Review workout exports…</button>
         <button class="btn btn-ghost" data-gs-disconnect="1">Disconnect</button>
       </div>
       ${gsRenderExtras()}
@@ -4593,13 +5186,13 @@ function gsRenderUI(){
   }catch(e){}
 }
 function gsOnClick(e){
-  const t = e.target.closest && e.target.closest("[data-gs-connect],[data-gs-disconnect],[data-gs-sync],[data-gs-retry],[data-gs-switch],[data-gs-relink],[data-gs-connectbase]");
+  const t = e.target.closest && e.target.closest("[data-gs-connect],[data-gs-disconnect],[data-gs-sync],[data-gs-retry],[data-gs-switch],[data-gs-review],[data-gs-connectbase]");
   if(!t) return;
   if(t.hasAttribute("data-gs-connectbase")) gsConnect(true);
   else if(t.hasAttribute("data-gs-connect")) gsConnect();
   else if(t.hasAttribute("data-gs-disconnect")) gsDisconnect();
   else if(t.hasAttribute("data-gs-switch")) gsSwitchAccount();
-  else if(t.hasAttribute("data-gs-relink")) gsResetUnlinks();
+  else if(t.hasAttribute("data-gs-review")) gsrOpen();
   else if(t.hasAttribute("data-gs-retry")){ (GS.blocked||GS.errCode==="auth"||GS.errCode==="scope") ? gsConnect() : gsCycle("retry"); }
   else gsCycle("manual");
 }
@@ -4620,7 +5213,7 @@ function gsScope(){
 }
 /* the Tasks leg runs only when the setting is on AND Google granted Tasks access; otherwise the whole step is skipped */
 function gsRoutineOn(){ return !!(GS.opts && GS.opts.routineTasks) && GS.grant.tasks !== false; }
-async function gsSaveOpts(){ await saveJSON("gsync:opts", GS.opts); }
+async function gsSaveOpts(){ await gsrWaitIdle(); await saveJSON("gsync:opts", GS.opts); }
 
 /* ---------- read-only Google Calendar events for the Day view ---------- */
 function gsGcalOn(){ return !!(GS.cfg && GS.cfg.enabled) && !GS.blocked && GS.grant.read !== false && GS.gcal.err !== "scope"; }
@@ -12357,6 +12950,10 @@ async function saveExerciseFromForm(){
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
